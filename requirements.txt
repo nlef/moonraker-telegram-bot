@@ -1,0 +1,5 @@
+python-telegram-bot
+websocket~=0.2.1
+websocket-client~=0.57.0
+Pillow>=5.4.1
+pyhocon~=0.3.57
