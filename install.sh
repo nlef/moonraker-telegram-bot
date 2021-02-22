@@ -1,14 +1,21 @@
 SYSTEMDDIR="/etc/systemd/system"
-MOONRAKER_ENV="${HOME}/moonraker-telegram-bot/venv"
-MOONRAKER_DIR="${HOME}/moonraker-telegram-bot"
+MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot/venv"
+MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
+
+### stop existing instance
+echo "Stopping moonraker-telegram-bot instance ..."
+sudo systemctl stop moonraker-telegram-bot
 
 # check versions from repos https://packages.debian.org/search?arch=armhf&searchon=sourcenames&keywords=pillow
 sudo apt install -y python3-cryptography python3-pil python3-opencv python3-gevent
 
 mkdir -p ${HOME}/space
-virtualenv -p /usr/bin/python3 --system-site-packages ${MOONRAKER_ENV}
+virtualenv -p /usr/bin/python3 --system-site-packages ${MOONRAKER_BOT_ENV}
 export TMPDIR=${HOME}/space
-${MOONRAKER_ENV}/bin/pip install -r ${MOONRAKER_DIR}/requirements.txt
+${MOONRAKER_BOT_ENV}/bin/pip install -r ${MOONRAKER_BOT_DIR}/requirements.txt
+
+# create symlink on configfile
+ln -s ${MOONRAKER_BOT_DIR}/application.conf ~/klipper_config/application.conf
 
 ### create systemd service file
 sudo /bin/sh -c "cat > ${SYSTEMDDIR}/moonraker-telegram-bot.service" << EOF
@@ -24,7 +31,7 @@ WantedBy=multi-user.target
 Type=simple
 User=klipper
 RemainAfterExit=yes
-ExecStart=${MOONRAKER_ENV}/bin/python ${MOONRAKER_DIR}/main.py -c ${MOONRAKER_DIR}/application.conf
+ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/main.py -c ${MOONRAKER_BOT_DIR}/application.conf
 Restart=always
 RestartSec=10
 EOF
