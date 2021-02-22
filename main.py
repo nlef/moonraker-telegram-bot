@@ -118,7 +118,7 @@ def getVideo(update: Update, context: CallbackContext) -> None:
 
 def start_bot(token):
     # Create the Updater and pass it your bot's token.
-    updater = Updater(token)
+    updater = Updater(token, workers=1) # we have too small ram on oPi zero...
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
