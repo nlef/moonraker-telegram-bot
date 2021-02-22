@@ -3,7 +3,7 @@
 ## Features
 - Photo&Gif creation without using filesystem
 - Systemd service
-- photon notifications on Z-heigth & percentage
+- photo notifications on Z-heigth & percentage
 
 ## telegram bot commands list
 This list of commands is usefull during bot creation/editing with BotFather

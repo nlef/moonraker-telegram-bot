@@ -1,6 +1,7 @@
 SYSTEMDDIR="/etc/systemd/system"
 MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot/venv"
 MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
+CURRENT_USER=${USER}
 
 ### stop existing instance
 echo "Stopping moonraker-telegram-bot instance ..."
@@ -29,7 +30,7 @@ WantedBy=multi-user.target
 
 [Service]
 Type=simple
-User=klipper
+User=${CURRENT_USER}
 RemainAfterExit=yes
 ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/main.py -c ${MOONRAKER_BOT_DIR}/application.conf
 Restart=always

@@ -118,7 +118,7 @@ def getVideo(update: Update, context: CallbackContext) -> None:
 
 def start_bot(token):
     # Create the Updater and pass it your bot's token.
-    updater = Updater(token, workers=1) # we have too small ram on oPi zero...
+    updater = Updater(token, workers=1)  # we have too small ram on oPi zero...
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -149,7 +149,6 @@ def on_close(ws):
 
 def on_open(ws):
     # ws.send(json.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": myId}))
-
     # Todo: get WebSocket Id from server
     # add subscription on printer objects changes
     ws.send(
@@ -176,7 +175,7 @@ def response_to_message(response):
         message += f"Print time: {duration} \n" \
                    f"Total print time: {total_time} \n" \
                    f"Printing filename: {print_stats['filename']} \n" \
-                   f"Used filament: {round(print_stats['filament_used'] / 100, 2)}m"
+                   f"Used filament: {round(print_stats['filament_used'] / 100, 2)}mm"
     return message
 
 
@@ -249,9 +248,6 @@ if __name__ == '__main__':
 
 
     # websocket.enableTrace(True)
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket",
-                                on_message=on_message,
-                                on_error=on_error,
-                                on_close=on_close)
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
     ws.run_forever()
