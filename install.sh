@@ -20,6 +20,12 @@ read -p "Enter your klipper configs path: " -e -i "${KLIPPER_CONF_DIR}" klip_con
 KLIPPER_CONF_DIR=${klip_conf_dir}
 echo "Using configs from ${KLIPPER_CONF_DIR}"
 
+# unlink old symlink
+unlink ${KLIPPER_CONF_DIR}/application.conf
+
+# copy configfile if not exists
+cp -n ${MOONRAKER_BOT_DIR}/application.conf ${KLIPPER_CONF_DIR}/application.conf
+
 ### create systemd service file
 sudo /bin/sh -c "cat > ${SYSTEMDDIR}/moonraker-telegram-bot.service" <<EOF
 #Systemd service file for Moonraker Telegram Bot
