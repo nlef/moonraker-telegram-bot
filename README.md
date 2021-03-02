@@ -1,7 +1,7 @@
 # moonraker-telegram-bot
 
 ## Features
-- Photo&Gif creation without using filesystem
+- Photo&Gif creation without using filesystem (with rotations & resizing for gifs)
 - Systemd service
 - photo notifications on Z-heigth & percentage
 
@@ -28,6 +28,17 @@ bash ./install.sh
 
 Then edit your config (application.conf) using fluidd web interface or some other way
 
+### Moonraker update section
+
+```
+[update_manager client moonraker-telegram-bot]
+type: git_repo
+path: /home/klipper/moonraker-telegram-bot
+origin: https://github.com/nlef/moonraker-telegram-bot.git
+env: /home/klipper/moonraker-telegram-bot/venv/bin/python
+requirements: /home/klipper/moonraker-telegram-bot/requirements.txt
+install_script: /home/klipper/moonraker-telegram-bot/install.sh
+```
 
 ---
 

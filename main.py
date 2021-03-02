@@ -36,6 +36,9 @@ host = "localhost"
 chatId = 12341234
 notify_percent = 5
 notify_heigth = 5
+flipVertically = False
+flipHorisontally = False
+reduceGif = 2
 
 last_notify_heigth: int = 0
 
@@ -63,10 +66,14 @@ def status(update: Update, context: CallbackContext) -> None:
 
 def getPhoto(update: Update, context: CallbackContext) -> None:
     url = f"http://{host}:8080/?action=snapshot"
-    im = Image.open(urlopen(url))
+    img = Image.open(urlopen(url))
+    if flipVertically:
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+    if flipHorisontally:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
     bio = BytesIO()
     bio.name = 'status.jpeg'
-    im.save(bio, 'JPEG')
+    img.save(bio, 'JPEG')
     bio.seek(0)
     update.message.reply_photo(photo=bio)
 
@@ -77,21 +84,30 @@ def getGif(update: Update, context: CallbackContext) -> None:
     cap = cv2.VideoCapture(url)
     success, image = cap.read()
     height, width, channels = image.shape
-    gif.append(Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)))
+    img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    if flipVertically:
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+    if flipHorisontally:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    if reduceGif > 1:
+        img = img.resize((int(width / 2), int(height / 2)))
+    gif.append(img)
 
     fps = 0
     # Todo: rewrite with fps & duration in seconds
     while success and len(gif) < 25:
         prev_frame_time = time.time()
         success, image_inner = cap.read()
-        # if np.bitwise_xor(image, image_inner).any():
-        #     gif.append(Image.fromarray(cv2.cvtColor(image_inner, cv2.COLOR_BGR2RGB)))
-        #     image = image_inner
-        gif.append(Image.fromarray(cv2.cvtColor(image_inner, cv2.COLOR_BGR2RGB)))
+        img_loc = Image.fromarray(cv2.cvtColor(image_inner, cv2.COLOR_BGR2RGB))
         new_frame_time = time.time()
+        if flipVertically:
+            img_loc = img_loc.transpose(Image.FLIP_TOP_BOTTOM)
+        if flipHorisontally:
+            img_loc = img_loc.transpose(Image.FLIP_LEFT_RIGHT)
+        if reduceGif > 1:
+            img_loc = img_loc.resize((int(width / 2), int(height / 2)))
+        gif.append(img_loc)
         fps = 1 / (new_frame_time - prev_frame_time)
-        # Todo: add cam fps to config!
-        # time.sleep(0.5)
 
     cap.release()
 
@@ -108,12 +124,36 @@ def getGif(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(response_to_message(response))
 
 
+# we must use filesystem or write own apiPreference
 def getVideo(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(update.message.text)
+    url = f"http://{host}:8080/?action=stream"
+    cap = cv2.VideoCapture(url)
+    success, image = cap.read()
+    height, width, channels = image.shape
+    bio = BytesIO()
+    bio.name = 'video.mp4'
+    out = cv2.VideoWriter(bio, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=20, frameSize=(width, height))
+    i = 0
+    # Todo: rewrite with fps & duration in seconds
+    while success and i < 25:
+        success, image_inner = cap.read()
+        out.write(image_inner)
+        i += 1
+
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
+    bio.seek(0)
+    update.message.reply_video(video=bio, width=width, height=height)
 
     # video must be converted to mp4 or something alike
     # bio.seek(0)
     # update.message.reply_video(video=bio)
+    # response = urllib.request.urlopen(
+    #     f"http://{host}/printer/objects/query?print_stats=filename,total_duration,print_duration,filament_used,state,message")
+    # update.message.reply_text(response_to_message(response))
 
 
 def start_bot(token):
@@ -234,6 +274,9 @@ if __name__ == '__main__':
     chatId = conf.get_string('chat_id')
     notify_percent = conf.get('notify.percent')
     notify_heigth = conf.get('notify.heigth')
+    flipHorisontally = conf.get('camera.flipHorisontally')
+    flipVertically = conf.get('camera.flipVertically')
+    reduceGif = conf.get('camera.reduceGif')
 
     botUpdater = start_bot(token)
 
@@ -251,3 +294,8 @@ if __name__ == '__main__':
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
     ws.run_forever()
+    print("Exiting! Moonraker connection lost!")
+    botUpdater.stop()
+    # while True:
+    #     ws.run_forever()
+    #     print("Restarting websocket!")
