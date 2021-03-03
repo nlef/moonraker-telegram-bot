@@ -16,9 +16,10 @@ virtualenv -p /usr/bin/python3 --system-site-packages ${MOONRAKER_BOT_ENV}
 export TMPDIR=${HOME}/space
 ${MOONRAKER_BOT_ENV}/bin/pip install -r ${MOONRAKER_BOT_DIR}/requirements.txt
 
+echo -e "\n\n\n"
 read -p "Enter your klipper configs path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
 KLIPPER_CONF_DIR=${klip_conf_dir}
-echo "Using configs from ${KLIPPER_CONF_DIR}"
+echo -e "\nUsing configs from ${KLIPPER_CONF_DIR}\n"
 
 # unlink old symlink
 unlink ${KLIPPER_CONF_DIR}/application.conf

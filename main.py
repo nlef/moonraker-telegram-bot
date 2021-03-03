@@ -64,7 +64,7 @@ def status(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(response_to_message(response))
 
 
-def getPhoto(update: Update, context: CallbackContext) -> None:
+def take_photo() -> BytesIO:
     url = f"http://{host}:8080/?action=snapshot"
     img = Image.open(urlopen(url))
     if flipVertically:
@@ -75,7 +75,22 @@ def getPhoto(update: Update, context: CallbackContext) -> None:
     bio.name = 'status.jpeg'
     img.save(bio, 'JPEG')
     bio.seek(0)
-    update.message.reply_photo(photo=bio)
+    return bio
+
+
+def process_frame(frame, width, height) -> Image:
+    image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    if flipVertically:
+        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+    if flipHorisontally:
+        image = image.transpose(Image.FLIP_LEFT_RIGHT)
+    if reduceGif > 1:
+        image = image.resize((int(width / 2), int(height / 2)))
+    return image
+
+
+def getPhoto(update: Update, context: CallbackContext) -> None:
+    update.message.reply_photo(photo=take_photo())
 
 
 def getGif(update: Update, context: CallbackContext) -> None:
@@ -84,36 +99,21 @@ def getGif(update: Update, context: CallbackContext) -> None:
     cap = cv2.VideoCapture(url)
     success, image = cap.read()
     height, width, channels = image.shape
-    img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    if flipVertically:
-        img = img.transpose(Image.FLIP_TOP_BOTTOM)
-    if flipHorisontally:
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
-    if reduceGif > 1:
-        img = img.resize((int(width / 2), int(height / 2)))
-    gif.append(img)
+    gif.append(process_frame(image, width, height))
 
     fps = 0
     # Todo: rewrite with fps & duration in seconds
     while success and len(gif) < 25:
         prev_frame_time = time.time()
         success, image_inner = cap.read()
-        img_loc = Image.fromarray(cv2.cvtColor(image_inner, cv2.COLOR_BGR2RGB))
         new_frame_time = time.time()
-        if flipVertically:
-            img_loc = img_loc.transpose(Image.FLIP_TOP_BOTTOM)
-        if flipHorisontally:
-            img_loc = img_loc.transpose(Image.FLIP_LEFT_RIGHT)
-        if reduceGif > 1:
-            img_loc = img_loc.resize((int(width / 2), int(height / 2)))
-        gif.append(img_loc)
+        gif.append(process_frame(image_inner, width, height))
         fps = 1 / (new_frame_time - prev_frame_time)
 
     cap.release()
 
     bio = BytesIO()
     bio.name = 'image.gif'
-    # Todo: cal duration from fps!
     gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
                 loop=0)
     bio.seek(0)
@@ -196,7 +196,7 @@ def on_open(ws):
                     "method": "printer.objects.subscribe",
                     "params": {
                         "objects": {
-                            # "print_stats": ["filename", "total_duration", "print_duration", "state", "message"],
+                            "print_stats": ["filename", "state"],
                             "display_status": ['progress', 'message'],
                             'toolhead': ['position']
                         }
@@ -209,13 +209,11 @@ def response_to_message(response):
     resp = json.loads(response.read())
     print_stats = resp['result']['status']['print_stats']
     total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
-    duration = time.strftime("%H:%M:%S", time.gmtime(print_stats['print_duration']))
     message = emoji.emojize(':robot: Printer status: ') + f"{print_stats['state']} \n"
     if print_stats['state'] in ('printing', 'paused', 'complete'):
-        message += f"Print time: {duration} \n" \
-                   f"Total print time: {total_time} \n" \
+        message += f"Print time: {total_time} \n" \
                    f"Printing filename: {print_stats['filename']} \n" \
-                   f"Used filament: {round(print_stats['filament_used'] / 100, 2)}mm"
+                   f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
     return message
 
 
@@ -232,14 +230,7 @@ def websocket_to_message(ws_message, botUpdater):
         if 'display_status' in j_message["params"][0]:
             progress = j_message["params"][0]['display_status']['progress']
             if notify_percent != 0 and int(progress * 100) % notify_percent == 0:
-                # todo: refactor to helper package
-                url = f"http://{host}:8080/?action=snapshot"
-                im = Image.open(urlopen(url))
-                bio = BytesIO()
-                bio.name = 'status.jpeg'
-                im.save(bio, 'JPEG')
-                bio.seek(0)
-                botUpdater.bot.send_photo(chatId, photo=bio, disable_notification=True)
+                botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {int(progress * 100)}%")
         if 'toolhead' in j_message["params"][0] and 'position' in j_message["params"][0]['toolhead']:
             position = j_message["params"][0]['toolhead']['position'][2]
@@ -248,16 +239,14 @@ def websocket_to_message(ws_message, botUpdater):
             if int(position) < last_notify_heigth - notify_heigth * 2:
                 last_notify_heigth = int(position)
             if notify_heigth != 0 and int(position) % notify_heigth == 0 and int(position) > last_notify_heigth:
-                # todo: refactor to helper package
-                url = f"http://{host}:8080/?action=snapshot"
-                im = Image.open(urlopen(url))
-                bio = BytesIO()
-                bio.name = 'status.jpeg'
-                im.save(bio, 'JPEG')
-                bio.seek(0)
-                botUpdater.bot.send_photo(chatId, photo=bio, disable_notification=True)
+                botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {round(position, 2)}mm")
                 last_notify_heigth = int(position)
+        if 'print_stats' in j_message['params'][0]:
+            message = ""
+            if 'state' in j_message['params'][0]['print_stats']:
+                message += f"Printer state change: {j_message['params'][0]['print_stats']['state']}"
+            botUpdater.bot.send_message(chatId, text=message)
 
 
 if __name__ == '__main__':
