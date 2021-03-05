@@ -33,11 +33,11 @@ Then edit your config (application.conf) using fluidd web interface or some othe
 ```
 [update_manager client moonraker-telegram-bot]
 type: git_repo
-path: /home/klipper/moonraker-telegram-bot
+path: ~/moonraker-telegram-bot
 origin: https://github.com/nlef/moonraker-telegram-bot.git
-env: /home/klipper/moonraker-telegram-bot/venv/bin/python
-requirements: /home/klipper/moonraker-telegram-bot/requirements.txt
-install_script: /home/klipper/moonraker-telegram-bot/install.sh
+env: ~/moonraker-telegram-bot/venv/bin/python
+requirements: requirements.txt
+install_script: install.sh
 ```
 
 ---
