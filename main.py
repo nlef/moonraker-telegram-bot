@@ -33,12 +33,17 @@ logger = logging.getLogger(__name__)
 # some global params
 myId = random.randint(300000)
 host = "localhost"
+cameraHost = "localhost:8080"
 chatId = 12341234
 notify_percent = 5
 notify_heigth = 5
 flipVertically = False
 flipHorisontally = False
 reduceGif = 2
+poweroff_device: str
+debug = False
+
+ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
 
@@ -50,7 +55,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def echo(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(update.message.text)
+    update.message.reply_text(f"unknown command: {update.message.text}")
 
 
 def info(update: Update, context: CallbackContext) -> None:
@@ -58,14 +63,30 @@ def info(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(json.loads(response.read()))
 
 
-def status(update: Update, context: CallbackContext) -> None:
+def get_status() -> str:
     response = urllib.request.urlopen(
-        f"http://{host}/printer/objects/query?print_stats=filename,total_duration,print_duration,filament_used,state,message")
-    update.message.reply_text(response_to_message(response))
+        f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message")
+    resp = json.loads(response.read())
+    print_stats = resp['result']['status']['print_stats']
+    webhook = resp['result']['status']['webhooks']
+    total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
+    message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']} \n"
+    if 'state_message' in webhook:
+        message += f"State message: {webhook['state_message']}\n"
+    message += emoji.emojize(':mechanical_arm: Printing process status: ') + f"{print_stats['state']} \n"
+    if print_stats['state'] in ('printing', 'paused', 'complete'):
+        message += f"Print time: {total_time} \n" \
+                   f"Printing filename: {print_stats['filename']} \n" \
+                   f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
+    return message
+
+
+def status(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(get_status())
 
 
 def take_photo() -> BytesIO:
-    url = f"http://{host}:8080/?action=snapshot"
+    url = f"http://{cameraHost}/?action=snapshot"
     img = Image.open(urlopen(url))
     if flipVertically:
         img = img.transpose(Image.FLIP_TOP_BOTTOM)
@@ -89,13 +110,13 @@ def process_frame(frame, width, height) -> Image:
     return image
 
 
-def getPhoto(update: Update, context: CallbackContext) -> None:
+def get_photo(update: Update, context: CallbackContext) -> None:
     update.message.reply_photo(photo=take_photo())
 
 
-def getGif(update: Update, context: CallbackContext) -> None:
+def get_gif(update: Update, context: CallbackContext) -> None:
     gif = []
-    url = f"http://{host}:8080/?action=stream"
+    url = f"http://{cameraHost}/?action=stream"
     cap = cv2.VideoCapture(url)
     success, image = cap.read()
     height, width, channels = image.shape
@@ -117,17 +138,15 @@ def getGif(update: Update, context: CallbackContext) -> None:
     gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
                 loop=0)
     bio.seek(0)
-    update.message.reply_animation(animation=bio, width=width, height=height)
+    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60)
 
-    response = urllib.request.urlopen(
-        f"http://{host}/printer/objects/query?print_stats=filename,total_duration,print_duration,filament_used,state,message")
-    update.message.reply_text(response_to_message(response))
+    update.message.reply_text(get_status())
 
 
 # we must use filesystem or write own apiPreference
-def getVideo(update: Update, context: CallbackContext) -> None:
+def get_video(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(update.message.text)
-    url = f"http://{host}:8080/?action=stream"
+    url = f"http://{cameraHost}/?action=stream"
     cap = cv2.VideoCapture(url)
     success, image = cap.read()
     height, width, channels = image.shape
@@ -147,13 +166,28 @@ def getVideo(update: Update, context: CallbackContext) -> None:
 
     bio.seek(0)
     update.message.reply_video(video=bio, width=width, height=height)
+    # update.message.reply_text(get_status())
 
-    # video must be converted to mp4 or something alike
-    # bio.seek(0)
-    # update.message.reply_video(video=bio)
-    # response = urllib.request.urlopen(
-    #     f"http://{host}/printer/objects/query?print_stats=filename,total_duration,print_duration,filament_used,state,message")
-    # update.message.reply_text(response_to_message(response))
+
+def manage_printing(command: str) -> None:
+    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
+
+
+def pause_printing(update: Update, context: CallbackContext) -> None:
+    manage_printing('pause')
+
+
+def resume_printing(update: Update, context: CallbackContext) -> None:
+    manage_printing('resume')
+
+
+def cancel_printing(update: Update, context: CallbackContext) -> None:
+    manage_printing('cancel')
+
+
+def power_off(update: Update, context: CallbackContext) -> None:
+    ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
+                        "params": {f"{poweroff_device}": None}}))
 
 
 def start_bot(token):
@@ -166,9 +200,12 @@ def start_bot(token):
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("status", status))
-    dispatcher.add_handler(CommandHandler("info", status))
-    dispatcher.add_handler(CommandHandler("photo", getPhoto))
-    dispatcher.add_handler(CommandHandler("gif", getGif))
+    dispatcher.add_handler(CommandHandler("photo", get_photo))
+    dispatcher.add_handler(CommandHandler("gif", get_gif))
+    dispatcher.add_handler(CommandHandler("pause", pause_printing))
+    dispatcher.add_handler(CommandHandler("resume", resume_printing))
+    dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
+    dispatcher.add_handler(CommandHandler("poweroff", power_off))
 
     # on noncommand i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
@@ -188,7 +225,6 @@ def on_close(ws):
 
 
 def on_open(ws):
-    # ws.send(json.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": myId}))
     # Todo: get WebSocket Id from server
     # add subscription on printer objects changes
     ws.send(
@@ -204,23 +240,18 @@ def on_open(ws):
                     "id": myId}))
 
 
-# Todo: move t helper package.
-def response_to_message(response):
-    resp = json.loads(response.read())
-    print_stats = resp['result']['status']['print_stats']
-    total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
-    message = emoji.emojize(':robot: Printer status: ') + f"{print_stats['state']} \n"
-    if print_stats['state'] in ('printing', 'paused', 'complete'):
-        message += f"Print time: {total_time} \n" \
-                   f"Printing filename: {print_stats['filename']} \n" \
-                   f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
-    return message
-
-
 def websocket_to_message(ws_message, botUpdater):
     j_message = json.loads(ws_message)
-    if __debug__:
+    if debug:
         print(ws_message)
+
+    if 'id' in j_message and 'result' in j_message:
+        if 'status' in j_message['result']:
+            return
+        botUpdater.bot.send_message(chatId, text=f"{j_message['result']}")
+    if 'id' in j_message and 'error' in j_message:
+        botUpdater.bot.send_message(chatId, text=f"{j_message['error']['message']}")
+
     # if ws_message["method"] == "notify_gcode_response":
     #     val = ws_message["params"][0]
     #     # Todo: add global state for mcu disconnects!
@@ -246,7 +277,8 @@ def websocket_to_message(ws_message, botUpdater):
             message = ""
             if 'state' in j_message['params'][0]['print_stats']:
                 message += f"Printer state change: {j_message['params'][0]['print_stats']['state']}"
-            botUpdater.bot.send_message(chatId, text=message)
+            if message:
+                botUpdater.bot.send_message(chatId, text=message)
 
 
 if __name__ == '__main__':
@@ -261,30 +293,31 @@ if __name__ == '__main__':
     host = conf.get_string('server')
     token = conf.get_string('bot_token')
     chatId = conf.get_string('chat_id')
-    notify_percent = conf.get('notify.percent')
-    notify_heigth = conf.get('notify.heigth')
-    flipHorisontally = conf.get('camera.flipHorisontally')
-    flipVertically = conf.get('camera.flipVertically')
-    reduceGif = conf.get('camera.reduceGif')
+    notify_percent = conf.get_int('notify.percent', 5)
+    notify_heigth = conf.get_int('notify.heigth', 5)
+    flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
+    flipVertically = conf.get_bool('camera.flipVertically', False)
+    reduceGif = conf.get_int('camera.reduceGif', 0)
+    cameraHost = conf.get_string('camera.host', f"{host}:8080")
+    poweroff_device = conf.get_string('poweroff_device')
+    debug = conf.get_bool('debug', False)
 
     botUpdater = start_bot(token)
 
 
     # websocket communication
     def on_message(ws, message):
-        jsonMess = json.loads(message)
-        if 'id' in jsonMess:
-            botUpdater.dispatcher.bot.send_message(chatId, message)
-        else:
-            websocket_to_message(message, botUpdater)
+        websocket_to_message(message, botUpdater)
 
 
-    # websocket.enableTrace(True)
+    if debug:
+        websocket.enableTrace(True)
+
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
+
+    botUpdater.bot.send_message(chatId, text=get_status())
+
     ws.run_forever()
     print("Exiting! Moonraker connection lost!")
     botUpdater.stop()
-    # while True:
-    #     ws.run_forever()
-    #     print("Restarting websocket!")

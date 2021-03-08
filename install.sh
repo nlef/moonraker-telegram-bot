@@ -1,5 +1,5 @@
 SYSTEMDDIR="/etc/systemd/system"
-MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot/venv"
+MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
 MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
 KLIPPER_CONF_DIR="${HOME}/klipper_config"
 CURRENT_USER=${USER}

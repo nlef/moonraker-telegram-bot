@@ -9,8 +9,12 @@
 This list of commands is usefull during bot creation/editing with BotFather
 ```
     status - send klipper status
+    pause - pause printing
+    resume - resume printing
+    cancel - cancel printing
     photo - capture & send me a photo
     gif - let's make some gif from printer cam
+    poweroff - turn off moonraker power device from config
 ```
 
 ## Bot installation
@@ -35,7 +39,7 @@ Then edit your config (application.conf) using fluidd web interface or some othe
 type: git_repo
 path: ~/moonraker-telegram-bot
 origin: https://github.com/nlef/moonraker-telegram-bot.git
-env: ~/moonraker-telegram-bot/venv/bin/python
+env: ~/moonraker-telegram-bot-env/bin/python
 requirements: requirements.txt
 install_script: install.sh
 ```
