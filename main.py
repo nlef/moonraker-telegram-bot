@@ -241,30 +241,30 @@ def on_open(ws):
 
 
 def websocket_to_message(ws_message, botUpdater):
-    j_message = json.loads(ws_message)
+    json_message = json.loads(ws_message)
     if debug:
         print(ws_message)
 
-    if 'id' in j_message and 'result' in j_message:
-        if 'status' in j_message['result']:
+    if 'id' in json_message and 'result' in json_message:
+        if 'status' in json_message['result']:
             return
-        botUpdater.bot.send_message(chatId, text=f"{j_message['result']}")
-    if 'id' in j_message and 'error' in j_message:
-        botUpdater.bot.send_message(chatId, text=f"{j_message['error']['message']}")
+        botUpdater.bot.send_message(chatId, text=f"{json_message['result']}")
+    if 'id' in json_message and 'error' in json_message:
+        botUpdater.bot.send_message(chatId, text=f"{json_message['error']['message']}")
 
     # if ws_message["method"] == "notify_gcode_response":
     #     val = ws_message["params"][0]
     #     # Todo: add global state for mcu disconnects!
     #     if 'Lost communication with MCU' not in ws_message["params"][0]:
     #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
-    if j_message["method"] == "notify_status_update":
-        if 'display_status' in j_message["params"][0]:
-            progress = j_message["params"][0]['display_status']['progress']
+    if json_message["method"] == "notify_status_update":
+        if 'display_status' in json_message["params"][0]:
+            progress = json_message["params"][0]['display_status']['progress']
             if notify_percent != 0 and int(progress * 100) % notify_percent == 0:
                 botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {int(progress * 100)}%")
-        if 'toolhead' in j_message["params"][0] and 'position' in j_message["params"][0]['toolhead']:
-            position = j_message["params"][0]['toolhead']['position'][2]
+        if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
+            position = json_message["params"][0]['toolhead']['position'][2]
             global last_notify_heigth
             ##when we print objects in series
             if int(position) < last_notify_heigth - notify_heigth * 2:
@@ -273,10 +273,21 @@ def websocket_to_message(ws_message, botUpdater):
                 botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {round(position, 2)}mm")
                 last_notify_heigth = int(position)
-        if 'print_stats' in j_message['params'][0]:
+        if 'print_stats' in json_message['params'][0]:
             message = ""
-            if 'state' in j_message['params'][0]['print_stats']:
-                message += f"Printer state change: {j_message['params'][0]['print_stats']['state']}"
+            state = ""
+            filename = ""
+            if 'filename' in json_message['params'][0]['print_stats']:
+                filename = json_message['params'][0]['print_stats']['filename']
+            if 'state' in json_message['params'][0]['print_stats']:
+                state = json_message['params'][0]['print_stats']['state']
+
+            if state and filename:
+                if state == "printing":
+                    message += f"Printer started printing: {filename} \n"
+            elif state:
+                message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
+
             if message:
                 botUpdater.bot.send_message(chatId, text=message)
 
