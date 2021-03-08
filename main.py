@@ -186,8 +186,11 @@ def cancel_printing(update: Update, context: CallbackContext) -> None:
 
 
 def power_off(update: Update, context: CallbackContext) -> None:
-    ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
-                        "params": {f"{poweroff_device}": None}}))
+    if poweroff_device:
+        ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
+                            "params": {f"{poweroff_device}": None}}))
+    else:
+        update.message.reply_text("No power device in config!")
 
 
 def start_bot(token):
@@ -310,7 +313,7 @@ if __name__ == '__main__':
     flipVertically = conf.get_bool('camera.flipVertically', False)
     reduceGif = conf.get_int('camera.reduceGif', 0)
     cameraHost = conf.get_string('camera.host', f"{host}:8080")
-    poweroff_device = conf.get_string('poweroff_device')
+    poweroff_device = conf.get_string('poweroff_device', "")
     debug = conf.get_bool('debug', False)
 
     botUpdater = start_bot(token)
