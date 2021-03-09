@@ -46,6 +46,7 @@ debug = False
 ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
+last_notify_percent: int = 0
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -262,15 +263,18 @@ def websocket_to_message(ws_message, botUpdater):
     #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
-            progress = json_message["params"][0]['display_status']['progress']
-            if notify_percent != 0 and int(progress * 100) % notify_percent == 0:
+            progress = int(json_message["params"][0]['display_status']['progress'] * 100)
+            global last_notify_percent
+            if progress < last_notify_percent - notify_percent:
+                last_notify_percent = progress
+            if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
                 botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {int(progress * 100)}%")
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position = json_message["params"][0]['toolhead']['position'][2]
             global last_notify_heigth
             ##when we print objects in series
-            if int(position) < last_notify_heigth - notify_heigth * 2:
+            if int(position) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position)
             if notify_heigth != 0 and int(position) % notify_heigth == 0 and int(position) > last_notify_heigth:
                 botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
