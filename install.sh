@@ -9,7 +9,10 @@ echo "Stopping moonraker-telegram-bot instance ..."
 sudo systemctl stop moonraker-telegram-bot
 
 ## check versions from repos https://packages.debian.org/search?arch=armhf&searchon=sourcenames&keywords=pillow
-sudo apt install -y python3-cryptography python3-pil python3-opencv python3-gevent
+PKGLIST="python3-cryptography"
+PKGLIST="${PKGLIST} python3-pil python3-opencv python3-gevent"
+sudo apt-get update
+sudo apt install -yes ${PKGLIST}
 
 mkdir -p ${HOME}/space
 virtualenv -p /usr/bin/python3 --system-site-packages ${MOONRAKER_BOT_ENV}
