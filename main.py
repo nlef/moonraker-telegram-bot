@@ -270,6 +270,7 @@ def websocket_to_message(ws_message, botUpdater):
             if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
                 botUpdater.bot.send_photo(chatId, photo=take_photo(), disable_notification=True)
                 botUpdater.bot.send_message(chatId, text=f"Printed {progress}%")
+                last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position = json_message["params"][0]['toolhead']['position'][2]
             global last_notify_heigth
