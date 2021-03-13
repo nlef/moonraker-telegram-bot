@@ -31,8 +31,19 @@ bash ./install.sh
 ```
 
 Then edit your config (application.conf) using fluidd web interface or some other way
-
 ### Moonraker update section
+
+### Configuration
+Some tips to set up your telegram bot.
+- server should point to your moonraker host (like "192.168.1.50") You would better set it to your raspberry/orange host IP for default setup with Kiauh.
+- bot_token - token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
+- chat_id - id for your chat with bot. To get this id, after creating a new bot write something to this bot, then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
+  you will see json with information about your message, sent to the bot. Find chat_id there.
+
+
+### Helpfull console commands
+- check logs: ```sudo journalctl -r -u moonraker-telegram-bot```
+- restart service (e.g. to read changes in config): ```sudo systemctl restart moonraker-telegram-bot```
 
 ```
 [update_manager client moonraker-telegram-bot]
