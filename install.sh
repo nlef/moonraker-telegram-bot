@@ -12,7 +12,7 @@ sudo systemctl stop moonraker-telegram-bot
 PKGLIST="python3-cryptography"
 PKGLIST="${PKGLIST} python3-pil python3-opencv python3-gevent"
 sudo apt-get update
-sudo apt install -yes ${PKGLIST}
+sudo apt install -y ${PKGLIST}
 
 mkdir -p ${HOME}/space
 virtualenv -p /usr/bin/python3 --system-site-packages ${MOONRAKER_BOT_ENV}

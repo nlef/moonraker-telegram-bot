@@ -1,5 +1,7 @@
 import argparse
 import logging
+import os
+
 from numpy import random
 
 from telegram import Update
@@ -39,6 +41,7 @@ notify_percent = 5
 notify_heigth = 5
 flipVertically = False
 flipHorisontally = False
+gifDuration = 5
 reduceGif = 2
 poweroff_device: str
 debug = False
@@ -62,6 +65,13 @@ def echo(update: Update, context: CallbackContext) -> None:
 def info(update: Update, context: CallbackContext) -> None:
     response = urllib.request.urlopen(f"http://{host}/printer/info")
     update.message.reply_text(json.loads(response.read()))
+
+
+def reset_notifications() -> None:
+    global last_notify_percent
+    last_notify_percent = 0
+    global last_notify_heigth
+    last_notify_heigth = 0
 
 
 def get_status() -> str:
@@ -106,8 +116,8 @@ def process_frame(frame, width, height) -> Image:
         image = image.transpose(Image.FLIP_TOP_BOTTOM)
     if flipHorisontally:
         image = image.transpose(Image.FLIP_LEFT_RIGHT)
-    if reduceGif > 1:
-        image = image.resize((int(width / 2), int(height / 2)))
+    if reduceGif > 0:
+        image = image.resize((int(width / reduceGif), int(height / reduceGif)))
     return image
 
 
@@ -124,8 +134,9 @@ def get_gif(update: Update, context: CallbackContext) -> None:
     gif.append(process_frame(image, width, height))
 
     fps = 0
-    # Todo: rewrite with fps & duration in seconds
-    while success and len(gif) < 25:
+    t_end = time.time() + gifDuration
+    # while success and len(gif) < 25:
+    while success and time.time() < t_end:
         prev_frame_time = time.time()
         success, image_inner = cap.read()
         new_frame_time = time.time()
@@ -133,41 +144,54 @@ def get_gif(update: Update, context: CallbackContext) -> None:
         fps = 1 / (new_frame_time - prev_frame_time)
 
     cap.release()
+    cv2.destroyAllWindows()
 
     bio = BytesIO()
     bio.name = 'image.gif'
     gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
                 loop=0)
     bio.seek(0)
-    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60)
+    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True)
 
     update.message.reply_text(get_status())
+    if debug:
+        update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
 # we must use filesystem or write own apiPreference
 def get_video(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(update.message.text)
     url = f"http://{cameraHost}/?action=stream"
     cap = cv2.VideoCapture(url)
     success, image = cap.read()
+
     height, width, channels = image.shape
     bio = BytesIO()
     bio.name = 'video.mp4'
-    out = cv2.VideoWriter(bio, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=20, frameSize=(width, height))
-    i = 0
-    # Todo: rewrite with fps & duration in seconds
-    while success and i < 25:
+    # mp4v
+    filepath = os.path.join('/tmp/', 'video.mp4')
+    fps = 30
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=fps, frameSize=(width, height))
+    t_end = time.time() + gifDuration * 2
+    while success and time.time() < t_end:
+        prev_frame_time = time.time()
         success, image_inner = cap.read()
         out.write(image_inner)
-        i += 1
+        fps = 1 / (time.time() - prev_frame_time)
+        out.set(cv2.CAP_PROP_FPS, fps)
 
     cap.release()
     out.release()
     cv2.destroyAllWindows()
 
+    with open(filepath, 'rb') as fh:
+        bio.write(fh.read())
+
+    os.remove(filepath)
     bio.seek(0)
     update.message.reply_video(video=bio, width=width, height=height)
     # update.message.reply_text(get_status())
+    if debug:
+        update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
 def manage_printing(command: str) -> None:
@@ -206,6 +230,7 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("status", status))
     dispatcher.add_handler(CommandHandler("photo", get_photo))
     dispatcher.add_handler(CommandHandler("gif", get_gif))
+    dispatcher.add_handler(CommandHandler("video", get_video))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
@@ -273,8 +298,8 @@ def websocket_to_message(ws_message, botUpdater):
                 last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position = json_message["params"][0]['toolhead']['position'][2]
+            # TOdo: detect not printing moves. maybe near homming position!
             global last_notify_heigth
-            ##when we print objects in series
             if int(position) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position)
             if notify_heigth != 0 and int(position) % notify_heigth == 0 and int(position) > last_notify_heigth:
@@ -289,10 +314,11 @@ def websocket_to_message(ws_message, botUpdater):
                 filename = json_message['params'][0]['print_stats']['filename']
             if 'state' in json_message['params'][0]['print_stats']:
                 state = json_message['params'][0]['print_stats']['state']
-
+            # Fixme: reset notify percent & heigth on finish/caancel/start
             if state and filename:
                 if state == "printing":
                     message += f"Printer started printing: {filename} \n"
+                    reset_notifications()
             elif state:
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
@@ -316,6 +342,7 @@ if __name__ == '__main__':
     notify_heigth = conf.get_int('notify.heigth', 5)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
     flipVertically = conf.get_bool('camera.flipVertically', False)
+    gifDuration = conf.get_int('camera.gifDuration', 5)
     reduceGif = conf.get_int('camera.reduceGif', 0)
     cameraHost = conf.get_string('camera.host', f"{host}:8080")
     poweroff_device = conf.get_string('poweroff_device', "")
@@ -337,6 +364,6 @@ if __name__ == '__main__':
 
     botUpdater.bot.send_message(chatId, text=get_status())
 
-    ws.run_forever()
+    ws.run_forever(ping_interval=10, ping_timeout=2)
     print("Exiting! Moonraker connection lost!")
     botUpdater.stop()
