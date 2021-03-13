@@ -55,7 +55,15 @@ last_notify_percent: int = 0
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 def help_command(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Help!')
+    update.message.reply_text('The following commands are known:\n\n' \
+    '/status - send klipper status\n' \
+    '/pause - pause printing\n' \
+    '/resume - resume printing\n' \
+    '/cancel - cancel printing\n' \
+    '/photo - capture & send me a photo\n' \
+    '/gif - let\'s make some gif from printer cam\n' \
+    '/poweroff - turn off moonraker power device from config' )
+
 
 
 def echo(update: Update, context: CallbackContext) -> None:
