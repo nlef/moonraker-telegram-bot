@@ -31,7 +31,6 @@ bash ./install.sh
 ```
 
 Then edit your config (application.conf) using fluidd web interface or some other way
-### Moonraker update section
 
 ### Configuration
 Some tips to set up your telegram bot.
@@ -45,6 +44,7 @@ Some tips to set up your telegram bot.
 - check logs: ```sudo journalctl -r -u moonraker-telegram-bot```
 - restart service (e.g. to read changes in config): ```sudo systemctl restart moonraker-telegram-bot```
 
+### Moonraker update section
 ```
 [update_manager client moonraker-telegram-bot]
 type: git_repo
