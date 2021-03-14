@@ -24,9 +24,7 @@ read -p "Enter your klipper configs path: " -e -i "${KLIPPER_CONF_DIR}" klip_con
 KLIPPER_CONF_DIR=${klip_conf_dir}
 echo -e "\nUsing configs from ${KLIPPER_CONF_DIR}\n"
 
-# unlink old symlink
-unlink ${KLIPPER_CONF_DIR}/application.conf
-
+# check in config exists!
 # copy configfile if not exists
 cp -n ${MOONRAKER_BOT_DIR}/application.conf ${KLIPPER_CONF_DIR}/application.conf
 

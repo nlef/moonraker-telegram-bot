@@ -55,15 +55,15 @@ last_notify_percent: int = 0
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 def help_command(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('The following commands are known:\n\n' \
-    '/status - send klipper status\n' \
-    '/pause - pause printing\n' \
-    '/resume - resume printing\n' \
-    '/cancel - cancel printing\n' \
-    '/photo - capture & send me a photo\n' \
-    '/gif - let\'s make some gif from printer cam\n' \
-    '/poweroff - turn off moonraker power device from config' )
-
+    update.message.reply_text('The following commands are known:\n\n'
+                              '/status - send klipper status\n'
+                              '/pause - pause printing\n'
+                              '/resume - resume printing\n'
+                              '/cancel - cancel printing\n'
+                              '/photo - capture & send me a photo\n'
+                              '/gif - let\'s make some gif from printer cam\n'
+                              '/video - will take mp4 video from camera\n'
+                              '/poweroff - turn off moonraker power device from config')
 
 
 def echo(update: Update, context: CallbackContext) -> None:
@@ -166,40 +166,49 @@ def get_gif(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
-# we must use filesystem or write own apiPreference
+def process_video_frame(frame):
+    if flipVertically and flipHorisontally:
+        frame = cv2.flip(frame, -1)
+    elif flipHorisontally:
+        frame = cv2.flip(frame, 1)
+    elif flipVertically:
+        frame = cv2.flip(frame, 0)
+
+    return frame
+
+
 def get_video(update: Update, context: CallbackContext) -> None:
     url = f"http://{cameraHost}/?action=stream"
     cap = cv2.VideoCapture(url)
-    success, image = cap.read()
+    success, frame = cap.read()
 
-    height, width, channels = image.shape
-    bio = BytesIO()
-    bio.name = 'video.mp4'
-    # mp4v
+    height, width, channels = frame.shape
+    fps_video = cap.get(cv2.CAP_PROP_FPS)
+    fps = 10
     filepath = os.path.join('/tmp/', 'video.mp4')
-    fps = 30
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=fps, frameSize=(width, height))
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=fps_video, frameSize=(width, height))
     t_end = time.time() + gifDuration * 2
     while success and time.time() < t_end:
         prev_frame_time = time.time()
-        success, image_inner = cap.read()
-        out.write(image_inner)
+        success, frame_inner = cap.read()
+        out.write(process_video_frame(frame_inner))
         fps = 1 / (time.time() - prev_frame_time)
-        out.set(cv2.CAP_PROP_FPS, fps)
 
     cap.release()
+    out.set(cv2.CAP_PROP_FPS, fps)
     out.release()
     cv2.destroyAllWindows()
 
+    bio = BytesIO()
+    bio.name = 'video.mp4'
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
 
     os.remove(filepath)
     bio.seek(0)
     update.message.reply_video(video=bio, width=width, height=height)
-    # update.message.reply_text(get_status())
     if debug:
-        update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
+        update.message.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
 
 
 def manage_printing(command: str) -> None:
