@@ -8,14 +8,14 @@
 ## telegram bot commands list
 This list of commands is usefull during bot creation/editing with BotFather
 ```
-    status - send klipper status
-    pause - pause printing
-    resume - resume printing
-    cancel - cancel printing
-    photo - capture & send me a photo
-    gif - let's make some gif from printer cam
-    video - will take mp4 video from camera
-    poweroff - turn off moonraker power device from config
+    /status - send klipper status
+    /pause - pause printing
+    /resume - resume printing
+    /cancel - cancel printing
+    /photo - capture & send me a photo
+    /gif - let's make some gif from printer cam
+    /video - record and send 10 seconds timelaps in mp4
+    /poweroff - turn off moonraker power device from config
 ```
 
 ## Bot installation
