@@ -24,6 +24,7 @@ from io import BytesIO
 import cv2
 from pyhocon import ConfigFactory
 import emoji
+import threading
 
 # Enable logging
 logging.basicConfig(
@@ -45,6 +46,8 @@ gifDuration = 5
 reduceGif = 2
 poweroff_device: str
 debug = False
+
+klippy_connected: bool = False
 
 ws: websocket.WebSocketApp
 
@@ -270,9 +273,7 @@ def on_close(ws):
     print("### closed ###")
 
 
-def on_open(ws):
-    # Todo: get WebSocket Id from server
-    # add subscription on printer objects changes
+def subscribe(ws):
     ws.send(
         json.dumps({"jsonrpc": "2.0",
                     "method": "printer.objects.subscribe",
@@ -286,23 +287,52 @@ def on_open(ws):
                     "id": myId}))
 
 
+def on_open(ws):
+    ws.send(
+        json.dumps({"jsonrpc": "2.0",
+                    "method": "printer.info",
+                    "id": myId}))
+
+
+def reshedule():
+    while True:
+        if not klippy_connected and ws.keep_running is True:
+            on_open(ws)
+        time.sleep(1)
+
+
 def websocket_to_message(ws_message, botUpdater):
     json_message = json.loads(ws_message)
     if debug:
         print(ws_message)
 
+    if 'error' in json_message:
+        return
+
     if 'id' in json_message and 'result' in json_message:
         if 'status' in json_message['result']:
+            return
+        if 'state' in json_message['result']:
+            global klippy_connected
+            if json_message['result']['state'] == 'ready':
+                klippy_connected = True
+                subscribe(ws)
+            else:
+                klippy_connected = False
             return
         botUpdater.bot.send_message(chatId, text=f"{json_message['result']}")
     if 'id' in json_message and 'error' in json_message:
         botUpdater.bot.send_message(chatId, text=f"{json_message['error']['message']}")
 
-    # if ws_message["method"] == "notify_gcode_response":
+    # if json_message["method"] == "notify_gcode_response":
     #     val = ws_message["params"][0]
     #     # Todo: add global state for mcu disconnects!
     #     if 'Lost communication with MCU' not in ws_message["params"][0]:
     #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
+    #
+    if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
+        klippy_connected = False
+
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
             progress = int(json_message["params"][0]['display_status']['progress'] * 100)
@@ -380,6 +410,8 @@ if __name__ == '__main__':
     ws.on_open = on_open
 
     botUpdater.bot.send_message(chatId, text=get_status())
+
+    threading.Thread(target=reshedule).start()
 
     ws.run_forever(ping_interval=10, ping_timeout=2)
     print("Exiting! Moonraker connection lost!")
