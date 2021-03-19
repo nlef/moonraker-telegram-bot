@@ -14,6 +14,7 @@ This list of commands is usefull during bot creation/editing with BotFather
     cancel - cancel printing
     photo - capture & send me a photo
     gif - let's make some gif from printer cam
+    video - will take mp4 video from camera
     poweroff - turn off moonraker power device from config
 ```
 
