@@ -1,6 +1,8 @@
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import os
+import sys
 
 from numpy import random
 
@@ -28,7 +30,12 @@ import threading
 
 # Enable logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    handlers=[
+        RotatingFileHandler(os.path.join('/tmp/', 'telegram.log'), maxBytes=100000, backupCount=1),
+        logging.StreamHandler(sys.stdout)
+    ],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
@@ -266,11 +273,11 @@ def start_bot(token):
 
 
 def on_error(ws, error):
-    print(error)
+    logger.error(error)
 
 
 def on_close(ws):
-    print("### closed ###")
+    logger.info("### ws closed ###")
 
 
 def subscribe(ws):
@@ -304,7 +311,7 @@ def reshedule():
 def websocket_to_message(ws_message, botUpdater):
     json_message = json.loads(ws_message)
     if debug:
-        print(ws_message)
+        logger.debug(ws_message)
 
     if 'error' in json_message:
         return
@@ -331,6 +338,7 @@ def websocket_to_message(ws_message, botUpdater):
     #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
     #
     if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
+        logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
         klippy_connected = False
 
     if json_message["method"] == "notify_status_update":
@@ -411,8 +419,8 @@ if __name__ == '__main__':
 
     botUpdater.bot.send_message(chatId, text=get_status())
 
-    threading.Thread(target=reshedule).start()
+    threading.Thread(target=reshedule, daemon=True).start()
 
     ws.run_forever(ping_interval=10, ping_timeout=2)
-    print("Exiting! Moonraker connection lost!")
+    logger.info("Exiting! Moonraker connection lost!")
     botUpdater.stop()
