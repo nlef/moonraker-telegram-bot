@@ -116,11 +116,15 @@ def status(update: Update, context: CallbackContext) -> None:
 
 def take_photo() -> BytesIO:
     url = f"http://{cameraHost}/?action=snapshot"
-    img = Image.open(urlopen(url))
-    if flipVertically:
-        img = img.transpose(Image.FLIP_TOP_BOTTOM)
-    if flipHorisontally:
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    try:
+        img = Image.open(urlopen(url, timeout=5))
+        if flipVertically:
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        if flipHorisontally:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    except:
+        img = Image.open(urlopen('http://r.ddmcdn.com/s_f/o_1/APL/uploads/2014/10/nyan-cat-01-625x450.jpg', timeout=5))
+
     bio = BytesIO()
     bio.name = 'status.jpeg'
     img.save(bio, 'JPEG')
