@@ -14,6 +14,7 @@ stop_sevice() {
 }
 
 cleanup_leagacy() {
+  echo "Removing old packages"
   sudo apt remove --purge -y "python3-pil"
 }
 
