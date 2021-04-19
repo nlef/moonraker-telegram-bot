@@ -56,7 +56,7 @@ poweroff_device: str
 debug = False
 
 klippy_connected: bool = False
-
+klippy_printing: bool = False
 ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
@@ -116,6 +116,8 @@ def status(update: Update, context: CallbackContext) -> None:
 
 
 def notify(bot, message):
+    if not klippy_printing:
+        return
     if cameraEnabled:
         bot.send_photo(chatId, photo=take_photo(), caption=message)
     else:
@@ -407,11 +409,14 @@ def websocket_to_message(ws_message, botUpdater):
             if 'state' in json_message['params'][0]['print_stats']:
                 state = json_message['params'][0]['print_stats']['state']
             # Fixme: reset notify percent & heigth on finish/caancel/start
-            if state and filename:
-                if state == "printing":
+            global klippy_printing
+            if state == "printing":
+                klippy_printing = True
+                if state and filename:
                     message += f"Printer started printing: {filename} \n"
                     reset_notifications()
             elif state:
+                klippy_printing = False
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
             if message:
