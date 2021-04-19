@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 # some global params
 myId = random.randint(300000)
 host = "localhost"
+cameraEnabled = True
 cameraHost = "localhost:8080"
 chatId = 12341234
 notify_percent = 5
@@ -112,6 +113,13 @@ def get_status() -> str:
 
 def status(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(get_status())
+
+
+def notify(bot, message):
+    if cameraEnabled:
+        bot.send_photo(chatId, photo=take_photo(), caption=message)
+    else:
+        bot.send_message(chatId, text=message)
 
 
 def take_photo() -> BytesIO:
@@ -352,7 +360,7 @@ def websocket_to_message(ws_message, botUpdater):
             if progress < last_notify_percent - notify_percent:
                 last_notify_percent = progress
             if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
-                botUpdater.bot.send_photo(chatId, photo=take_photo(), caption=f"Printed {progress}%")
+                notify(botUpdater.bot, f"Printed {progress}%")
                 last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position = json_message["params"][0]['toolhead']['position'][2]
@@ -361,7 +369,7 @@ def websocket_to_message(ws_message, botUpdater):
             if int(position) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position)
             if notify_heigth != 0 and int(position) % notify_heigth == 0 and int(position) > last_notify_heigth:
-                botUpdater.bot.send_photo(chatId, photo=take_photo(), caption=f"Printed {round(position, 2)}mm")
+                notify(botUpdater.bot, f"Printed {round(position, 2)}mm")
                 last_notify_heigth = int(position)
         if 'print_stats' in json_message['params'][0]:
             message = ""
@@ -397,6 +405,7 @@ if __name__ == '__main__':
     chatId = conf.get_string('chat_id')
     notify_percent = conf.get_int('notify.percent', 5)
     notify_heigth = conf.get_int('notify.heigth', 5)
+    cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
     flipVertically = conf.get_bool('camera.flipVertically', False)
     gifDuration = conf.get_int('camera.gifDuration', 5)
