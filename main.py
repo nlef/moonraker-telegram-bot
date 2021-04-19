@@ -123,15 +123,20 @@ def notify(bot, message):
 
 
 def take_photo() -> BytesIO:
-    url = f"http://{cameraHost}/?action=snapshot"
-    try:
-        img = Image.open(urlopen(url, timeout=5))
+    cap = cv2.VideoCapture(cameraHost)
+    success, image = cap.read()
+
+    if not success:
+        img = Image.open(urlopen('http://r.ddmcdn.com/s_f/o_1/APL/uploads/2014/10/nyan-cat-01-625x450.jpg', timeout=5))
+    else:
+        img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if flipVertically:
             img = img.transpose(Image.FLIP_TOP_BOTTOM)
         if flipHorisontally:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
-    except:
-        img = Image.open(urlopen('http://r.ddmcdn.com/s_f/o_1/APL/uploads/2014/10/nyan-cat-01-625x450.jpg', timeout=5))
+
+    cap.release()
+    cv2.destroyAllWindows()
 
     bio = BytesIO()
     bio.name = 'status.jpeg'
@@ -156,16 +161,24 @@ def get_photo(update: Update, context: CallbackContext) -> None:
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
+    if not cameraEnabled:
+        update.message.reply_text("camera is disabled")
+        return
+
     gif = []
-    url = f"http://{cameraHost}/?action=stream"
-    cap = cv2.VideoCapture(url)
+    cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
+
+    if not success:
+        update.message.reply_text("camera connection failed!")
+        return
+
     height, width, channels = image.shape
     gif.append(process_frame(image, width, height))
 
     fps = 0
     t_end = time.time() + gifDuration
-    # while success and len(gif) < 25:
+    # TOdo: calc frame count
     while success and time.time() < t_end:
         prev_frame_time = time.time()
         success, image_inner = cap.read()
@@ -181,9 +194,9 @@ def get_gif(update: Update, context: CallbackContext) -> None:
     gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
                 loop=0)
     bio.seek(0)
-    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True)
+    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
+                                   caption=get_status())
 
-    update.message.reply_text(get_status())
     if debug:
         update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
 
@@ -200,9 +213,16 @@ def process_video_frame(frame):
 
 
 def get_video(update: Update, context: CallbackContext) -> None:
-    url = f"http://{cameraHost}/?action=stream"
-    cap = cv2.VideoCapture(url)
+    if not cameraEnabled:
+        update.message.reply_text("camera is disabled")
+        return
+
+    cap = cv2.VideoCapture(cameraHost)
     success, frame = cap.read()
+
+    if not success:
+        update.message.reply_text("camera connection failed!")
+        return
 
     height, width, channels = frame.shape
     fps_video = cap.get(cv2.CAP_PROP_FPS)
@@ -300,7 +320,8 @@ def subscribe(ws):
                         "objects": {
                             "print_stats": ["filename", "state"],
                             "display_status": ['progress', 'message'],
-                            'toolhead': ['position']
+                            'toolhead': ['position'],
+                            'gcode_move': ['absolute_coordinates', 'position', 'gcode_position']
                         }
                     },
                     "id": myId}))
@@ -323,8 +344,14 @@ def reshedule():
 def websocket_to_message(ws_message, botUpdater):
     json_message = json.loads(ws_message)
     if debug:
+        print(ws_message)
         logger.debug(ws_message)
 
+    # логика таймлапсы:
+    # делаем фото по событию и потом отсылаем видос. фото делаем по команде/по изменению высоты на констатнту/по увелечинею высоты. параметр надо в конфиг кинуть.
+    # получить высоту слоя из слайсера. в чём проблема делать фото только когда дельта равна 0.2
+    # {"jsonrpc": "2.0", "method": "notify_gcode_response", "params": ["prefix message"]} - RESPOND PREFIX=prefix MSG=message
+    # "gcode_move": {"position": [18.0, 42.0, 0.0, 0.0], "gcode_position": [18.0, 42.0, 0.0, 0.0]}}]}
     if 'error' in json_message:
         return
 
@@ -410,7 +437,7 @@ if __name__ == '__main__':
     flipVertically = conf.get_bool('camera.flipVertically', False)
     gifDuration = conf.get_int('camera.gifDuration', 5)
     reduceGif = conf.get_int('camera.reduceGif', 0)
-    cameraHost = conf.get_string('camera.host', f"{host}:8080")
+    cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
     poweroff_device = conf.get_string('poweroff_device', "")
     debug = conf.get_bool('debug', False)
 
