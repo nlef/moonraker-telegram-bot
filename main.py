@@ -1,8 +1,10 @@
 import argparse
+import glob
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 import sys
+from pathlib import Path
 
 from numpy import random
 
@@ -53,14 +55,19 @@ flipHorisontally = False
 gifDuration = 5
 reduceGif = 2
 poweroff_device: str
+timelapse_heigth: float = 0.2
+timelapse_enabled: bool = True
 debug = False
 
 klippy_connected: bool = False
 klippy_printing: bool = False
+klippy_printing_duration: float = 0.0
+klippy_printing_filename: str = ""
 ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
 last_notify_percent: int = 0
+last_timelapse_heigth: float = 0.2
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -91,6 +98,8 @@ def reset_notifications() -> None:
     last_notify_percent = 0
     global last_notify_heigth
     last_notify_heigth = 0
+    global klippy_printing_filename
+    klippy_printing_filename = ""
 
 
 def get_status() -> str:
@@ -116,7 +125,7 @@ def status(update: Update, context: CallbackContext) -> None:
 
 
 def notify(bot, message):
-    if not klippy_printing:
+    if not klippy_printing and klippy_printing_duration == 0:
         return
     if cameraEnabled:
         bot.send_photo(chatId, photo=take_photo(), caption=message)
@@ -145,6 +154,46 @@ def take_photo() -> BytesIO:
     img.save(bio, 'JPEG')
     bio.seek(0)
     return bio
+
+
+def take_lapse_photo():
+    if not timelapse_enabled and not klippy_printing_filename:
+        return
+    # Todo: check for space avaliable?
+    Path(f'/tmp/{klippy_printing_filename}/').mkdir(parents=True, exist_ok=True)
+    filename = os.path.join(f'{klippy_printing_filename}/', f'{time.time()}.jpg')
+    with open(filename, "wb") as outfile:
+        outfile.write(take_photo().getbuffer())
+
+
+def send_timelapse(bot):
+    if not timelapse_enabled and not klippy_printing_filename:
+        return
+
+    # Fixme: get single file!
+    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*.jpg'):
+        img = cv2.imread(filename)
+        height, width, layers = img.shape
+        size = (width, height)
+        break
+
+    filepath = os.path.join(f'/tmp/{klippy_printing_filename}/', 'lapse.mp4')
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=25.0, frameSize=size)
+
+    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*.jpg'):
+        out.write(cv2.imread(filename))
+
+    out.release()
+
+    bio = BytesIO()
+    bio.name = 'lapse.mp4'
+    with open(filepath, 'rb') as fh:
+        bio.write(fh.read())
+    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*'):
+        os.remove(os.path.join(f'/tmp/{klippy_printing_filename}/', filename))
+    Path(f'/tmp/{klippy_printing_filename}/').rmdir()
+    bio.seek(0)
+    bot.send_video(chatId, video=bio, width=width, height=height)
 
 
 def process_frame(frame, width, height) -> Image:
@@ -320,10 +369,10 @@ def subscribe(ws):
                     "method": "printer.objects.subscribe",
                     "params": {
                         "objects": {
-                            "print_stats": ["filename", "state"],
+                            "print_stats": ["filename", "state", "print_duration"],
                             "display_status": ['progress', 'message'],
                             'toolhead': ['position'],
-                            'gcode_move': ['absolute_coordinates', 'position', 'gcode_position']
+                            'gcode_move': ['position']
                         }
                     },
                     "id": myId}))
@@ -392,14 +441,18 @@ def websocket_to_message(ws_message, botUpdater):
                 notify(botUpdater.bot, f"Printed {progress}%")
                 last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
-            position = json_message["params"][0]['toolhead']['position'][2]
-            # TOdo: detect not printing moves. maybe near homming position!
+            position_z = json_message["params"][0]['toolhead']['position'][2]
+
+        if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
+            position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
             global last_notify_heigth
-            if int(position) < last_notify_heigth - notify_heigth:
-                last_notify_heigth = int(position)
-            if notify_heigth != 0 and int(position) % notify_heigth == 0 and int(position) > last_notify_heigth:
-                notify(botUpdater.bot, f"Printed {round(position, 2)}mm")
-                last_notify_heigth = int(position)
+            if int(position_z) < last_notify_heigth - notify_heigth:
+                last_notify_heigth = int(position_z)
+            if notify_heigth != 0 and int(position_z) % notify_heigth == 0 and int(position_z) > last_notify_heigth:
+                notify(botUpdater.bot, f"Printed {round(position_z, 2)}mm")
+                last_notify_heigth = int(position_z)
+            if position_z % timelapse_heigth == 0:  # check vase mode!
+                take_lapse_photo()
         if 'print_stats' in json_message['params'][0]:
             message = ""
             state = ""
@@ -409,12 +462,21 @@ def websocket_to_message(ws_message, botUpdater):
             if 'state' in json_message['params'][0]['print_stats']:
                 state = json_message['params'][0]['print_stats']['state']
             # Fixme: reset notify percent & heigth on finish/caancel/start
+            if 'print_duration' in json_message['params'][0]['print_stats']:
+                global klippy_printing_duration
+                klippy_printing_duration = json_message['params'][0]['print_stats']['print_duration']
             global klippy_printing
             if state == "printing":
                 klippy_printing = True
                 if state and filename:
-                    message += f"Printer started printing: {filename} \n"
                     reset_notifications()
+                    message += f"Printer started printing: {filename} \n"
+                    global klippy_printing_filename
+                    klippy_printing_filename = filename
+            # Todo: cleanup timelapse dir on cancel print!
+            elif state == 'complete':
+                klippy_printing = False
+                send_timelapse(botUpdater.bot)
             elif state:
                 klippy_printing = False
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
@@ -437,6 +499,9 @@ if __name__ == '__main__':
     chatId = conf.get_string('chat_id')
     notify_percent = conf.get_int('notify.percent', 5)
     notify_heigth = conf.get_int('notify.heigth', 5)
+    timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
+    timelapse_enabled = conf.get_bool('timelapse.enabled', False)
+
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
     flipVertically = conf.get_bool('camera.flipVertically', False)
