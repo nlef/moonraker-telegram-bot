@@ -16,6 +16,7 @@ This list of commands is usefull during bot creation/editing with BotFather
     /gif - let's make some gif from printer cam
     /video - record and send 10 seconds timelaps in mp4
     /poweroff - turn off moonraker power device from config
+    /chat - get curent chatId
 ```
 
 ## Bot installation

@@ -87,6 +87,8 @@ def help_command(update: Update, context: CallbackContext) -> None:
 def echo(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
+def chat(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(f"Chat id: {update.message.chat.id}")
 
 def info(update: Update, context: CallbackContext) -> None:
     response = urllib.request.urlopen(f"http://{host}/printer/info")
@@ -344,6 +346,7 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
+    dispatcher.add_handler(CommandHandler("chat", chat))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
 
     # on noncommand i.e message - echo the message on Telegram
