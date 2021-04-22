@@ -57,6 +57,7 @@ reduceGif = 2
 poweroff_device: str
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = True
+timelapse_basedir: str = ""
 debug = False
 
 klippy_connected: bool = False
@@ -87,8 +88,10 @@ def help_command(update: Update, context: CallbackContext) -> None:
 def echo(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
+
 def chat(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"Chat id: {update.message.chat.id}")
+
 
 def info(update: Update, context: CallbackContext) -> None:
     response = urllib.request.urlopen(f"http://{host}/printer/info")
@@ -162,8 +165,9 @@ def take_lapse_photo():
     if not timelapse_enabled and not klippy_printing_filename:
         return
     # Todo: check for space avaliable?
-    Path(f'/tmp/{klippy_printing_filename}/').mkdir(parents=True, exist_ok=True)
-    filename = os.path.join(f'{klippy_printing_filename}/', f'{time.time()}.jpg')
+    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}/'
+    Path(lapse_dir).mkdir(parents=True, exist_ok=True)
+    filename = os.path.join(lapse_dir, f'{time.time()}.jpg')
     with open(filename, "wb") as outfile:
         outfile.write(take_photo().getbuffer())
 
@@ -172,17 +176,18 @@ def send_timelapse(bot):
     if not timelapse_enabled and not klippy_printing_filename:
         return
 
+    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}/'
     # Fixme: get single file!
-    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}*.jpg'):
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
         break
 
-    filepath = os.path.join(f'/tmp/{klippy_printing_filename}/', 'lapse.mp4')
+    filepath = os.path.join(lapse_dir, 'lapse.mp4')
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=25.0, frameSize=size)
 
-    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}*.jpg'):
         out.write(cv2.imread(filename))
 
     out.release()
@@ -191,9 +196,9 @@ def send_timelapse(bot):
     bio.name = 'lapse.mp4'
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
-    for filename in glob.glob(f'/tmp/{klippy_printing_filename}/*'):
-        os.remove(os.path.join(f'/tmp/{klippy_printing_filename}/', filename))
-    Path(f'/tmp/{klippy_printing_filename}/').rmdir()
+    for filename in glob.glob(f'{lapse_dir}*'):
+        os.remove(filename)
+    Path(lapse_dir).rmdir()
     bio.seek(0)
     bot.send_video(chatId, video=bio, width=width, height=height)
 
@@ -504,6 +509,7 @@ if __name__ == '__main__':
     notify_heigth = conf.get_int('notify.heigth', 5)
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
+    timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp')
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
