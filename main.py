@@ -57,7 +57,7 @@ reduceGif = 2
 poweroff_device: str
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = True
-timelapse_basedir: str = ""
+timelapse_basedir: str
 debug = False
 
 klippy_connected: bool = False
