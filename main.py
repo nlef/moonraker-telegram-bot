@@ -63,7 +63,7 @@ debug = False
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
-klippy_printing_filename: str = ""
+klippy_printing_filename: str
 ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
@@ -162,32 +162,32 @@ def take_photo() -> BytesIO:
 
 
 def take_lapse_photo():
-    if not timelapse_enabled and not klippy_printing_filename:
+    if not timelapse_enabled or not klippy_printing_filename:
         return
     # Todo: check for space avaliable?
-    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}/'
+    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-    filename = os.path.join(lapse_dir, f'{time.time()}.jpg')
+    filename = f'{lapse_dir}/{time.time()}.jpg'
     with open(filename, "wb") as outfile:
         outfile.write(take_photo().getbuffer())
 
 
 def send_timelapse(bot):
-    if not timelapse_enabled and not klippy_printing_filename:
+    if not timelapse_enabled or not klippy_printing_filename:
         return
 
-    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}/'
+    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     # Fixme: get single file!
-    for filename in glob.glob(f'{lapse_dir}*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}/*.jpg'):
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
         break
 
-    filepath = os.path.join(lapse_dir, 'lapse.mp4')
+    filepath = f'{lapse_dir}/lapse.mp4'
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=25.0, frameSize=size)
 
-    for filename in glob.glob(f'{lapse_dir}*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}/*.jpg'):
         out.write(cv2.imread(filename))
 
     out.release()
@@ -196,7 +196,7 @@ def send_timelapse(bot):
     bio.name = 'lapse.mp4'
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
-    for filename in glob.glob(f'{lapse_dir}*'):
+    for filename in glob.glob(f'{lapse_dir}/*'):
         os.remove(filename)
     Path(lapse_dir).rmdir()
     bio.seek(0)
@@ -406,6 +406,8 @@ def websocket_to_message(ws_message, botUpdater):
         print(ws_message)
         logger.debug(ws_message)
 
+    global klippy_printing_filename, klippy_printing, klippy_connected, last_notify_percent, last_notify_heigth, klippy_printing_duration
+
     # логика таймлапсы:
     # делаем фото по событию и потом отсылаем видос. фото делаем по команде/по изменению высоты на констатнту/по увелечинею высоты. параметр надо в конфиг кинуть.
     # получить высоту слоя из слайсера. в чём проблема делать фото только когда дельта равна 0.2
@@ -416,9 +418,13 @@ def websocket_to_message(ws_message, botUpdater):
 
     if 'id' in json_message and 'result' in json_message:
         if 'status' in json_message['result']:
+            if 'print_stats' in json_message['result']['status'] and \
+                    json_message['result']['status']['print_stats']['state'] == "printing":
+                klippy_printing = True
+                klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
+                klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
             return
         if 'state' in json_message['result']:
-            global klippy_connected
             if json_message['result']['state'] == 'ready':
                 klippy_connected = True
                 subscribe(ws)
@@ -442,7 +448,7 @@ def websocket_to_message(ws_message, botUpdater):
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
             progress = int(json_message["params"][0]['display_status']['progress'] * 100)
-            global last_notify_percent
+
             if progress < last_notify_percent - notify_percent:
                 last_notify_percent = progress
             if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
@@ -453,7 +459,6 @@ def websocket_to_message(ws_message, botUpdater):
 
         if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
             position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
-            global last_notify_heigth
             if int(position_z) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position_z)
             if notify_heigth != 0 and int(position_z) % notify_heigth == 0 and int(position_z) > last_notify_heigth:
@@ -471,15 +476,12 @@ def websocket_to_message(ws_message, botUpdater):
                 state = json_message['params'][0]['print_stats']['state']
             # Fixme: reset notify percent & heigth on finish/caancel/start
             if 'print_duration' in json_message['params'][0]['print_stats']:
-                global klippy_printing_duration
                 klippy_printing_duration = json_message['params'][0]['print_stats']['print_duration']
-            global klippy_printing
             if state == "printing":
                 klippy_printing = True
                 if state and filename:
                     reset_notifications()
                     message += f"Printer started printing: {filename} \n"
-                    global klippy_printing_filename
                     klippy_printing_filename = filename
             # Todo: cleanup timelapse dir on cancel print!
             elif state == 'complete':
@@ -509,7 +511,7 @@ if __name__ == '__main__':
     notify_heigth = conf.get_int('notify.heigth', 5)
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
-    timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp')
+    timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
