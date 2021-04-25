@@ -50,7 +50,7 @@ chat_id = ""
   # then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
   # you will see json with information about your message, sent to the bot. Find chat_id there.
   # else this param could be taken using bot command /chat
-bot_token = "1626698191:AAGmK3awq0R-LK5jqWmBKjcZssVNpqc1HGc"
+bot_token = "****:****"
   # token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
 poweroff_device = "printer"
   # name of power device, configured in moonraker.
