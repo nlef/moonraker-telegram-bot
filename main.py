@@ -346,7 +346,11 @@ def power_off(update: Update, context: CallbackContext) -> None:
 def start(update: Update, _: CallbackContext) -> None:
     keyboard = [
         [
-            InlineKeyboardButton(emoji.emojize(':robot: status '), callback_data='status'),
+            InlineKeyboardButton(emoji.emojize(':robot: status'), callback_data='status'),
+            InlineKeyboardButton(emoji.emojize(':pause_button: pause'), callback_data='pause'),
+            InlineKeyboardButton(emoji.emojize(':cross_mark: cancel'), callback_data='cancel'),
+        ],
+        [
             InlineKeyboardButton(emoji.emojize(':camera: photo'), callback_data='photo'),
             InlineKeyboardButton(emoji.emojize(':movie_camera: video'), callback_data='video'),
             InlineKeyboardButton("gif", callback_data='gif'),
@@ -356,7 +360,7 @@ def start(update: Update, _: CallbackContext) -> None:
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    update.message.reply_text('Please choose:', reply_markup=reply_markup)
+    update.message.reply_text('Bot commands:', reply_markup=reply_markup)
 
 
 def button(update: Update, context: CallbackContext) -> None:
@@ -364,6 +368,10 @@ def button(update: Update, context: CallbackContext) -> None:
     query.answer()
     if query.data == 'status':
         status(update, context)
+    elif query.data == 'pause':
+        pause_printing(update, context)
+    elif query.data == 'cancel':
+        cancel_printing(update, context)
     elif query.data == 'photo':
         get_photo(update, context)
     elif query.data == 'gif':
