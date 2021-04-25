@@ -99,10 +99,10 @@ def info(update: Update, context: CallbackContext) -> None:
 
 
 def reset_notifications() -> None:
-    global last_notify_percent, last_notify_heigth, klippy_printing_filename
+    global last_notify_percent, last_notify_heigth, klippy_printing_duration
     last_notify_percent = 0
     last_notify_heigth = 0
-    klippy_printing_filename = ""
+    klippy_printing_duration = 0
 
 
 def get_status() -> str:
@@ -131,7 +131,7 @@ def status(update: Update, context: CallbackContext) -> None:
 
 
 def notify(bot, message):
-    if not klippy_printing and klippy_printing_duration == 0:
+    if not klippy_printing or not klippy_printing_duration > 0.0:
         return
     if cameraEnabled:
         bot.send_photo(chatId, photo=take_photo(), caption=message)
@@ -176,6 +176,7 @@ def take_lapse_photo():
 
 def send_timelapse(bot):
     if not timelapse_enabled or not klippy_printing_filename:
+        logger.info(f"lapse is inactive for file {klippy_printing_filename} and enabled {timelapse_enabled}")
         return
 
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
@@ -187,9 +188,9 @@ def send_timelapse(bot):
         break
 
     filepath = f'{lapse_dir}/lapse.mp4'
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=25.0, frameSize=size)
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=15.0, frameSize=size)
 
-    for filename in glob.glob(f'{lapse_dir}/*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}/*.jpg').sort(key=os.path.getmtime):
         out.write(cv2.imread(filename))
 
     out.release()
@@ -202,7 +203,7 @@ def send_timelapse(bot):
         os.remove(filename)
     Path(lapse_dir).rmdir()
     bio.seek(0)
-    bot.send_video(chatId, video=bio, width=width, height=height)
+    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}')
 
 
 def process_frame(frame, width, height) -> Image:
@@ -384,9 +385,6 @@ def button(update: Update, context: CallbackContext) -> None:
     query.delete_message()
 
 
-# query.edit_message_text(text=f"Selected option: {query.data}")
-
-
 def start_bot(token):
     # Create the Updater and pass it your bot's token.
     updater = Updater(token, workers=1)  # we have too small ram on oPi zero...
@@ -527,9 +525,8 @@ def websocket_to_message(ws_message, botUpdater):
         if 'print_stats' in json_message['params'][0]:
             message = ""
             state = ""
-            filename = ""
             if 'filename' in json_message['params'][0]['print_stats']:
-                filename = json_message['params'][0]['print_stats']['filename']
+                klippy_printing_filename = json_message['params'][0]['print_stats']['filename']
             if 'state' in json_message['params'][0]['print_stats']:
                 state = json_message['params'][0]['print_stats']['state']
             # Fixme: reset notify percent & heigth on finish/caancel/start
@@ -537,10 +534,8 @@ def websocket_to_message(ws_message, botUpdater):
                 klippy_printing_duration = json_message['params'][0]['print_stats']['print_duration']
             if state == "printing":
                 klippy_printing = True
-                if state and filename:
-                    reset_notifications()
-                    message += f"Printer started printing: {filename} \n"
-                    klippy_printing_filename = filename
+                reset_notifications()
+                message += f"Printer started printing: {klippy_printing_filename} \n"
             # Todo: cleanup timelapse dir on cancel print!
             elif state == 'complete':
                 klippy_printing = False
