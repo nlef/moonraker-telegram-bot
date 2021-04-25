@@ -190,7 +190,9 @@ def send_timelapse(bot):
     filepath = f'{lapse_dir}/lapse.mp4'
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=15.0, frameSize=size)
 
-    for filename in glob.glob(f'{lapse_dir}/*.jpg').sort(key=os.path.getmtime):
+    photos = glob.glob(f'{lapse_dir}/*.jpg')
+    photos.sort(key=os.path.getmtime)
+    for filename in photos:
         out.write(cv2.imread(filename))
 
     out.release()
