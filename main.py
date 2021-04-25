@@ -8,8 +8,8 @@ from pathlib import Path
 
 from numpy import random
 
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMedia, InputMediaPhoto
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
 import websocket
 
@@ -56,7 +56,7 @@ gifDuration = 5
 reduceGif = 2
 poweroff_device: str
 timelapse_heigth: float = 0.2
-timelapse_enabled: bool = True
+timelapse_enabled: bool = False
 timelapse_basedir: str
 debug = False
 
@@ -99,11 +99,9 @@ def info(update: Update, context: CallbackContext) -> None:
 
 
 def reset_notifications() -> None:
-    global last_notify_percent
+    global last_notify_percent, last_notify_heigth, klippy_printing_filename
     last_notify_percent = 0
-    global last_notify_heigth
     last_notify_heigth = 0
-    global klippy_printing_filename
     klippy_printing_filename = ""
 
 
@@ -126,7 +124,10 @@ def get_status() -> str:
 
 
 def status(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(get_status())
+    if update.message:
+        update.message.reply_text(get_status())
+    elif update.effective_message:
+        update.effective_message.reply_text(get_status())
 
 
 def notify(bot, message):
@@ -163,6 +164,7 @@ def take_photo() -> BytesIO:
 
 def take_lapse_photo():
     if not timelapse_enabled or not klippy_printing_filename:
+        logger.info(f"lapse is inactive for file {klippy_printing_filename} and enabled {timelapse_enabled}")
         return
     # Todo: check for space avaliable?
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
@@ -215,12 +217,16 @@ def process_frame(frame, width, height) -> Image:
 
 
 def get_photo(update: Update, context: CallbackContext) -> None:
-    update.message.reply_photo(photo=take_photo())
+    if update.message:
+        update.message.reply_photo(photo=take_photo())
+    elif update.effective_message:
+        update.effective_message.reply_photo(photo=take_photo())
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
+    message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
-        update.message.reply_text("camera is disabled")
+        message_to_reply.reply_text("camera is disabled")
         return
 
     gif = []
@@ -228,7 +234,7 @@ def get_gif(update: Update, context: CallbackContext) -> None:
     success, image = cap.read()
 
     if not success:
-        update.message.reply_text("camera connection failed!")
+        message_to_reply.reply_text("camera connection failed!")
         return
 
     height, width, channels = image.shape
@@ -252,11 +258,11 @@ def get_gif(update: Update, context: CallbackContext) -> None:
     gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
                 loop=0)
     bio.seek(0)
-    update.message.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
-                                   caption=get_status())
+    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
+                                     caption=get_status())
 
     if debug:
-        update.message.reply_text(f"measured fps is {fps}", disable_notification=True)
+        message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
 def process_video_frame(frame):
@@ -271,15 +277,16 @@ def process_video_frame(frame):
 
 
 def get_video(update: Update, context: CallbackContext) -> None:
+    message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
-        update.message.reply_text("camera is disabled")
+        message_to_reply.reply_text("camera is disabled")
         return
 
     cap = cv2.VideoCapture(cameraHost)
     success, frame = cap.read()
 
     if not success:
-        update.message.reply_text("camera connection failed!")
+        message_to_reply.reply_text("camera connection failed!")
         return
 
     height, width, channels = frame.shape
@@ -306,9 +313,9 @@ def get_video(update: Update, context: CallbackContext) -> None:
 
     os.remove(filepath)
     bio.seek(0)
-    update.message.reply_video(video=bio, width=width, height=height)
+    message_to_reply.reply_video(video=bio, width=width, height=height)
     if debug:
-        update.message.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
+        message_to_reply.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
 
 
 def manage_printing(command: str) -> None:
@@ -328,11 +335,48 @@ def cancel_printing(update: Update, context: CallbackContext) -> None:
 
 
 def power_off(update: Update, context: CallbackContext) -> None:
+    message_to_reply = update.message if update.message else update.effective_message
     if poweroff_device:
         ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
                             "params": {f"{poweroff_device}": None}}))
     else:
-        update.message.reply_text("No power device in config!")
+        message_to_reply.reply_text("No power device in config!")
+
+
+def start(update: Update, _: CallbackContext) -> None:
+    keyboard = [
+        [
+            InlineKeyboardButton(emoji.emojize(':robot: status '), callback_data='status'),
+            InlineKeyboardButton(emoji.emojize(':camera: photo'), callback_data='photo'),
+            InlineKeyboardButton(emoji.emojize(':movie_camera: video'), callback_data='video'),
+            InlineKeyboardButton("gif", callback_data='gif'),
+        ],
+        [InlineKeyboardButton(emoji.emojize(':electric_plug: power off'), callback_data='power_off')],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text('Please choose:', reply_markup=reply_markup)
+
+
+def button(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    if query.data == 'status':
+        status(update, context)
+    elif query.data == 'photo':
+        get_photo(update, context)
+    elif query.data == 'gif':
+        get_gif(update, context)
+    elif query.data == 'video':
+        get_video(update, context)
+    elif query.data == 'power_off':
+        power_off(update, context)
+
+    query.delete_message()
+
+
+# query.edit_message_text(text=f"Selected option: {query.data}")
 
 
 def start_bot(token):
@@ -343,6 +387,8 @@ def start_bot(token):
     dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CallbackQueryHandler(button))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("status", status))
     dispatcher.add_handler(CommandHandler("photo", get_photo))
@@ -441,6 +487,10 @@ def websocket_to_message(ws_message, botUpdater):
     #     if 'Lost communication with MCU' not in ws_message["params"][0]:
     #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
     #
+
+    if json_message["method"] == "notify_gcode_response":
+        if 'timelapse photo' in json_message["params"]:
+            take_lapse_photo()
     if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
         logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
         klippy_connected = False
