@@ -8,6 +8,7 @@
 ## telegram bot commands list
 This list of commands is usefull during bot creation/editing with BotFather
 ```
+    /start - start communication via inline keyboard 
     /status - send klipper status
     /pause - pause printing
     /resume - resume printing
@@ -29,7 +30,7 @@ cd moonraker-telegram-bot
 ```
 then start install script
 ```
-bash ./install.sh
+./install.sh
 ```
 
 Then edit your config (application.conf) using fluidd web interface or some other way
@@ -40,6 +41,46 @@ Some tips to set up your telegram bot.
 - bot_token - token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
 - chat_id - id for your chat with bot. To get this id, after creating a new bot write something to this bot, then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
   you will see json with information about your message, sent to the bot. Find chat_id there.
+```
+server = "localhost"
+  # Using localhost is enough in most cases (also for default setup with Kiauh)
+  # some sbc could have problems with connection to board ip addres due to power safe mode enabled on wifi
+chat_id = ""
+  # id for your chat with bot. To get this id, after creating a new bot write something to this bot,
+  # then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
+  # you will see json with information about your message, sent to the bot. Find chat_id there.
+  # else this param could be taken using bot command /chat
+bot_token = "1626698191:AAGmK3awq0R-LK5jqWmBKjcZssVNpqc1HGc"
+  # token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
+poweroff_device = "printer"
+  # name of power device, configured in moonraker.
+
+notify {
+    # setting parameters to 0  will disable the corresponding notifications 
+    percent = 5
+    heigth = 5
+}
+
+timelapse {
+    enabled = true
+      # default is false
+    heigth = 0.2
+      # it will take photos if height change is equal provided in param
+      # one may add gcode "RESPOND PREFIX=timelapse MSG=photo" in layer change g-code slicer
+      # to enable photos on layer change regardless of layer height
+    basedir = '/tmp/timelapse'
+      # base drectory, were timelapse photos and videos are stored ( now it is automaticly cleaning) 
+}
+
+camera {
+    host = 'http://{host}:8080/?action=stream'
+        # camera streaming url. default is mjpeg url format on host address.
+    flipVertically = false
+    flipHorisontally = false
+    gifDuration = 5
+    reduceGif = 2
+}
+```
 
 
 ### Helpfull console commands
