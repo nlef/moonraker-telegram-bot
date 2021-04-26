@@ -5,12 +5,9 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
-
 from numpy import random
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMedia, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
-
 import websocket
 
 try:
@@ -18,10 +15,8 @@ try:
 except ImportError:
     import _thread as thread
 import time
-
 import json
 import urllib.request
-
 from urllib.request import urlopen
 from PIL import Image
 from io import BytesIO
@@ -124,18 +119,20 @@ def get_status() -> str:
 
 
 def status(update: Update, context: CallbackContext) -> None:
-    if update.message:
-        update.message.reply_text(get_status())
-    elif update.effective_message:
-        update.effective_message.reply_text(get_status())
+    message_to_reply = update.message if update.message else update.effective_message
+
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    message_to_reply.reply_text(get_status())
 
 
 def notify(bot, message):
     if not klippy_printing or not klippy_printing_duration > 0.0:
         return
     if cameraEnabled:
+        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
         bot.send_photo(chatId, photo=take_photo(), caption=message)
     else:
+        bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
         bot.send_message(chatId, text=message)
 
 
@@ -164,7 +161,7 @@ def take_photo() -> BytesIO:
 
 def take_lapse_photo():
     if not timelapse_enabled or not klippy_printing_filename:
-        logger.info(f"lapse is inactive for file {klippy_printing_filename} and enabled {timelapse_enabled}")
+        logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     # Todo: check for space avaliable?
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
@@ -176,7 +173,7 @@ def take_lapse_photo():
 
 def send_timelapse(bot):
     if not timelapse_enabled or not klippy_printing_filename:
-        logger.info(f"lapse is inactive for file {klippy_printing_filename} and enabled {timelapse_enabled}")
+        logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
 
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
@@ -220,10 +217,10 @@ def process_frame(frame, width, height) -> Image:
 
 
 def get_photo(update: Update, context: CallbackContext) -> None:
-    if update.message:
-        update.message.reply_photo(photo=take_photo())
-    elif update.effective_message:
-        update.effective_message.reply_photo(photo=take_photo())
+    message_to_reply = update.message if update.message else update.effective_message
+
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+    message_to_reply.reply_photo(photo=take_photo())
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
@@ -231,7 +228,7 @@ def get_gif(update: Update, context: CallbackContext) -> None:
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
-
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     gif = []
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
@@ -255,6 +252,8 @@ def get_gif(update: Update, context: CallbackContext) -> None:
 
     cap.release()
     cv2.destroyAllWindows()
+
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
     bio = BytesIO()
     bio.name = 'image.gif'
@@ -285,6 +284,7 @@ def get_video(update: Update, context: CallbackContext) -> None:
         message_to_reply.reply_text("camera is disabled")
         return
 
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     cap = cv2.VideoCapture(cameraHost)
     success, frame = cap.read()
 
@@ -308,6 +308,8 @@ def get_video(update: Update, context: CallbackContext) -> None:
     out.set(cv2.CAP_PROP_FPS, fps)
     out.release()
     cv2.destroyAllWindows()
+
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
     bio = BytesIO()
     bio.name = 'video.mp4'
@@ -457,16 +459,10 @@ def reshedule():
 def websocket_to_message(ws_message, botUpdater):
     json_message = json.loads(ws_message)
     if debug:
-        print(ws_message)
         logger.debug(ws_message)
 
     global klippy_printing_filename, klippy_printing, klippy_connected, last_notify_percent, last_notify_heigth, klippy_printing_duration
 
-    # логика таймлапсы:
-    # делаем фото по событию и потом отсылаем видос. фото делаем по команде/по изменению высоты на констатнту/по увелечинею высоты. параметр надо в конфиг кинуть.
-    # получить высоту слоя из слайсера. в чём проблема делать фото только когда дельта равна 0.2
-    # {"jsonrpc": "2.0", "method": "notify_gcode_response", "params": ["prefix message"]} - RESPOND PREFIX=prefix MSG=message
-    # "gcode_move": {"position": [18.0, 42.0, 0.0, 0.0], "gcode_position": [18.0, 42.0, 0.0, 0.0]}}]}
     if 'error' in json_message:
         return
 
@@ -577,6 +573,9 @@ if __name__ == '__main__':
     poweroff_device = conf.get_string('poweroff_device', "")
     debug = conf.get_bool('debug', False)
 
+    if debug:
+        logger.setLevel(logging.DEBUG)
+
     botUpdater = start_bot(token)
 
 
@@ -584,9 +583,6 @@ if __name__ == '__main__':
     def on_message(ws, message):
         websocket_to_message(message, botUpdater)
 
-
-    if debug:
-        websocket.enableTrace(True)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
