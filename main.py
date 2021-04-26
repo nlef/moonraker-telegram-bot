@@ -607,6 +607,7 @@ if __name__ == '__main__':
     botUpdater = start_bot(token)
 
 
+
     # websocket communication
     def on_message(ws, message):
         websocket_to_message(message, botUpdater)
