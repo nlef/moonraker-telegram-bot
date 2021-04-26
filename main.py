@@ -79,7 +79,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
                               '/gif - let\'s make some gif from printer cam\n'
                               '/video - will take mp4 video from camera\n'
                               '/poweroff - turn off moonraker power device from config\n'
-                              '/led - toggle led light')
+                              '/light - toggle light')
                               
 
 
@@ -110,7 +110,7 @@ def get_status() -> str:
     print_stats = resp['result']['status']['print_stats']
     webhook = resp['result']['status']['webhooks']
     total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
-    led_status = get_led_status()
+    light_status = get_light_status()
     message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']} \n"
     if 'state_message' in webhook:
         message += f"State message: {webhook['state_message']}\n"
@@ -119,11 +119,11 @@ def get_status() -> str:
         message += f"Print time: {total_time} \n" \
                    f"Printing filename: {print_stats['filename']} \n" \
                    f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
-    message += emoji.emojize(':flashlight: Led Status: ') + f"{led_status}"
+    message += emoji.emojize(':flashlight: Light Status: ') + f"{light_status}"
     return message
 
 
-def get_led_status() -> str:
+def get_light_status() -> str:
     response = urllib.request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
     resp = json.loads(response.read())
     status = resp['result'][f'{light_device}']
@@ -360,10 +360,10 @@ def power_off(update: Update, context: CallbackContext) -> None:
         message_to_reply.reply_text("No power device in config!")
 
 
-def led_toggle(update: Update, context: CallbackContext) -> None:
+def light_toggle(update: Update, context: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
-        status = get_led_status()
+        status = get_light_status()
         if status == 'on':
             ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId, "params": {f"{light_device}": None}}))
         else:
@@ -383,8 +383,10 @@ def start(update: Update, _: CallbackContext) -> None:
             InlineKeyboardButton(emoji.emojize(':movie_camera: video'), callback_data='video'),
             InlineKeyboardButton("gif", callback_data='gif'),
         ],
-        [InlineKeyboardButton(emoji.emojize(':electric_plug: power off'), callback_data='power_off')],
-        [InlineKeyboardButton(emoji.emojize(':flashlight: led toggle'), callback_data='led_toggle')],
+        [
+            InlineKeyboardButton(emoji.emojize(':electric_plug: power off'), callback_data='power_off'),
+            InlineKeyboardButton(emoji.emojize(':flashlight: light toggle'), callback_data='light_toggle')
+        ],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -409,8 +411,8 @@ def button(update: Update, context: CallbackContext) -> None:
         get_video(update, context)
     elif query.data == 'power_off':
         power_off(update, context)
-    elif query.data == 'led_toggle':
-        led_toggle(update, context)
+    elif query.data == 'light_toggle':
+        light_toggle(update, context)
 
     query.delete_message()
 
@@ -435,7 +437,7 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
     dispatcher.add_handler(CommandHandler("chat", chat))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
-    dispatcher.add_handler(CommandHandler("led", led_toggle))
+    dispatcher.add_handler(CommandHandler("light", light_toggle))
 
     # on noncommand i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
