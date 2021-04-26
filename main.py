@@ -6,7 +6,8 @@ import os
 import sys
 from pathlib import Path
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, \
+    ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
@@ -368,6 +369,23 @@ def start(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Bot commands:', reply_markup=reply_markup)
 
 
+def keyboard(update: Update, _: CallbackContext) -> None:
+    custom_keyboard = [
+        ['/status', '/pause', '/cancel'],
+        ['/photo', '/video', '/gif'],
+        ['/poweroff', '/keyoff', '/start']
+    ]
+    reply_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True)
+    update.message.bot.send_message(chat_id=chatId,
+                                    text="Custom Keyboard",
+                                    reply_markup=reply_markup)
+
+
+def keyboard_off(update: Update, _: CallbackContext) -> None:
+    reply_markup = ReplyKeyboardRemove()
+    update.message.bot.send_message(chat_id=chatId, text="disable keyboard", reply_markup=reply_markup)
+
+
 def button(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
@@ -399,6 +417,8 @@ def start_bot(token):
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CallbackQueryHandler(button))
+    dispatcher.add_handler(CommandHandler('keyboard', keyboard))
+    dispatcher.add_handler(CommandHandler('keyoff', keyboard_off))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("status", status))
     dispatcher.add_handler(CommandHandler("photo", get_photo))
