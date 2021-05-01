@@ -17,6 +17,7 @@ This list of commands is usefull during bot creation/editing with BotFather
     /gif - let's make some gif from printer cam
     /video - record and send 10 seconds timelaps in mp4
     /poweroff - turn off moonraker power device from config
+    /light - toggle moonraker light device from config
     /chat - get curent chatId
 ```
 
@@ -54,6 +55,8 @@ bot_token = "*123***:***123123*"
   # token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
 poweroff_device = "printer"
   # name of power device, configured in moonraker.
+light_device = "led"
+  # name of light device, configured in moonraker.
 
 notify {
     # setting parameters to 0  will disable the corresponding notifications 
