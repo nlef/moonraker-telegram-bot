@@ -29,7 +29,7 @@ import threading
 # Enable logging
 logging.basicConfig(
     handlers=[
-        RotatingFileHandler(os.path.join('/tmp/', 'telegram.log'), maxBytes=100000, backupCount=1),
+        RotatingFileHandler(os.path.join('/tmp/', 'telegram.log'), maxBytes=26214400, backupCount=3),
         logging.StreamHandler(sys.stdout)
     ],
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -125,9 +125,12 @@ def get_status() -> str:
 
 
 def get_light_status() -> str:
-    response = urllib.request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
-    resp = json.loads(response.read())
-    status = resp['result'][f'{light_device}']
+    if light_device:
+        response = urllib.request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
+        resp = json.loads(response.read())
+        status = resp['result'][f'{light_device}']
+    else:
+        status = "no device"
 
     return status
 
