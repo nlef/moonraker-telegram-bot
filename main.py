@@ -369,11 +369,14 @@ def light_toggle(update: Update, context: CallbackContext) -> None:
     if light_device:
         status = get_light_status()
         if status == 'on':
-            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId, "params": {f"{light_device}": None}}))
+            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
+                                "params": {f"{light_device}": None}}))
         else:
-            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.on", "id": myId, "params": {f"{light_device}": None}}))
+            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.on", "id": myId,
+                                "params": {f"{light_device}": None}}))
     else:
         message_to_reply.reply_text("No light device in config!")
+
 
 def start(update: Update, _: CallbackContext) -> None:
     keyboard = [
@@ -553,13 +556,14 @@ def websocket_to_message(ws_message, botUpdater):
 
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
-            progress = int(json_message["params"][0]['display_status']['progress'] * 100)
+            if 'progress' in json_message["params"][0]['display_status']:
+                progress = int(json_message["params"][0]['display_status']['progress'] * 100)
 
-            if progress < last_notify_percent - notify_percent:
-                last_notify_percent = progress
-            if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
-                notify(botUpdater.bot, f"Printed {progress}%")
-                last_notify_percent = progress
+                if progress < last_notify_percent - notify_percent:
+                    last_notify_percent = progress
+                if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
+                    notify(botUpdater.bot, f"Printed {progress}%")
+                    last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position_z = json_message["params"][0]['toolhead']['position'][2]
 
@@ -630,7 +634,6 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
 
     botUpdater = start_bot(token)
-
 
 
     # websocket communication
