@@ -87,11 +87,11 @@ def help_command(update: Update, context: CallbackContext) -> None:
                               '/light - toggle light')
 
 
-def echo(update: Update, context: CallbackContext) -> None:
+def echo(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
-def chat(update: Update, context: CallbackContext) -> None:
+def chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Chat id: {update.message.chat.id}")
 
 
@@ -138,7 +138,7 @@ def get_light_status() -> str:
     return status
 
 
-def status(update: Update, context: CallbackContext) -> None:
+def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
@@ -161,7 +161,7 @@ def take_photo() -> BytesIO:
     success, image = cap.read()
 
     if not success:
-        img = Image.open(urlopen('http://r.ddmcdn.com/s_f/o_1/APL/uploads/2014/10/nyan-cat-01-625x450.jpg', timeout=5))
+        img = Image.open(random.choice(glob.glob(f'imgs/*.jpg')))
     else:
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -437,11 +437,11 @@ def button(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=f"Start printing file {query.data}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.data.split(':')[-1]
-        req = request.Request(f"http://{host}/printer/print/start?filename={filename}",
-                              method="POST")
-        # Todo: check response!
-        response = request.urlopen(req)
-        query.delete_message()
+        response = requests.post(f"http://{host}/printer/print/start?filename={filename}")
+        if not response.ok:
+            query.edit_message_text(text=f"Failed start printing file {filename}?")
+        else:
+            query.delete_message()
     else:
         if query.data == 'status':
             status(update, context)
@@ -486,7 +486,15 @@ def upload_file(update: Update, context: CallbackContext) -> None:
         files = {'file': bio}
         res = requests.post(f"http://{host}/server/files/upload", files=files)
         if res.ok:
-            update.message.reply_text(f"successfully uploaded file: {doc.file_name}")
+            keyboard = [
+                [
+                    InlineKeyboardButton(emoji.emojize(':robot: print file'),
+                                         callback_data=f'print_file:{doc.file_name}'),
+                    InlineKeyboardButton(emoji.emojize(':cross_mark: do nothing'), callback_data='do_nothing'),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            update.message.reply_text(f"successfully uploaded file: {doc.file_name}", reply_markup=reply_markup)
         else:
             update.message.reply_text(f"failed uploading file: {doc.file_name}")
     else:
