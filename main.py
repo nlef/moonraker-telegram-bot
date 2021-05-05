@@ -5,6 +5,10 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
+from urllib import request
+from urllib.request import urlopen
+
+import requests
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, \
     ReplyKeyboardRemove
@@ -17,8 +21,7 @@ except ImportError:
     import _thread as thread
 import time
 import json
-import urllib.request
-from urllib.request import urlopen
+
 from PIL import Image
 from io import BytesIO
 import cv2
@@ -76,12 +79,12 @@ def help_command(update: Update, context: CallbackContext) -> None:
                               '/pause - pause printing\n'
                               '/resume - resume printing\n'
                               '/cancel - cancel printing\n'
+                              '/files - list last 5 files( you can start printing one from menu)\n'
                               '/photo - capture & send me a photo\n'
                               '/gif - let\'s make some gif from printer cam\n'
                               '/video - will take mp4 video from camera\n'
                               '/poweroff - turn off moonraker power device from config\n'
                               '/light - toggle light')
-                              
 
 
 def echo(update: Update, context: CallbackContext) -> None:
@@ -93,7 +96,7 @@ def chat(update: Update, context: CallbackContext) -> None:
 
 
 def info(update: Update, context: CallbackContext) -> None:
-    response = urllib.request.urlopen(f"http://{host}/printer/info")
+    response = request.urlopen(f"http://{host}/printer/info")
     update.message.reply_text(json.loads(response.read()))
 
 
@@ -105,7 +108,7 @@ def reset_notifications() -> None:
 
 
 def get_status() -> str:
-    response = urllib.request.urlopen(
+    response = request.urlopen(
         f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message")
     resp = json.loads(response.read())
     print_stats = resp['result']['status']['print_stats']
@@ -126,13 +129,14 @@ def get_status() -> str:
 
 def get_light_status() -> str:
     if light_device:
-        response = urllib.request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
+        response = request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
         resp = json.loads(response.read())
         status = resp['result'][f'{light_device}']
     else:
         status = "no device"
 
     return status
+
 
 def status(update: Update, context: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
@@ -403,7 +407,7 @@ def start(update: Update, _: CallbackContext) -> None:
 
 def keyboard(update: Update, _: CallbackContext) -> None:
     custom_keyboard = [
-        ['/status', '/pause', '/cancel'],
+        ['/status', '/pause', '/cancel', '/files'],
         ['/photo', '/video', '/gif'],
         ['/poweroff', '/keyoff', '/start']
     ]
@@ -421,24 +425,72 @@ def keyboard_off(update: Update, _: CallbackContext) -> None:
 def button(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    if query.data == 'status':
-        status(update, context)
-    elif query.data == 'pause':
-        pause_printing(update, context)
-    elif query.data == 'cancel':
-        cancel_printing(update, context)
-    elif query.data == 'photo':
-        get_photo(update, context)
-    elif query.data == 'gif':
-        get_gif(update, context)
-    elif query.data == 'video':
-        get_video(update, context)
-    elif query.data == 'power_off':
-        power_off(update, context)
-    elif query.data == 'light_toggle':
-        light_toggle(update, context)
+    # Todo: maybe regex check?
+    if '.gcode' in query.data and ':' not in query.data:
+        keyboard = [
+            [
+                InlineKeyboardButton(emoji.emojize(':robot: print file'), callback_data=f'print_file:{query.data}'),
+                InlineKeyboardButton(emoji.emojize(':cross_mark: cancel printing'), callback_data='cancel_file'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(text=f"Start printing file {query.data}?", reply_markup=reply_markup)
+    elif 'print_file' in query.data:
+        filename = query.data.split(':')[-1]
+        req = request.Request(f"http://{host}/printer/print/start?filename={filename}",
+                              method="POST")
+        # Todo: check response!
+        response = request.urlopen(req)
+        query.delete_message()
+    else:
+        if query.data == 'status':
+            status(update, context)
+        elif query.data == 'pause':
+            pause_printing(update, context)
+        elif query.data == 'cancel':
+            cancel_printing(update, context)
+        elif query.data == 'photo':
+            get_photo(update, context)
+        elif query.data == 'gif':
+            get_gif(update, context)
+        elif query.data == 'video':
+            get_video(update, context)
+        elif query.data == 'power_off':
+            power_off(update, context)
+        elif query.data == 'light_toggle':
+            light_toggle(update, context)
+        query.delete_message()
 
-    query.delete_message()
+
+def get_gcode_files(update: Update, context: CallbackContext) -> None:
+    response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
+    resp = json.loads(response.read())
+    files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
+    files_keys = list(
+        map(list,
+            zip(map(lambda el: InlineKeyboardButton(el['filename'], callback_data=el['filename']), files))
+            )
+    )
+    reply_markup = InlineKeyboardMarkup(files_keys)
+
+    update.message.reply_text('Gcode files to print:', reply_markup=reply_markup)
+
+
+def upload_file(update: Update, context: CallbackContext) -> None:
+    doc = update.message.document
+    if '.gcode' in doc.file_name:
+        bio = BytesIO()
+        bio.name = doc.file_name
+        bio.write(doc.get_file().download_as_bytearray())
+        bio.seek(0)
+        files = {'file': bio}
+        res = requests.post(f"http://{host}/server/files/upload", files=files)
+        if res.ok:
+            update.message.reply_text(f"successfully uploaded file: {doc.file_name}")
+        else:
+            update.message.reply_text(f"failed uploading file: {doc.file_name}")
+    else:
+        update.message.reply_text(f"unknown filetype in {doc.file_name}")
 
 
 def start_bot(token):
@@ -464,9 +516,11 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("chat", chat))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
+    dispatcher.add_handler(CommandHandler("files", get_gcode_files))
 
     # on noncommand i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file))
 
     # Start the Bot
     updater.start_polling()

@@ -1,5 +1,5 @@
 python-telegram-bot~=13.5
-websocket-client~=0.58.0
-Pillow~=8.1.2
+websocket-client==0.59.0
+Pillow~=8.2.0
 pyhocon~=0.3.57
 emoji~=1.2.0
