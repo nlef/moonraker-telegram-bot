@@ -1,5 +1,7 @@
 import argparse
 import glob
+import hashlib
+import itertools
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -427,6 +429,9 @@ def button(update: Update, context: CallbackContext) -> None:
     query.answer()
     # Todo: maybe regex check?
     if '.gcode' in query.data and ':' not in query.data:
+        keyboard_keys = dict((x['callback_data'], x['text']) for x in
+                             itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
+        filename = keyboard_keys[query.data]
         keyboard = [
             [
                 InlineKeyboardButton(emoji.emojize(':robot: print file'), callback_data=f'print_file:{query.data}'),
@@ -434,9 +439,9 @@ def button(update: Update, context: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(text=f"Start printing file {query.data}?", reply_markup=reply_markup)
+        query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
-        filename = query.data.split(':')[-1]
+        filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
         response = requests.post(f"http://{host}/printer/print/start?filename={filename}")
         if not response.ok:
             query.edit_message_text(text=f"Failed start printing file {filename}?")
@@ -468,7 +473,12 @@ def get_gcode_files(update: Update, context: CallbackContext) -> None:
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
     files_keys = list(
         map(list,
-            zip(map(lambda el: InlineKeyboardButton(el['filename'], callback_data=el['filename']), files))
+            zip(
+                map(lambda el: InlineKeyboardButton(el['filename'],
+                                                    callback_data=hashlib.md5(
+                                                        el['filename'].encode()).hexdigest() + '.gcode'),
+                    files)
+            )
             )
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
@@ -486,10 +496,10 @@ def upload_file(update: Update, context: CallbackContext) -> None:
         files = {'file': bio}
         res = requests.post(f"http://{host}/server/files/upload", files=files)
         if res.ok:
+            filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + '.gcode'
             keyboard = [
                 [
-                    InlineKeyboardButton(emoji.emojize(':robot: print file'),
-                                         callback_data=f'print_file:{doc.file_name}'),
+                    InlineKeyboardButton(emoji.emojize(':robot: print file'), callback_data=f'print_file:{filehash}'),
                     InlineKeyboardButton(emoji.emojize(':cross_mark: do nothing'), callback_data='do_nothing'),
                 ]
             ]
