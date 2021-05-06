@@ -207,7 +207,7 @@ def send_timelapse(bot):
         break
 
     filepath = f'{lapse_dir}/lapse.mp4'
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=15.0, frameSize=size)
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'x264'), fps=15.0, frameSize=size)
 
     photos = glob.glob(f'{lapse_dir}/*.jpg')
     photos.sort(key=os.path.getmtime)
@@ -318,7 +318,7 @@ def get_video(update: Update, context: CallbackContext) -> None:
     fps_video = cap.get(cv2.CAP_PROP_FPS)
     fps = 10
     filepath = os.path.join('/tmp/', 'video.mp4')
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=fps_video, frameSize=(width, height))
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'x264'), fps=fps_video, frameSize=(width, height))
     t_end = time.time() + gifDuration * 2
     while success and time.time() < t_end:
         prev_frame_time = time.time()
