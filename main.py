@@ -125,7 +125,8 @@ def get_status() -> str:
         message += f"Print time: {total_time} \n" \
                    f"Printing filename: {print_stats['filename']} \n" \
                    f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
-    message += emoji.emojize(':flashlight: Light Status: ') + f"{light_status}"
+    if light_device:
+        message += emoji.emojize(':flashlight: Light Status: ') + f"{light_status}"
     return message
 
 
@@ -197,7 +198,7 @@ def send_timelapse(bot):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-
+    bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     # Fixme: get single file!
     for filename in glob.glob(f'{lapse_dir}/*.jpg'):
@@ -215,7 +216,7 @@ def send_timelapse(bot):
         out.write(cv2.imread(filename))
 
     out.release()
-
+    bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     bio = BytesIO()
     bio.name = 'lapse.mp4'
     with open(filepath, 'rb') as fh:
@@ -385,6 +386,7 @@ def light_toggle(update: Update, context: CallbackContext) -> None:
 
 
 def start(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     keyboard = [
         [
             InlineKeyboardButton(emoji.emojize(':robot: status'), callback_data='status'),
@@ -408,6 +410,7 @@ def start(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     custom_keyboard = [
         ['/status', '/pause', '/cancel', '/files'],
         ['/photo', '/video', '/gif'],
@@ -420,11 +423,13 @@ def keyboard(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard_off(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     reply_markup = ReplyKeyboardRemove()
     update.message.bot.send_message(chat_id=chatId, text="disable keyboard", reply_markup=reply_markup)
 
 
 def button(update: Update, context: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
     # Todo: maybe regex check?
@@ -468,6 +473,7 @@ def button(update: Update, context: CallbackContext) -> None:
 
 
 def get_gcode_files(update: Update, context: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
     resp = json.loads(response.read())
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
@@ -487,6 +493,7 @@ def get_gcode_files(update: Update, context: CallbackContext) -> None:
 
 
 def upload_file(update: Update, context: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if '.gcode' in doc.file_name:
         bio = BytesIO()
@@ -671,6 +678,7 @@ def websocket_to_message(ws_message, botUpdater):
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
             if message:
+                botUpdater.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
                 botUpdater.bot.send_message(chatId, text=message)
 
 
