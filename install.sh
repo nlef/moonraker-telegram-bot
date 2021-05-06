@@ -19,7 +19,7 @@ cleanup_leagacy() {
 }
 
 install_packages() {
-  PKGLIST="python3-cryptography python3-gevent python3-opencv"
+  PKGLIST="python3-cryptography python3-gevent python3-opencv ffmpeg x264 libx264-dev"
   sudo apt-get update
   sudo apt-get install --yes ${PKGLIST}
 }
