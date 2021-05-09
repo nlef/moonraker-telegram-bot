@@ -34,7 +34,7 @@ then start install script
 ./install.sh
 ```
 
-Then edit your config (application.conf) using fluidd web interface or some other way
+Then edit your config (telegram.conf) using fluidd web interface or some other way
 
 ### Configuration
 Some tips to set up your telegram bot.

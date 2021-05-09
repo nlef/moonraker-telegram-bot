@@ -62,6 +62,7 @@ timelapse_enabled: bool = False
 timelapse_basedir: str
 debug = False
 
+klipper_config_path: str
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
@@ -164,7 +165,7 @@ def take_photo() -> BytesIO:
     success, image = cap.read()
 
     if not success:
-        img = Image.open(random.choice(glob.glob(f'imgs/*.jpg')))
+        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
     else:
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -685,11 +686,11 @@ def websocket_to_message(ws_message, botUpdater):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Moonraker Telegram Bot")
     parser.add_argument(
-        "-c", "--configfile", default="application.conf",
+        "-c", "--configfile", default="./telegram.conf",
         metavar='<configfile>',
         help="Location of moonraker tlegram bot configuration file")
     system_args = parser.parse_args()
-
+    klipper_config_path = system_args.configfile[:system_args.configfile.rfind('/')]
     conf = ConfigFactory.parse_file(system_args.configfile)
     host = conf.get_string('server', 'localhost')
     token = conf.get_string('bot_token')

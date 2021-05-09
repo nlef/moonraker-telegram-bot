@@ -39,7 +39,12 @@ create_service() {
 
   # check in config exists!
   # copy configfile if not exists
-  cp -n "${MOONRAKER_BOT_DIR}"/application.conf "${KLIPPER_CONF_DIR}"/application.conf
+  if [[ -f "${KLIPPER_CONF_DIR}"/application.conf ]]; then
+    mv "${KLIPPER_CONF_DIR}"/application.conf "${KLIPPER_CONF_DIR}"/telegram.conf
+  fi
+
+  cp -n "${MOONRAKER_BOT_DIR}"/telegram.conf "${KLIPPER_CONF_DIR}"/telegram.conf
+  cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/imgs
 
   ### create systemd service file
   sudo /bin/sh -c "cat > ${SYSTEMDDIR}/moonraker-telegram-bot.service" <<EOF
@@ -54,7 +59,7 @@ WantedBy=multi-user.target
 [Service]
 Type=simple
 User=${CURRENT_USER}
-ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/main.py -c ${KLIPPER_CONF_DIR}/application.conf
+ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/main.py -c ${KLIPPER_CONF_DIR}/telegram.conf
 Restart=always
 RestartSec=5
 EOF
