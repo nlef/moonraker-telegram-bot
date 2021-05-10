@@ -72,6 +72,7 @@ ws: websocket.WebSocketApp
 last_notify_heigth: int = 0
 last_notify_percent: int = 0
 last_timelapse_heigth: float = 0.2
+last_message: str
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -112,13 +113,14 @@ def reset_notifications() -> None:
 
 def get_status() -> str:
     response = request.urlopen(
-        f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message")
+        f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message&display_status=message")
     resp = json.loads(response.read())
     print_stats = resp['result']['status']['print_stats']
     webhook = resp['result']['status']['webhooks']
     total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
     light_status = get_light_status()
-    message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']} \n"
+    msg = resp['result']['status']['display_status']['message'] if ('message' in resp['result']['status']['display_status']) else ""
+    message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']} \n" + f"{msg}\n"
     if 'state_message' in webhook:
         message += f"State message: {webhook['state_message']}\n"
     message += emoji.emojize(':mechanical_arm: Printing process status: ') + f"{print_stats['state']} \n"
@@ -596,7 +598,7 @@ def websocket_to_message(ws_message, botUpdater):
     if debug:
         logger.debug(ws_message)
 
-    global klippy_printing_filename, klippy_printing, klippy_connected, last_notify_percent, last_notify_heigth, klippy_printing_duration
+    global klippy_printing_filename, klippy_printing, klippy_connected, last_notify_percent, last_notify_heigth, klippy_printing_duration, last_message
 
     if 'error' in json_message:
         return
@@ -636,13 +638,15 @@ def websocket_to_message(ws_message, botUpdater):
 
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
+            if 'message' in json_message["params"][0]['display_status']:
+                last_message = f"{json_message['params'][0]['display_status']['message']}"
             if 'progress' in json_message["params"][0]['display_status']:
                 progress = int(json_message["params"][0]['display_status']['progress'] * 100)
-
                 if progress < last_notify_percent - notify_percent:
                     last_notify_percent = progress
                 if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
-                    notify(botUpdater.bot, f"Printed {progress}%")
+                    notifymsg = f"Printed {progress}%\n{last_message}"
+                    notify(botUpdater.bot, notifymsg)
                     last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position_z = json_message["params"][0]['toolhead']['position'][2]
@@ -652,7 +656,7 @@ def websocket_to_message(ws_message, botUpdater):
             if int(position_z) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position_z)
             if notify_heigth != 0 and int(position_z) % notify_heigth == 0 and int(position_z) > last_notify_heigth:
-                notify(botUpdater.bot, f"Printed {round(position_z, 2)}mm")
+                notify(botUpdater.bot, f"Printed {round(position_z, 2)}mm\n{last_message}")
                 last_notify_heigth = int(position_z)
             if position_z % timelapse_heigth == 0:  # check vase mode!
                 take_lapse_photo()
@@ -679,7 +683,7 @@ def websocket_to_message(ws_message, botUpdater):
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
             if message:
-                botUpdater.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+                botUpdater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
                 botUpdater.bot.send_message(chatId, text=message)
 
 
