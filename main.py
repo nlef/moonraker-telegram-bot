@@ -435,7 +435,7 @@ def keyboard_off(update: Update, _: CallbackContext) -> None:
 
 
 def button(update: Update, context: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
     # Todo: maybe regex check?
