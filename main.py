@@ -648,7 +648,9 @@ def websocket_to_message(ws_message, botUpdater):
                 if progress < last_notify_percent - notify_percent:
                     last_notify_percent = progress
                 if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
-                    notifymsg = f"Printed {progress}%\n{last_message}"
+                    notifymsg = f"Printed {progress}%"
+                    if last_message:
+                        notifymsg += f"\n{last_message}"
                     notify(botUpdater.bot, notifymsg)
                     last_notify_percent = progress
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
@@ -659,7 +661,10 @@ def websocket_to_message(ws_message, botUpdater):
             if int(position_z) < last_notify_heigth - notify_heigth:
                 last_notify_heigth = int(position_z)
             if notify_heigth != 0 and int(position_z) % notify_heigth == 0 and int(position_z) > last_notify_heigth:
-                notify(botUpdater.bot, f"Printed {round(position_z, 2)}mm\n{last_message}")
+                notifymsg = f"Printed {round(position_z, 2)}mm"
+                if last_message:
+                    notifymsg += f"\n{last_message}"
+                notify(botUpdater.bot, notifymsg)
                 last_notify_heigth = int(position_z)
             if position_z % timelapse_heigth == 0:  # check vase mode!
                 take_lapse_photo()
