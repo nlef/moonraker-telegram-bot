@@ -48,7 +48,7 @@ myId = random.randint(300000)
 host = "localhost"
 cameraEnabled = True
 cameraHost = "localhost:8080"
-chatId = 12341234
+chatId: int = 12341234
 notify_percent = 5
 notify_heigth = 5
 flipVertically = False
@@ -96,11 +96,7 @@ def echo(update: Update, _: CallbackContext) -> None:
 
 
 def unknownChat(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"Unauthoride access: {update.message.text} and {update.message.chat_id}")
-
-
-def chat(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"Chat id: {update.message.chat.id}")
+    update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}")
 
 
 def info(update: Update, context: CallbackContext) -> None:
@@ -536,7 +532,7 @@ def start_bot(token):
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(MessageHandler(~Filters.chat(int(chatId)), unknownChat))
+    dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknownChat))
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CallbackQueryHandler(button))
@@ -550,7 +546,6 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
-    dispatcher.add_handler(CommandHandler("chat", chat))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files))
@@ -712,7 +707,7 @@ if __name__ == '__main__':
     conf = ConfigFactory.parse_file(system_args.configfile)
     host = conf.get_string('server', 'localhost')
     token = conf.get_string('bot_token')
-    chatId = conf.get_string('chat_id')
+    chatId = int(conf.get_string('chat_id'))
     notify_percent = conf.get_int('notify.percent', 5)
     notify_heigth = conf.get_int('notify.heigth', 5)
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
