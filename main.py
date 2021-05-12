@@ -120,8 +120,9 @@ def get_status() -> str:
     total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
     light_status = get_light_status()
     message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']}\n"
-    msg = resp['result']['status']['display_status']['message'] if (
-            'message' in resp['result']['status']['display_status']) else ""
+    if 'display_status' in resp['result']['status']:
+        if 'message' in resp['result']['status']['display_status']:
+	    msg = resp['result']['status']['display_status']['message']
     if msg and msg is not None:
         message += f"{msg}\n"
     if 'state_message' in webhook:
