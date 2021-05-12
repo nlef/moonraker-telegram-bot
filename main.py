@@ -95,6 +95,10 @@ def echo(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
+def unknownChat(update: Update, _: CallbackContext) -> None:
+    update.message.reply_text(f"Unauthoride access: {update.message.text} and {update.message.chat_id}")
+
+
 def chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Chat id: {update.message.chat.id}")
 
@@ -532,6 +536,7 @@ def start_bot(token):
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
+    dispatcher.add_handler(MessageHandler(~Filters.chat(int(chatId)), unknownChat))
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CallbackQueryHandler(button))
