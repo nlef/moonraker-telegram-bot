@@ -78,7 +78,7 @@ last_message: str
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 def checkAuthorized(update: Update):
-    if not int(update.message.chat.id) == chatId:
+    if not int(update.message.chat.id) == int(chatId):
         logger.warning("Unauthorized message from ")
         logger.warning(update.message.chat)
         logger.warning("Message: " + update.message.text)
