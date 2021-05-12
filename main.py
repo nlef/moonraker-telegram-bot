@@ -122,7 +122,7 @@ def get_status() -> str:
     message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']}\n"
     if 'display_status' in resp['result']['status']:
         if 'message' in resp['result']['status']['display_status']:
-	    msg = resp['result']['status']['display_status']['message']
+            msg = resp['result']['status']['display_status']['message']
     if msg and msg is not None:
         message += f"{msg}\n"
     if 'state_message' in webhook:
