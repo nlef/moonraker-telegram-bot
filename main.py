@@ -77,7 +77,17 @@ last_message: str
 
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
+def checkAuthorized(update: Update):
+    if not int(update.message.chat.id) == chatId:
+        logger.warning("Unauthorized message from ")
+        logger.warning(update.message.chat)
+        logger.warning("Message: " + update.message.text)
+        return False
+    return True
+    
 def help_command(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.reply_text('The following commands are known:\n\n'
                               '/status - send klipper status\n'
                               '/pause - pause printing\n'
@@ -92,14 +102,20 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def echo(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
 def chat(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.reply_text(f"Chat id: {update.message.chat.id}")
 
 
 def info(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     response = request.urlopen(f"http://{host}/printer/info")
     update.message.reply_text(json.loads(response.read()))
 
@@ -149,6 +165,8 @@ def get_light_status() -> str:
 
 
 def status(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
@@ -247,6 +265,8 @@ def process_frame(frame, width, height) -> Image:
 
 
 def get_photo(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
@@ -254,6 +274,8 @@ def get_photo(update: Update, context: CallbackContext) -> None:
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -309,6 +331,8 @@ def process_video_frame(frame):
 
 
 def get_video(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -358,18 +382,26 @@ def manage_printing(command: str) -> None:
 
 
 def pause_printing(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     manage_printing('pause')
 
 
 def resume_printing(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     manage_printing('resume')
 
 
 def cancel_printing(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     manage_printing('cancel')
 
 
 def power_off(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
     if poweroff_device:
         ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
@@ -379,6 +411,8 @@ def power_off(update: Update, context: CallbackContext) -> None:
 
 
 def light_toggle(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
         status = get_light_status()
@@ -393,6 +427,8 @@ def light_toggle(update: Update, context: CallbackContext) -> None:
 
 
 def start(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     keyboard = [
         [
@@ -417,6 +453,8 @@ def start(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     custom_keyboard = [
         ['/status', '/pause', '/cancel', '/files'],
@@ -430,12 +468,16 @@ def keyboard(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard_off(update: Update, _: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     reply_markup = ReplyKeyboardRemove()
     update.message.bot.send_message(chat_id=chatId, text="disable keyboard", reply_markup=reply_markup)
 
 
 def button(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
@@ -480,6 +522,8 @@ def button(update: Update, context: CallbackContext) -> None:
 
 
 def get_gcode_files(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
     resp = json.loads(response.read())
@@ -500,6 +544,8 @@ def get_gcode_files(update: Update, context: CallbackContext) -> None:
 
 
 def upload_file(update: Update, context: CallbackContext) -> None:
+    if not checkAuthorized(update):
+        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if '.gcode' in doc.file_name:
