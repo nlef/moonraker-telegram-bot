@@ -78,11 +78,12 @@ last_message: str
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 def checkAuthorized(update: Update):
-    if not int(update.message.chat.id) == int(chatId):
-        logger.warning("Unauthorized message from ")
-        logger.warning(update.message.chat)
-        logger.warning("Message: " + update.message.text)
-        return False
+    if not update.message is None:
+        if not int(update.message.chat.id) == int(chatId):
+            logger.warning("Unauthorized message from ")
+            logger.warning(update.message.chat)
+            logger.warning("Message: " + update.message.text)
+            return False
     return True
     
 def help_command(update: Update, context: CallbackContext) -> None:
@@ -102,8 +103,6 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def echo(update: Update, _: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
@@ -466,16 +465,12 @@ def keyboard(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard_off(update: Update, _: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     reply_markup = ReplyKeyboardRemove()
     update.message.bot.send_message(chat_id=chatId, text="disable keyboard", reply_markup=reply_markup)
 
 
 def button(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
