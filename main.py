@@ -60,6 +60,7 @@ light_device: str
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
+video_fourcc: str = 'x264'
 debug = False
 
 klipper_config_path: str
@@ -204,12 +205,6 @@ def notify(bot, progress: int = 0, position_z: int = 0):
             bot.send_message(chatId, text=notifymsg)
 
 
-# Todo: vase mode calcs
-def check_lapse(position_z: int):
-    if position_z % timelapse_heigth == 0:  # check vase mode!
-        take_lapse_photo()
-
-
 def take_photo() -> BytesIO:
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
@@ -233,16 +228,18 @@ def take_photo() -> BytesIO:
     return bio
 
 
-def take_lapse_photo():
+# Todo: vase mode calcs
+def take_lapse_photo(position_z: int):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    # Todo: check for space avaliable?
-    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
-    Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-    filename = f'{lapse_dir}/{time.time()}.jpg'
-    with open(filename, "wb") as outfile:
-        outfile.write(take_photo().getbuffer())
+    if position_z % timelapse_heigth == 0:
+        # Todo: check for space avaliable?
+        lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
+        Path(lapse_dir).mkdir(parents=True, exist_ok=True)
+        filename = f'{lapse_dir}/{time.time()}.jpg'
+        with open(filename, "wb") as outfile:
+            outfile.write(take_photo().getbuffer())
 
 
 def send_timelapse(bot):
@@ -259,7 +256,7 @@ def send_timelapse(bot):
         break
 
     filepath = f'{lapse_dir}/lapse.mp4'
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'x264'), fps=15.0, frameSize=size)
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
     photos = glob.glob(f'{lapse_dir}/*.jpg')
     photos.sort(key=os.path.getmtime)
@@ -376,7 +373,8 @@ def get_video(update: Update, context: CallbackContext) -> None:
     fps_video = cap.get(cv2.CAP_PROP_FPS)
     fps = 10
     filepath = os.path.join('/tmp/', 'video.mp4')
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*'x264'), fps=fps_video, frameSize=(width, height))
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video,
+                          frameSize=(width, height))
     t_end = time.time() + gifDuration * 2
     while success and time.time() < t_end:
         prev_frame_time = time.time()
@@ -720,7 +718,7 @@ def websocket_to_message(ws_message, bot):
         if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
             position_z = int(json_message["params"][0]['gcode_move']['position'][2])  # Todo: use gcode_position instead
             notify(bot, position_z=position_z)
-            check_lapse(position_z)
+            take_lapse_photo(position_z)
         if 'print_stats' in json_message['params'][0]:
             message = ""
             state = ""
@@ -784,6 +782,7 @@ if __name__ == '__main__':
     gifDuration = conf.get_int('camera.gifDuration', 5)
     reduceGif = conf.get_int('camera.reduceGif', 0)
     cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
+    video_fourcc = conf.get_string('camera.fourcc', 'x264')
     poweroff_device = conf.get_string('poweroff_device', "")
     light_device = conf.get_string('light_device', "")
     debug = conf.get_bool('debug', False)

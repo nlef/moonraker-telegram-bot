@@ -81,6 +81,9 @@ camera {
     flipHorisontally = false
     gifDuration = 5
     reduceGif = 2
+    fourcc = "x264"
+      # One can set opencv VideoWriter fourcc codec. default is 'x264'. 
+      # For weak devices it's good to use 'mp4v' for performance reasons (videos may not be playeble on Apple devices). 
 }
 ```
 
