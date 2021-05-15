@@ -66,13 +66,13 @@ klipper_config_path: str
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
-klippy_printing_filename: str
+klippy_printing_filename: str = ''
 ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
 last_notify_percent: int = 0
 last_timelapse_heigth: float = 0.2
-last_message: str
+last_message: str = ''
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -85,7 +85,8 @@ def checkAuthorized(update: Update):
             logger.warning("Message: " + update.message.text)
             return False
     return True
-    
+
+
 def help_command(update: Update, context: CallbackContext) -> None:
     if not checkAuthorized(update):
         return
@@ -170,15 +171,43 @@ def status(update: Update, _: CallbackContext) -> None:
     message_to_reply.reply_text(get_status())
 
 
-def notify(bot, message):
-    if not klippy_printing or not klippy_printing_duration > 0.0:
+def notify(bot, progress: int = 0, position_z: int = 0):
+    if not klippy_printing or not klippy_printing_duration > 0.0 or notify_heigth == 0 or notify_percent == 0:
         return
-    if cameraEnabled:
-        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-        bot.send_photo(chatId, photo=take_photo(), caption=message)
-    else:
-        bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-        bot.send_message(chatId, text=message)
+
+    global last_notify_percent, last_notify_heigth
+    notifymsg = ''
+    if progress != 0:
+        if progress < last_notify_percent - notify_percent:
+            last_notify_percent = progress
+        if progress % notify_percent == 0 and progress > last_notify_percent:
+            notifymsg = f"Printed {progress}%"
+            if last_message:
+                notifymsg += f"\n{last_message}"
+            last_notify_percent = progress
+
+    if position_z != 0:
+        if position_z < last_notify_heigth - notify_heigth:
+            last_notify_heigth = position_z
+        if position_z % notify_heigth == 0 and position_z > last_notify_heigth:
+            notifymsg = f"Printed {position_z}mm"
+            if last_message:
+                notifymsg += f"\n{last_message}"
+            last_notify_heigth = position_z
+
+    if notifymsg:
+        if cameraEnabled:
+            bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+            bot.send_photo(chatId, photo=take_photo(), caption=notifymsg)
+        else:
+            bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+            bot.send_message(chatId, text=notifymsg)
+
+
+# Todo: vase mode calcs
+def check_lapse(position_z: int):
+    if position_z % timelapse_heigth == 0:  # check vase mode!
+        take_lapse_photo()
 
 
 def take_photo() -> BytesIO:
@@ -636,7 +665,7 @@ def reshedule():
         time.sleep(1)
 
 
-def websocket_to_message(ws_message, botUpdater):
+def websocket_to_message(ws_message, bot):
     json_message = json.loads(ws_message)
     if debug:
         logger.debug(ws_message)
@@ -661,9 +690,9 @@ def websocket_to_message(ws_message, botUpdater):
             else:
                 klippy_connected = False
             return
-        botUpdater.bot.send_message(chatId, text=f"{json_message['result']}")
+        bot.send_message(chatId, text=f"{json_message['result']}")
     if 'id' in json_message and 'error' in json_message:
-        botUpdater.bot.send_message(chatId, text=f"{json_message['error']['message']}")
+        bot.send_message(chatId, text=f"{json_message['error']['message']}")
 
     # if json_message["method"] == "notify_gcode_response":
     #     val = ws_message["params"][0]
@@ -682,32 +711,16 @@ def websocket_to_message(ws_message, botUpdater):
     if json_message["method"] == "notify_status_update":
         if 'display_status' in json_message["params"][0]:
             if 'message' in json_message["params"][0]['display_status']:
-                last_message = f"{json_message['params'][0]['display_status']['message']}"
+                last_message = json_message['params'][0]['display_status']['message']
             if 'progress' in json_message["params"][0]['display_status']:
-                progress = int(json_message["params"][0]['display_status']['progress'] * 100)
-                if progress < last_notify_percent - notify_percent:
-                    last_notify_percent = progress
-                if notify_percent != 0 and progress % notify_percent == 0 and progress > last_notify_percent:
-                    notifymsg = f"Printed {progress}%"
-                    if last_message:
-                        notifymsg += f"\n{last_message}"
-                    notify(botUpdater.bot, notifymsg)
-                    last_notify_percent = progress
+                notify(bot, progress=int(json_message["params"][0]['display_status']['progress'] * 100))
         if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
             position_z = json_message["params"][0]['toolhead']['position'][2]
 
         if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-            position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
-            if int(position_z) < last_notify_heigth - notify_heigth:
-                last_notify_heigth = int(position_z)
-            if notify_heigth != 0 and int(position_z) % notify_heigth == 0 and int(position_z) > last_notify_heigth:
-                notifymsg = f"Printed {round(position_z, 2)}mm"
-                if last_message:
-                    notifymsg += f"\n{last_message}"
-                notify(botUpdater.bot, notifymsg)
-                last_notify_heigth = int(position_z)
-            if position_z % timelapse_heigth == 0:  # check vase mode!
-                take_lapse_photo()
+            position_z = int(json_message["params"][0]['gcode_move']['position'][2])  # Todo: use gcode_position instead
+            notify(bot, position_z=position_z)
+            check_lapse(position_z)
         if 'print_stats' in json_message['params'][0]:
             message = ""
             state = ""
@@ -725,14 +738,26 @@ def websocket_to_message(ws_message, botUpdater):
             # Todo: cleanup timelapse dir on cancel print!
             elif state == 'complete':
                 klippy_printing = False
-                send_timelapse(botUpdater.bot)
+                send_timelapse(bot)
             elif state:
                 klippy_printing = False
                 message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
             if message:
-                botUpdater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-                botUpdater.bot.send_message(chatId, text=message)
+                bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+                bot.send_message(chatId, text=message)
+
+
+def parselog(bot):
+    with open('telegram.log') as f:
+        lines = f.readlines()
+
+    wsLines = list(filter(lambda it: ' - {' in it, lines))
+    tt = list(map(lambda el: el.split(' - ')[-1].replace('\n', ''), wsLines))
+
+    for mes in tt:
+        websocket_to_message(mes, bot)
+    print('lalal')
 
 
 if __name__ == '__main__':
@@ -771,11 +796,14 @@ if __name__ == '__main__':
 
     # websocket communication
     def on_message(ws, message):
-        websocket_to_message(message, botUpdater)
+        websocket_to_message(message, botUpdater.bot)
 
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
+
+    # debug reasons only
+    # parselog(botUpdater.bot)
 
     botUpdater.bot.send_message(chatId, text=get_status())
 
