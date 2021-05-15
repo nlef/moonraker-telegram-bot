@@ -44,7 +44,7 @@ create_service() {
   fi
 
   cp -n "${MOONRAKER_BOT_DIR}"/telegram.conf "${KLIPPER_CONF_DIR}"/telegram.conf
-  cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/imgs
+  cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
 
   ### create systemd service file
   sudo /bin/sh -c "cat > ${SYSTEMDDIR}/moonraker-telegram-bot.service" <<EOF
