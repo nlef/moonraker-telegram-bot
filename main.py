@@ -229,11 +229,11 @@ def take_photo() -> BytesIO:
 
 
 # Todo: vase mode calcs
-def take_lapse_photo(position_z: int):
+def take_lapse_photo(position_z: int = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if position_z % timelapse_heigth == 0:
+    if position_z % timelapse_heigth == 0 or position_z <= 0:
         # Todo: check for space avaliable?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
