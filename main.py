@@ -233,7 +233,7 @@ def take_lapse_photo(position_z: int = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if position_z % timelapse_heigth == 0 or position_z <= 0:
+    if position_z % timelapse_heigth == 0 or position_z < 0:
         # Todo: check for space avaliable?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
@@ -783,12 +783,16 @@ if __name__ == '__main__':
     reduceGif = conf.get_int('camera.reduceGif', 0)
     cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
     video_fourcc = conf.get_string('camera.fourcc', 'x264')
+    camera_threads = conf.get_int('camera.threads', int(os.cpu_count() / 2))
+
     poweroff_device = conf.get_string('poweroff_device', "")
     light_device = conf.get_string('light_device', "")
     debug = conf.get_bool('debug', False)
 
     if debug:
         logger.setLevel(logging.DEBUG)
+
+    cv2.setNumThreads(camera_threads)
 
     botUpdater = start_bot(token)
 
@@ -808,6 +812,6 @@ if __name__ == '__main__':
 
     threading.Thread(target=reshedule, daemon=True).start()
 
-    ws.run_forever(ping_interval=10, ping_timeout=2)
+    ws.run_forever(ping_interval=60, ping_timeout=20)
     logger.info("Exiting! Moonraker connection lost!")
     botUpdater.stop()
