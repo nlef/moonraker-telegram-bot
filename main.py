@@ -173,12 +173,12 @@ def status(update: Update, _: CallbackContext) -> None:
 
 
 def notify(bot, progress: int = 0, position_z: int = 0):
-    if not klippy_printing or not klippy_printing_duration > 0.0 or notify_heigth == 0 or notify_percent == 0:
+    if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0):
         return
 
     global last_notify_percent, last_notify_heigth
     notifymsg = ''
-    if progress != 0:
+    if progress != 0 and notify_percent != 0:
         if progress < last_notify_percent - notify_percent:
             last_notify_percent = progress
         if progress % notify_percent == 0 and progress > last_notify_percent:
@@ -187,7 +187,7 @@ def notify(bot, progress: int = 0, position_z: int = 0):
                 notifymsg += f"\n{last_message}"
             last_notify_percent = progress
 
-    if position_z != 0:
+    if position_z != 0 and notify_heigth != 0:
         if position_z < last_notify_heigth - notify_heigth:
             last_notify_heigth = position_z
         if position_z % notify_heigth == 0 and position_z > last_notify_heigth:
