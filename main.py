@@ -1,11 +1,15 @@
 import argparse
+import base64
 import glob
 import hashlib
 import itertools
 import logging
+import urllib
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
 import sys
+from operator import attrgetter
 from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
@@ -126,7 +130,7 @@ def reset_notifications() -> None:
     klippy_printing_duration = 0
 
 
-def get_status() -> str:
+def get_status() -> (str, str):
     response = request.urlopen(
         f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message&display_status=message")
     resp = json.loads(response.read())
@@ -143,13 +147,13 @@ def get_status() -> str:
     if 'state_message' in webhook:
         message += f"State message: {webhook['state_message']}\n"
     message += emoji.emojize(':mechanical_arm: Printing process status: ') + f"{print_stats['state']} \n"
+    printing_filename = ''
     if print_stats['state'] in ('printing', 'paused', 'complete'):
-        message += f"Print time: {total_time} \n" \
-                   f"Printing filename: {print_stats['filename']} \n" \
-                   f"Used filament: {round(print_stats['filament_used'] / 1000, 2)}m"
+        printing_filename = print_stats['filename']
+        message += f"Printing filename: {printing_filename} \n"
     if light_device:
         message += emoji.emojize(':flashlight: Light Status: ') + f"{light_status}"
-    return message
+    return message, printing_filename
 
 
 def get_light_status() -> str:
@@ -163,13 +167,54 @@ def get_light_status() -> str:
     return status
 
 
+def send_file_info(bot, filename, message: str = ''):
+    response = request.urlopen(
+        f"http://{host}/server/files/metadata?filename={urllib.parse.quote(filename)}"
+    )
+    resp = json.loads(response.read())['result']
+
+    message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weigth: {resp['filament_weight_total']}g"
+    message += f"\nPrint duration: {timedelta(seconds=resp['estimated_time'])}"
+    message += f"\nFinish at {datetime.now() + timedelta(seconds=resp['estimated_time']):%Y-%m-%d %H:%M}"
+
+    if 'thumbnails' in resp:
+        thumb = max(resp['thumbnails'], key=lambda el: el['size'])
+        img = Image.open(
+            urlopen(f"http://{host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")
+        ).convert('RGB')
+
+        bio = BytesIO()
+        bio.name = f'{filename}.jpeg'
+        img.save(bio, 'JPEG')
+        bio.seek(0)
+        bot.send_photo(chatId, photo=bio, caption=message)
+    else:
+        bot.send_message(chatId, message)
+
+
 def status(update: Update, _: CallbackContext) -> None:
     if not checkAuthorized(update):
         return
     message_to_reply = update.message if update.message else update.effective_message
-
+    (mess, filename) = get_status()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    message_to_reply.reply_text(get_status())
+    message_to_reply.reply_text(mess)
+    if filename:
+        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+        send_file_info(message_to_reply.bot, filename)
+
+
+def greeting_message(bot):
+    (mess, filename) = get_status()
+    custom_keyboard = [
+        ['/status', '/pause', '/cancel', '/files'],
+        ['/photo', '/video', '/gif'],
+        ['/poweroff', '/keyoff', '/start']
+    ]
+    reply_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True)
+    bot.send_message(chatId, text=mess, reply_markup=reply_markup)
+    if filename:
+        send_file_info(bot, filename)
 
 
 def notify(bot, progress: int = 0, position_z: int = 0):
@@ -336,7 +381,7 @@ def get_gif(update: Update, context: CallbackContext) -> None:
                 loop=0)
     bio.seek(0)
     message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
-                                     caption=get_status())
+                                     caption=get_status()[0])
 
     if debug:
         message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
@@ -516,7 +561,7 @@ def button(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
-        response = requests.post(f"http://{host}/printer/print/start?filename={filename}")
+        response = requests.post(f"http://{host}/printer/print/start?filename={filename}")  # Fixme: add quotes?
         if not response.ok:
             query.edit_message_text(text=f"Failed start printing file {filename}?")
         else:
@@ -551,9 +596,9 @@ def get_gcode_files(update: Update, context: CallbackContext) -> None:
     files_keys = list(
         map(list,
             zip(
-                map(lambda el: InlineKeyboardButton(el['filename'],
+                map(lambda el: InlineKeyboardButton(el['path'],
                                                     callback_data=hashlib.md5(
-                                                        el['filename'].encode()).hexdigest() + '.gcode'),
+                                                        el['path'].encode()).hexdigest() + '.gcode'),
                     files)
             )
             )
@@ -732,7 +777,8 @@ def websocket_to_message(ws_message, bot):
             if state == "printing":
                 klippy_printing = True
                 reset_notifications()
-                message += f"Printer started printing: {klippy_printing_filename} \n"
+                send_file_info(bot, klippy_printing_filename,
+                               f"Printer started printing: {klippy_printing_filename} \n")
             # Todo: cleanup timelapse dir on cancel print!
             elif state == 'complete':
                 klippy_printing = False
@@ -808,7 +854,7 @@ if __name__ == '__main__':
     # debug reasons only
     # parselog(botUpdater.bot)
 
-    botUpdater.bot.send_message(chatId, text=get_status())
+    greeting_message(botUpdater.bot)
 
     threading.Thread(target=reshedule, daemon=True).start()
 
