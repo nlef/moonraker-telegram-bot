@@ -306,6 +306,7 @@ def send_timelapse(bot):
     photos = glob.glob(f'{lapse_dir}/*.jpg')
     photos.sort(key=os.path.getmtime)
     for filename in photos:
+        bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         out.write(cv2.imread(filename))
 
     out.release()
@@ -314,11 +315,11 @@ def send_timelapse(bot):
     bio.name = 'lapse.mp4'
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
+    bio.seek(0)
+    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}')
     for filename in glob.glob(f'{lapse_dir}/*'):
         os.remove(filename)
     Path(lapse_dir).rmdir()
-    bio.seek(0)
-    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}')
 
 
 def process_frame(frame, width, height) -> Image:
