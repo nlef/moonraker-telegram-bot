@@ -56,6 +56,7 @@ chatId: int = 12341234
 notify_percent: int = 5
 notify_heigth: int = 5
 notify_interval: int = 0
+notify_groups: list = list()
 flipVertically: bool = False
 flipHorisontally: bool = False
 gifDuration: int = 5
@@ -250,9 +251,15 @@ def notify(bot, progress: int = 0, position_z: int = 0):
         if cameraEnabled:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
             bot.send_photo(chatId, photo=take_photo(), caption=notifymsg)
+            for group in notify_groups:
+                bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
+                bot.send_photo(group, photo=take_photo(), caption=notifymsg)
         else:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
             bot.send_message(chatId, text=notifymsg)
+            for group in notify_groups:
+                bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                bot.send_message(group, text=notifymsg)
 
 
 def take_photo() -> BytesIO:
@@ -785,6 +792,10 @@ def websocket_to_message(ws_message, bot):
                 reset_notifications()
                 send_file_info(bot, klippy_printing_filename,
                                f"Printer started printing: {klippy_printing_filename} \n")
+                # do we need more info in groups?
+                for group in notify_groups:
+                    bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                    bot.send_message(group, text=f"Printer started printing: {klippy_printing_filename} \n")
             # Todo: cleanup timelapse dir on cancel print!
             elif state == 'complete':
                 klippy_printing = False
@@ -796,6 +807,9 @@ def websocket_to_message(ws_message, bot):
             if message:
                 bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
                 bot.send_message(chatId, text=message)
+                for group in notify_groups:
+                    bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                    bot.send_message(group, text=message)
 
 
 def parselog(bot):
@@ -825,6 +839,7 @@ if __name__ == '__main__':
     notify_percent = conf.get_int('notify.percent', 5)
     notify_heigth = conf.get_int('notify.heigth', 5)
     notify_interval = conf.get_int('notify.interval', 0)
+    notify_groups = conf.get_list('notify.groups', list())
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')

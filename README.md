@@ -63,6 +63,8 @@ notify {
     heigth = 5
     interval = 5
       # minimum interval between notifications in seconds
+    groups = [ 123123123123, 123123132132]
+      # group ids to which notifications should be sent 
 }
 
 timelapse {
