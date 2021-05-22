@@ -221,7 +221,7 @@ def greeting_message(bot):
 
 
 def notify(bot, progress: int = 0, position_z: int = 0):
-    global last_notify_percent, last_notify_heigth, last_notify_time
+    global last_notify_percent, last_notify_heigth, last_notify_time, klippy_printing_duration, klippy_printing
 
     if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0) or (
             time.time() > last_notify_time + notify_interval):
@@ -235,6 +235,10 @@ def notify(bot, progress: int = 0, position_z: int = 0):
             notifymsg = f"Printed {progress}%"
             if last_message:
                 notifymsg += f"\n{last_message}"
+            if klippy_printing_duration > 0:
+                estimated_time = (klippy_printing_duration / progress) - klippy_printing_duration
+                notifymsg += f"\nEstimated time {timedelta(seconds=estimated_time)}"
+                notifymsg += f"\nFinish at {datetime.now() + timedelta(seconds=estimated_time):%Y-%m-%d %H:%M}"
             last_notify_percent = progress
 
     if position_z != 0 and notify_heigth != 0:
@@ -694,24 +698,24 @@ def on_close(ws):
 
 def subscribe(ws):
     ws.send(
-        json.dumps({"jsonrpc": "2.0",
-                    "method": "printer.objects.subscribe",
-                    "params": {
-                        "objects": {
-                            "print_stats": ["filename", "state", "print_duration"],
-                            "display_status": ['progress', 'message'],
+        json.dumps({'jsonrpc': '2.0',
+                    'method': 'printer.objects.subscribe',
+                    'params': {
+                        'objects': {
+                            'print_stats': ['filename', 'state', 'print_duration'],
+                            'display_status': ['progress', 'message'],
                             'toolhead': ['position'],
                             'gcode_move': ['position']
                         }
                     },
-                    "id": myId}))
+                    'id': myId}))
 
 
 def on_open(ws):
     ws.send(
-        json.dumps({"jsonrpc": "2.0",
-                    "method": "printer.info",
-                    "id": myId}))
+        json.dumps({'jsonrpc': '2.0',
+                    'method': 'printer.info',
+                    'id': myId}))
 
 
 def reshedule():
@@ -726,7 +730,8 @@ def websocket_to_message(ws_message, bot):
     if debug:
         logger.debug(ws_message)
 
-    global klippy_printing_filename, klippy_printing, klippy_connected, last_notify_percent, last_notify_heigth, klippy_printing_duration, last_message
+    global klippy_printing_filename, klippy_printing, klippy_printing_duration
+    global klippy_connected, last_notify_percent, last_notify_heigth, last_message
 
     if 'error' in json_message:
         return
