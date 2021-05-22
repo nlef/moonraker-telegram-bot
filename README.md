@@ -61,6 +61,8 @@ notify {
     # setting parameters to 0  will disable the corresponding notifications 
     percent = 5
     heigth = 5
+    interval = 5
+      # minimum interval between notifications in seconds
 }
 
 timelapse {

@@ -50,22 +50,23 @@ logger = logging.getLogger(__name__)
 # some global params
 myId = random.randint(300000)
 host = "localhost"
-cameraEnabled = True
-cameraHost = "localhost:8080"
+cameraEnabled: bool = True
+cameraHost: str = "localhost:8080"
 chatId: int = 12341234
-notify_percent = 5
-notify_heigth = 5
-flipVertically = False
-flipHorisontally = False
-gifDuration = 5
-reduceGif = 2
+notify_percent: int = 5
+notify_heigth: int = 5
+notify_interval: int = 0
+flipVertically: bool = False
+flipHorisontally: bool = False
+gifDuration: int = 5
+reduceGif: int = 2
 poweroff_device: str
 light_device: str
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
 video_fourcc: str = 'x264'
-debug = False
+debug: bool = False
 
 klipper_config_path: str
 klippy_connected: bool = False
@@ -78,6 +79,7 @@ last_notify_heigth: int = 0
 last_notify_percent: int = 0
 last_timelapse_heigth: float = 0.2
 last_message: str = ''
+last_notify_time: int = 0
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -218,10 +220,12 @@ def greeting_message(bot):
 
 
 def notify(bot, progress: int = 0, position_z: int = 0):
-    if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0):
+    global last_notify_percent, last_notify_heigth, last_notify_time
+
+    if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0) or (
+            time.time() > last_notify_time + notify_interval):
         return
 
-    global last_notify_percent, last_notify_heigth
     notifymsg = ''
     if progress != 0 and notify_percent != 0:
         if progress < last_notify_percent - notify_percent:
@@ -242,6 +246,7 @@ def notify(bot, progress: int = 0, position_z: int = 0):
             last_notify_heigth = position_z
 
     if notifymsg:
+        last_notify_time = time.time()
         if cameraEnabled:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
             bot.send_photo(chatId, photo=take_photo(), caption=notifymsg)
@@ -819,6 +824,7 @@ if __name__ == '__main__':
     chatId = int(conf.get_string('chat_id'))
     notify_percent = conf.get_int('notify.percent', 5)
     notify_heigth = conf.get_int('notify.heigth', 5)
+    notify_interval = conf.get_int('notify.interval', 0)
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
