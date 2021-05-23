@@ -74,12 +74,12 @@ timelapse {
       # it will take photos if height change is equal provided in param
       # one may add gcode "RESPOND PREFIX=timelapse MSG=photo" in layer change g-code slicer
       # to enable photos on layer change regardless of layer height
-    basedir = '/tmp/timelapse'
+    basedir = "/tmp/timelapse"
       # base drectory, were timelapse photos and videos are stored ( now it is automaticly cleaning) 
 }
 
 camera {
-    host = 'http://{host}:8080/?action=stream'
+    host = "http://{host}:8080/?action=stream"
         # camera streaming url. default is mjpeg url format on host address.
     flipVertically = false
     flipHorisontally = false
