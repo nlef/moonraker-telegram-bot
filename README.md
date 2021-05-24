@@ -90,6 +90,12 @@ camera {
       # For weak devices it's good to use 'mp4v' for performance reasons (videos may not be playeble on Apple devices). 
     threads = 2
       # Default is cpu_count/2. this param will limit threads count for video processing
+    light {
+        enable = true
+          # if we should togle on light device from config before taking photo/video/gif
+        timeout = 5
+          # seconds to wait after togle on light device before taking photo/video/gif
+    }`
 }
 ```
 

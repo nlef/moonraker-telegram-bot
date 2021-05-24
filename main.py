@@ -1,5 +1,4 @@
 import argparse
-import base64
 import glob
 import hashlib
 import itertools
@@ -9,7 +8,6 @@ from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
 import sys
-from operator import attrgetter
 from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
@@ -67,6 +65,8 @@ timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
 video_fourcc: str = 'x264'
+camera_light_enable: bool = False
+camera_light_timeout: int = 0
 debug: bool = False
 
 klipper_config_path: str
@@ -85,19 +85,8 @@ last_notify_time: int = 0
 
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
-def checkAuthorized(update: Update):
-    if not update.message is None:
-        if not int(update.message.chat.id) == int(chatId):
-            logger.warning("Unauthorized message from ")
-            logger.warning(update.message.chat)
-            logger.warning("Message: " + update.message.text)
-            return False
-    return True
-
 
 def help_command(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.reply_text('The following commands are known:\n\n'
                               '/status - send klipper status\n'
                               '/pause - pause printing\n'
@@ -120,8 +109,6 @@ def unknownChat(update: Update, _: CallbackContext) -> None:
 
 
 def info(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     response = request.urlopen(f"http://{host}/printer/info")
     update.message.reply_text(json.loads(response.read()))
 
@@ -196,8 +183,6 @@ def send_file_info(bot, filename, message: str = ''):
 
 
 def status(update: Update, _: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
     (mess, filename) = get_status()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
@@ -224,7 +209,7 @@ def notify(bot, progress: int = 0, position_z: int = 0):
     global last_notify_percent, last_notify_heigth, last_notify_time, klippy_printing_duration, klippy_printing
 
     if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0) or (
-            time.time() > last_notify_time + notify_interval):
+            time.time() < last_notify_time + notify_interval):
         return
 
     notifymsg = ''
@@ -267,8 +252,15 @@ def notify(bot, progress: int = 0, position_z: int = 0):
 
 
 def take_photo() -> BytesIO:
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, True)
+        time.sleep(camera_light_timeout)
+
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
+
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, False)
 
     if not success:
         img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
@@ -350,8 +342,6 @@ def process_frame(frame, width, height) -> Image:
 
 
 def get_photo(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
@@ -359,13 +349,16 @@ def get_photo(update: Update, context: CallbackContext) -> None:
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, True)
+        time.sleep(camera_light_timeout)
+
     gif = []
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
@@ -389,6 +382,9 @@ def get_gif(update: Update, context: CallbackContext) -> None:
 
     cap.release()
     cv2.destroyAllWindows()
+
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, False)
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
@@ -416,14 +412,16 @@ def process_video_frame(frame):
 
 
 def get_video(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, True)
+        time.sleep(camera_light_timeout)
+
     cap = cv2.VideoCapture(cameraHost)
     success, frame = cap.read()
 
@@ -449,6 +447,9 @@ def get_video(update: Update, context: CallbackContext) -> None:
     out.release()
     cv2.destroyAllWindows()
 
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, False)
+
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
     bio = BytesIO()
@@ -468,37 +469,36 @@ def manage_printing(command: str) -> None:
 
 
 def pause_printing(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     manage_printing('pause')
 
 
 def resume_printing(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     manage_printing('resume')
 
 
 def cancel_printing(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     manage_printing('cancel')
 
 
+def togle_power_device(device: str, enable: bool):
+    ws.send(json.dumps({"jsonrpc": "2.0",
+                        "method": "machine.device_power.on" if enable else "machine.device_power.off",
+                        "id": myId,
+                        "params": {
+                            f"{device}": None
+                        }
+                        }))
+
+
 def power_off(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
     if poweroff_device:
-        ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
-                            "params": {f"{poweroff_device}": None}}))
+        togle_power_device(poweroff_device, False)
     else:
         message_to_reply.reply_text("No power device in config!")
 
 
 def light_toggle(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
         status = get_light_status()
@@ -513,8 +513,6 @@ def light_toggle(update: Update, context: CallbackContext) -> None:
 
 
 def start(update: Update, _: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     keyboard = [
         [
@@ -539,8 +537,6 @@ def start(update: Update, _: CallbackContext) -> None:
 
 
 def keyboard(update: Update, _: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     custom_keyboard = [
         ['/status', '/pause', '/cancel', '/files'],
@@ -603,22 +599,25 @@ def button(update: Update, context: CallbackContext) -> None:
         query.delete_message()
 
 
+def createFileButton(element) -> InlineKeyboardButton:
+    if 'path' in element:
+        result = InlineKeyboardButton(element['path'],
+                                      callback_data=hashlib.md5(
+                                          element['path'].encode()).hexdigest() + '.gcode')
+    else:
+        result = InlineKeyboardButton(element['filename'],
+                                      callback_data=hashlib.md5(
+                                          element['filename'].encode()).hexdigest() + '.gcode')
+    return result
+
+
 def get_gcode_files(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
     resp = json.loads(response.read())
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
     files_keys = list(
-        map(list,
-            zip(
-                map(lambda el: InlineKeyboardButton(el['path'],
-                                                    callback_data=hashlib.md5(
-                                                        el['path'].encode()).hexdigest() + '.gcode'),
-                    files)
-            )
-            )
+        map(list, zip(map(createFileButton, files)))
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
 
@@ -626,8 +625,6 @@ def get_gcode_files(update: Update, context: CallbackContext) -> None:
 
 
 def upload_file(update: Update, context: CallbackContext) -> None:
-    if not checkAuthorized(update):
-        return
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if '.gcode' in doc.file_name:
@@ -857,6 +854,8 @@ if __name__ == '__main__':
     cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
     video_fourcc = conf.get_string('camera.fourcc', 'x264')
     camera_threads = conf.get_int('camera.threads', int(os.cpu_count() / 2))
+    camera_light_enable = conf.get_bool('camera.light.enable', False)
+    camera_light_timeout = conf.get_int('camera.light.timeout', 0)
 
     poweroff_device = conf.get_string('poweroff_device', "")
     light_device = conf.get_string('light_device', "")
