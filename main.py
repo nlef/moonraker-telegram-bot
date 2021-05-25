@@ -126,8 +126,6 @@ def get_status() -> (str, str):
     resp = json.loads(response.read())
     print_stats = resp['result']['status']['print_stats']
     webhook = resp['result']['status']['webhooks']
-    total_time = time.strftime("%H:%M:%S", time.gmtime(print_stats['total_duration']))
-    light_status = get_light_status()
     message = emoji.emojize(':robot: Printer status: ') + f"{webhook['state']}\n"
     if 'display_status' in resp['result']['status']:
         if 'message' in resp['result']['status']['display_status']:
@@ -142,7 +140,7 @@ def get_status() -> (str, str):
         printing_filename = print_stats['filename']
         message += f"Printing filename: {printing_filename} \n"
     if light_device:
-        message += emoji.emojize(':flashlight: Light Status: ') + f"{light_status}"
+        message += emoji.emojize(':flashlight: Light Status: ') + f"{get_light_status()}"
     return message, printing_filename
 
 
@@ -164,8 +162,8 @@ def send_file_info(bot, filename, message: str = ''):
     resp = json.loads(response.read())['result']
 
     message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weigth: {resp['filament_weight_total']}g"
-    message += f"\nPrint duration: {timedelta(seconds=resp['estimated_time'])}"
-    message += f"\nFinish at {datetime.now() + timedelta(seconds=resp['estimated_time']):%Y-%m-%d %H:%M}"
+    message += f"\nPrint duration: {timedelta(seconds=int(resp['estimated_time']))}"
+    message += f"\nFinish at {datetime.now() + timedelta(seconds=int(resp['estimated_time'])):%Y-%m-%d %H:%M}"
 
     if 'thumbnails' in resp:
         thumb = max(resp['thumbnails'], key=lambda el: el['size'])
@@ -206,7 +204,7 @@ def greeting_message(bot):
 
 
 def notify(bot, progress: int = 0, position_z: int = 0):
-    global last_notify_percent, last_notify_heigth, last_notify_time, klippy_printing_duration, klippy_printing
+    global last_notify_percent, last_notify_heigth, last_notify_time, klippy_printing
 
     if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0) or (
             time.time() < last_notify_time + notify_interval):
@@ -221,7 +219,7 @@ def notify(bot, progress: int = 0, position_z: int = 0):
             if last_message:
                 notifymsg += f"\n{last_message}"
             if klippy_printing_duration > 0:
-                estimated_time = (klippy_printing_duration / progress) - klippy_printing_duration
+                estimated_time = int((klippy_printing_duration * 100 / progress) - klippy_printing_duration)
                 notifymsg += f"\nEstimated time {timedelta(seconds=estimated_time)}"
                 notifymsg += f"\nFinish at {datetime.now() + timedelta(seconds=estimated_time):%Y-%m-%d %H:%M}"
             last_notify_percent = progress
