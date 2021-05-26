@@ -97,6 +97,9 @@ camera {
           # seconds to wait after togle on light device before taking photo/video/gif
     }`
 }
+
+hidden_methods = ["/start"]
+  # list of bot methods to be removed from the keyboard 
 ```
 
 

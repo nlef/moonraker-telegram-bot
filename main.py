@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
 
+import numpy
 import requests
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, \
@@ -68,6 +69,7 @@ video_fourcc: str = 'x264'
 camera_light_enable: bool = False
 camera_light_timeout: int = 0
 debug: bool = False
+hidden_methods: list = list()
 
 klipper_config_path: str
 klippy_connected: bool = False
@@ -190,14 +192,24 @@ def status(update: Update, _: CallbackContext) -> None:
         send_file_info(message_to_reply.bot, filename)
 
 
+def create_keyboard():
+    custom_keyboard = [
+        '/status', '/pause', '/cancel', '/files',
+        '/photo', '/video', '/gif',
+        '/keyoff', '/start'
+    ]
+    if poweroff_device:
+        custom_keyboard.append('/poweroff')
+    if light_device:
+        custom_keyboard.append('/light')
+    filtered = [key for key in custom_keyboard if key not in hidden_methods]
+    keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
+    return keyboard
+
+
 def greeting_message(bot):
     (mess, filename) = get_status()
-    custom_keyboard = [
-        ['/status', '/pause', '/cancel', '/files'],
-        ['/photo', '/video', '/gif'],
-        ['/poweroff', '/keyoff', '/start']
-    ]
-    reply_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot.send_message(chatId, text=mess, reply_markup=reply_markup)
     if filename:
         send_file_info(bot, filename)
@@ -548,12 +560,7 @@ def start(update: Update, _: CallbackContext) -> None:
 
 def keyboard(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    custom_keyboard = [
-        ['/status', '/pause', '/cancel', '/files'],
-        ['/photo', '/video', '/gif'],
-        ['/poweroff', '/keyoff', '/start']
-    ]
-    reply_markup = ReplyKeyboardMarkup(custom_keyboard, resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     update.message.bot.send_message(chat_id=chatId,
                                     text="Custom Keyboard",
                                     reply_markup=reply_markup)
@@ -870,6 +877,7 @@ if __name__ == '__main__':
     poweroff_device = conf.get_string('poweroff_device', "")
     light_device = conf.get_string('light_device', "")
     debug = conf.get_bool('debug', False)
+    hidden_methods = conf.get_list('hidden_methods', list())
 
     if debug:
         logger.setLevel(logging.DEBUG)
