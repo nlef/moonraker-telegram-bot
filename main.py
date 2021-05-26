@@ -236,11 +236,19 @@ def notify(bot, progress: int = 0, position_z: int = 0):
     if notifymsg:
         last_notify_time = time.time()
         if cameraEnabled:
+            if camera_light_enable and light_device:
+                togle_power_device(light_device, True)
+                time.sleep(camera_light_timeout)
+
+            photo = take_photo()
+
+            if camera_light_enable and light_device:
+                togle_power_device(light_device, False)
             bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-            bot.send_photo(chatId, photo=take_photo(), caption=notifymsg)
+            bot.send_photo(chatId, photo=photo, caption=notifymsg)
             for group in notify_groups:
                 bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
-                bot.send_photo(group, photo=take_photo(), caption=notifymsg)
+                bot.send_photo(group, photo=photo, caption=notifymsg)
         else:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
             bot.send_message(chatId, text=notifymsg)
@@ -334,6 +342,9 @@ def process_frame(frame, width, height) -> Image:
 
 def get_photo(update: Update, context: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
+    if not cameraEnabled:
+        message_to_reply.reply_text("camera is disabled")
+        return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
 
