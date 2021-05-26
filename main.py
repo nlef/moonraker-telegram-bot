@@ -250,15 +250,8 @@ def notify(bot, progress: int = 0, position_z: int = 0):
 
 
 def take_photo() -> BytesIO:
-    if camera_light_enable and light_device:
-        togle_power_device(light_device, True)
-        time.sleep(camera_light_timeout)
-
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
-
-    if camera_light_enable and light_device:
-        togle_power_device(light_device, False)
 
     if not success:
         img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
@@ -343,7 +336,15 @@ def get_photo(update: Update, context: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, True)
+        time.sleep(camera_light_timeout)
+
     message_to_reply.reply_photo(photo=take_photo())
+
+    if camera_light_enable and light_device:
+        togle_power_device(light_device, False)
 
 
 def get_gif(update: Update, context: CallbackContext) -> None:
