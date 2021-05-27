@@ -59,7 +59,9 @@ flipHorisontally: bool = False
 gifDuration: int = 5
 reduceGif: int = 2
 poweroff_device: str
+poweroff_device_on: bool = False
 light_device: str
+light_device_on: bool = False
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
@@ -140,19 +142,8 @@ def get_status() -> (str, str):
         printing_filename = print_stats['filename']
         message += f"Printing filename: {printing_filename} \n"
     if light_device:
-        message += emoji.emojize(':flashlight: Light Status: ') + f"{get_light_status()}"
+        message += emoji.emojize(':flashlight: Light Status: ') + f"{'on' if light_device_on else 'off'}"
     return message, printing_filename
-
-
-def get_light_status() -> str:
-    if light_device:
-        response = request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
-        resp = json.loads(response.read())
-        state = resp['result'][f'{light_device}']
-    else:
-        state = "no device"
-
-    return state
 
 
 def send_file_info(bot, filename, message: str = ''):
@@ -245,13 +236,14 @@ def notify(bot, progress: int = 0, position_z: int = 0):
     if notifymsg:
         last_notify_time = time.time()
         if cameraEnabled:
-            if camera_light_enable and light_device:
+            should_togle = not light_device_on
+            if camera_light_enable and light_device and should_togle:
                 togle_power_device(light_device, True)
                 time.sleep(camera_light_timeout)
 
             photo = take_photo()
 
-            if camera_light_enable and light_device:
+            if camera_light_enable and light_device and should_togle:
                 togle_power_device(light_device, False)
             bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
             bot.send_photo(chatId, photo=photo, caption=notifymsg)
@@ -290,11 +282,11 @@ def take_photo() -> BytesIO:
 
 
 # Todo: vase mode calcs
-def take_lapse_photo(position_z: int = -1):
+def take_lapse_photo(position_z: float = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if position_z % timelapse_heigth == 0 or position_z < 0:
+    if (position_z % timelapse_heigth == 0 and timelapse_heigth > 0) or position_z < 0:
         # Todo: check for space avaliable?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
@@ -346,13 +338,14 @@ def get_photo(update: Update, _: CallbackContext) -> None:
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
 
-    if camera_light_enable and light_device:
+    should_togle = not light_device_on
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, True)
         time.sleep(camera_light_timeout)
 
     message_to_reply.reply_photo(photo=take_photo())
 
-    if camera_light_enable and light_device:
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, False)
 
 
@@ -373,7 +366,8 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         return
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
 
-    if camera_light_enable and light_device:
+    should_togle = not light_device_on
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, True)
         time.sleep(camera_light_timeout)
 
@@ -401,7 +395,7 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     cap.release()
     cv2.destroyAllWindows()
 
-    if camera_light_enable and light_device:
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, False)
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
@@ -435,7 +429,8 @@ def get_video(update: Update, _: CallbackContext) -> None:
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    if camera_light_enable and light_device:
+    should_togle = not light_device_on
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, True)
         time.sleep(camera_light_timeout)
 
@@ -464,7 +459,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
     out.release()
     cv2.destroyAllWindows()
 
-    if camera_light_enable and light_device:
+    if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, False)
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
@@ -518,8 +513,7 @@ def power_off(update: Update, _: CallbackContext) -> None:
 def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
-        state = get_light_status()
-        if state == 'on':
+        if light_device_on:
             ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
                                 "params": {f"{light_device}": None}}))
         else:
@@ -682,7 +676,8 @@ def subscribe(websock):
                             'print_stats': ['filename', 'state', 'print_duration'],
                             'display_status': ['progress', 'message'],
                             'toolhead': ['position'],
-                            'gcode_move': ['position']
+                            'gcode_move': ['position'],
+
                         }
                     },
                     'id': myId}))
@@ -692,6 +687,10 @@ def on_open(websock):
     websock.send(
         json.dumps({'jsonrpc': '2.0',
                     'method': 'printer.info',
+                    'id': myId}))
+    websock.send(
+        json.dumps({'jsonrpc': '2.0',
+                    'method': 'machine.device_power.devices',
                     'id': myId}))
 
 
@@ -708,7 +707,7 @@ def websocket_to_message(ws_message, bot):
         logger.debug(ws_message)
 
     global klippy_printing_filename, klippy_printing, klippy_printing_duration
-    global klippy_connected, last_notify_percent, last_notify_heigth, last_message
+    global klippy_connected, last_notify_percent, last_notify_heigth, last_message, poweroff_device_on, light_device_on
 
     if 'error' in json_message:
         return
@@ -728,6 +727,15 @@ def websocket_to_message(ws_message, bot):
                     subscribe(ws)
                 else:
                     klippy_connected = False
+                return
+            if 'devices' in json_message['result']:
+                for dev in json_message['result']['devices']:
+                    device_name = dev["device"]
+                    device_state = True if dev["status"] == 'on' else False
+                    if poweroff_device == device_name:
+                        poweroff_device_on = device_state
+                    elif light_device == device_name:
+                        light_device_on = device_state
                 return
             if debug:
                 bot.send_message(chatId, text=f"{json_message['result']}")
@@ -751,7 +759,12 @@ def websocket_to_message(ws_message, bot):
         if json_message["method"] == "notify_power_changed":
             # Todo: save configured power devices' states
             # {"jsonrpc": "2.0", "method": "notify_power_changed", "params": [{"device": "chamber_led", "status": "off", "locked_while_printing": false, "type": "gpio"}]}
-            pass
+            device_name = json_message["params"][0]["device"]
+            device_state = True if json_message["params"][0]["device"]["status"] == 'on' else False
+            if poweroff_device == device_name:
+                poweroff_device_on = device_state
+            elif light_device == device_name:
+                light_device_on = device_state
         if json_message["method"] == "notify_status_update":
             if 'display_status' in json_message["params"][0]:
                 if 'message' in json_message["params"][0]['display_status']:
@@ -762,9 +775,8 @@ def websocket_to_message(ws_message, bot):
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-                position_z = int(
-                    json_message["params"][0]['gcode_move']['position'][2])  # Todo: use gcode_position instead
-                notify(bot, position_z=position_z)
+                position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
+                notify(bot, position_z=int(position_z))
                 take_lapse_photo(position_z)
             if 'print_stats' in json_message['params'][0]:
                 message = ""
@@ -872,6 +884,6 @@ if __name__ == '__main__':
 
     threading.Thread(target=reshedule, daemon=True).start()
 
-    ws.run_forever(ping_interval=60, ping_timeout=20)
+    ws.run_forever(ping_interval=30, ping_timeout=5)
     logger.info("Exiting! Moonraker connection lost!")
     botUpdater.stop()
