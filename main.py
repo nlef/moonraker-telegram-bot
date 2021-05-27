@@ -12,11 +12,9 @@ from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
 
-import numpy
 import requests
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, \
-    ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
@@ -88,7 +86,7 @@ last_notify_time: int = 0
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
 
-def help_command(update: Update, context: CallbackContext) -> None:
+def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('The following commands are known:\n\n'
                               '/status - send klipper status\n'
                               '/pause - pause printing\n'
@@ -106,11 +104,11 @@ def echo(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
-def unknownChat(update: Update, _: CallbackContext) -> None:
+def unknown_chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}")
 
 
-def info(update: Update, context: CallbackContext) -> None:
+def info(update: Update, _: CallbackContext) -> None:
     response = request.urlopen(f"http://{host}/printer/info")
     update.message.reply_text(json.loads(response.read()))
 
@@ -150,11 +148,11 @@ def get_light_status() -> str:
     if light_device:
         response = request.urlopen(f"http://{host}/machine/device_power/status?{light_device}")
         resp = json.loads(response.read())
-        status = resp['result'][f'{light_device}']
+        state = resp['result'][f'{light_device}']
     else:
-        status = "no device"
+        state = "no device"
 
-    return status
+    return state
 
 
 def send_file_info(bot, filename, message: str = ''):
@@ -194,9 +192,8 @@ def status(update: Update, _: CallbackContext) -> None:
 
 def create_keyboard():
     custom_keyboard = [
-        '/status', '/pause', '/cancel', '/files',
-        '/photo', '/video', '/gif',
-        '/keyoff', '/start'
+        '/status', '/pause', '/cancel', '/resume', '/files',
+        '/photo', '/video', '/gif'
     ]
     if poweroff_device:
         custom_keyboard.append('/poweroff')
@@ -341,18 +338,7 @@ def send_timelapse(bot):
     Path(lapse_dir).rmdir()
 
 
-def process_frame(frame, width, height) -> Image:
-    image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    if flipVertically:
-        image = image.transpose(Image.FLIP_TOP_BOTTOM)
-    if flipHorisontally:
-        image = image.transpose(Image.FLIP_LEFT_RIGHT)
-    if reduceGif > 0:
-        image = image.resize((int(width / reduceGif), int(height / reduceGif)))
-    return image
-
-
-def get_photo(update: Update, context: CallbackContext) -> None:
+def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -370,7 +356,17 @@ def get_photo(update: Update, context: CallbackContext) -> None:
         togle_power_device(light_device, False)
 
 
-def get_gif(update: Update, context: CallbackContext) -> None:
+def get_gif(update: Update, _: CallbackContext) -> None:
+    def process_frame(frame) -> Image:
+        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if flipVertically:
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        if flipHorisontally:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        if reduceGif > 0:
+            img = img.resize((int(width / reduceGif), int(height / reduceGif)))
+        return img
+
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -390,7 +386,7 @@ def get_gif(update: Update, context: CallbackContext) -> None:
         return
 
     height, width, channels = image.shape
-    gif.append(process_frame(image, width, height))
+    gif.append(process_frame(image))
 
     fps = 0
     t_end = time.time() + gifDuration
@@ -399,7 +395,7 @@ def get_gif(update: Update, context: CallbackContext) -> None:
         prev_frame_time = time.time()
         success, image_inner = cap.read()
         new_frame_time = time.time()
-        gif.append(process_frame(image_inner, width, height))
+        gif.append(process_frame(image_inner))
         fps = 1 / (new_frame_time - prev_frame_time)
 
     cap.release()
@@ -422,18 +418,17 @@ def get_gif(update: Update, context: CallbackContext) -> None:
         message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
-def process_video_frame(frame):
-    if flipVertically and flipHorisontally:
-        frame = cv2.flip(frame, -1)
-    elif flipHorisontally:
-        frame = cv2.flip(frame, 1)
-    elif flipVertically:
-        frame = cv2.flip(frame, 0)
+def get_video(update: Update, _: CallbackContext) -> None:
+    def process_video_frame(frame_loc):
+        if flipVertically and flipHorisontally:
+            frame_loc = cv2.flip(frame_loc, -1)
+        elif flipHorisontally:
+            frame_loc = cv2.flip(frame_loc, 1)
+        elif flipVertically:
+            frame_loc = cv2.flip(frame_loc, 0)
 
-    return frame
+        return frame_loc
 
-
-def get_video(update: Update, context: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -490,15 +485,15 @@ def manage_printing(command: str) -> None:
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
-def pause_printing(update: Update, context: CallbackContext) -> None:
+def pause_printing(_: Update, __: CallbackContext) -> None:
     manage_printing('pause')
 
 
-def resume_printing(update: Update, context: CallbackContext) -> None:
+def resume_printing(_: Update, __: CallbackContext) -> None:
     manage_printing('resume')
 
 
-def cancel_printing(update: Update, context: CallbackContext) -> None:
+def cancel_printing(_: Update, __: CallbackContext) -> None:
     manage_printing('cancel')
 
 
@@ -512,7 +507,7 @@ def togle_power_device(device: str, enable: bool):
                         }))
 
 
-def power_off(update: Update, context: CallbackContext) -> None:
+def power_off(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if poweroff_device:
         togle_power_device(poweroff_device, False)
@@ -520,11 +515,11 @@ def power_off(update: Update, context: CallbackContext) -> None:
         message_to_reply.reply_text("No power device in config!")
 
 
-def light_toggle(update: Update, context: CallbackContext) -> None:
+def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
-        status = get_light_status()
-        if status == 'on':
+        state = get_light_status()
+        if state == 'on':
             ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
                                 "params": {f"{light_device}": None}}))
         else:
@@ -534,6 +529,7 @@ def light_toggle(update: Update, context: CallbackContext) -> None:
         message_to_reply.reply_text("No light device in config!")
 
 
+@DeprecationWarning
 def start(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     keyboard = [
@@ -556,20 +552,6 @@ def start(update: Update, _: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text('Bot commands:', reply_markup=reply_markup)
-
-
-def keyboard(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    update.message.bot.send_message(chat_id=chatId,
-                                    text="Custom Keyboard",
-                                    reply_markup=reply_markup)
-
-
-def keyboard_off(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    reply_markup = ReplyKeyboardRemove()
-    update.message.bot.send_message(chat_id=chatId, text="disable keyboard", reply_markup=reply_markup)
 
 
 def button(update: Update, context: CallbackContext) -> None:
@@ -597,26 +579,10 @@ def button(update: Update, context: CallbackContext) -> None:
         else:
             query.delete_message()
     else:
-        if query.data == 'status':
-            status(update, context)
-        elif query.data == 'pause':
-            pause_printing(update, context)
-        elif query.data == 'cancel':
-            cancel_printing(update, context)
-        elif query.data == 'photo':
-            get_photo(update, context)
-        elif query.data == 'gif':
-            get_gif(update, context)
-        elif query.data == 'video':
-            get_video(update, context)
-        elif query.data == 'power_off':
-            power_off(update, context)
-        elif query.data == 'light_toggle':
-            light_toggle(update, context)
         query.delete_message()
 
 
-def createFileButton(element) -> InlineKeyboardButton:
+def create_file_button(element) -> InlineKeyboardButton:
     if 'path' in element:
         result = InlineKeyboardButton(element['path'],
                                       callback_data=hashlib.md5(
@@ -628,20 +594,20 @@ def createFileButton(element) -> InlineKeyboardButton:
     return result
 
 
-def get_gcode_files(update: Update, context: CallbackContext) -> None:
+def get_gcode_files(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
     resp = json.loads(response.read())
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
     files_keys = list(
-        map(list, zip(map(createFileButton, files)))
+        map(list, zip(map(create_file_button, files)))
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup)
 
 
-def upload_file(update: Update, context: CallbackContext) -> None:
+def upload_file(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if '.gcode' in doc.file_name:
@@ -674,12 +640,9 @@ def start_bot(token):
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknownChat))
+    dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknown_chat))
     # on different commands - answer in Telegram
-    dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CallbackQueryHandler(button))
-    dispatcher.add_handler(CommandHandler('keyboard', keyboard))
-    dispatcher.add_handler(CommandHandler('keyoff', keyboard_off))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("status", status))
     dispatcher.add_handler(CommandHandler("photo", get_photo))
@@ -702,16 +665,16 @@ def start_bot(token):
     return updater
 
 
-def on_error(ws, error):
+def on_error(_, error):
     logger.error(error)
 
 
-def on_close(ws):
+def on_close(_):
     logger.info("### ws closed ###")
 
 
-def subscribe(ws):
-    ws.send(
+def subscribe(websock):
+    websock.send(
         json.dumps({'jsonrpc': '2.0',
                     'method': 'printer.objects.subscribe',
                     'params': {
@@ -725,8 +688,8 @@ def subscribe(ws):
                     'id': myId}))
 
 
-def on_open(ws):
-    ws.send(
+def on_open(websock):
+    websock.send(
         json.dumps({'jsonrpc': '2.0',
                     'method': 'printer.info',
                     'id': myId}))
@@ -750,93 +713,100 @@ def websocket_to_message(ws_message, bot):
     if 'error' in json_message:
         return
 
-    if 'id' in json_message and 'result' in json_message:
-        if 'status' in json_message['result']:
-            if 'print_stats' in json_message['result']['status'] and \
-                    json_message['result']['status']['print_stats']['state'] == "printing":
-                klippy_printing = True
-                klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
-                klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
-            return
-        if 'state' in json_message['result']:
-            if json_message['result']['state'] == 'ready':
-                klippy_connected = True
-                subscribe(ws)
-            else:
-                klippy_connected = False
-            return
-        bot.send_message(chatId, text=f"{json_message['result']}")
-    if 'id' in json_message and 'error' in json_message:
-        bot.send_message(chatId, text=f"{json_message['error']['message']}")
+    if 'id' in json_message:
+        if 'id' in json_message and 'result' in json_message:
+            if 'status' in json_message['result']:
+                if 'print_stats' in json_message['result']['status'] and \
+                        json_message['result']['status']['print_stats']['state'] == "printing":
+                    klippy_printing = True
+                    klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
+                    klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
+                return
+            if 'state' in json_message['result']:
+                if json_message['result']['state'] == 'ready':
+                    klippy_connected = True
+                    subscribe(ws)
+                else:
+                    klippy_connected = False
+                return
+            if debug:
+                bot.send_message(chatId, text=f"{json_message['result']}")
+        if 'id' in json_message and 'error' in json_message:
+            bot.send_message(chatId, text=f"{json_message['error']['message']}")
 
-    # if json_message["method"] == "notify_gcode_response":
-    #     val = ws_message["params"][0]
-    #     # Todo: add global state for mcu disconnects!
-    #     if 'Lost communication with MCU' not in ws_message["params"][0]:
-    #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
-    #
+        # if json_message["method"] == "notify_gcode_response":
+        #     val = ws_message["params"][0]
+        #     # Todo: add global state for mcu disconnects!
+        #     if 'Lost communication with MCU' not in ws_message["params"][0]:
+        #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
+        #
+    else:
+        if json_message["method"] == "notify_gcode_response":
+            if 'timelapse photo' in json_message["params"]:
+                take_lapse_photo()
+        if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
+            logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
+            klippy_connected = False
 
-    if json_message["method"] == "notify_gcode_response":
-        if 'timelapse photo' in json_message["params"]:
-            take_lapse_photo()
-    if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
-        logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
-        klippy_connected = False
+        if json_message["method"] == "notify_power_changed":
+            # Todo: save configured power devices' states
+            # {"jsonrpc": "2.0", "method": "notify_power_changed", "params": [{"device": "chamber_led", "status": "off", "locked_while_printing": false, "type": "gpio"}]}
+            pass
+        if json_message["method"] == "notify_status_update":
+            if 'display_status' in json_message["params"][0]:
+                if 'message' in json_message["params"][0]['display_status']:
+                    last_message = json_message['params'][0]['display_status']['message']
+                if 'progress' in json_message["params"][0]['display_status']:
+                    notify(bot, progress=int(json_message["params"][0]['display_status']['progress'] * 100))
+            if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
+                # position_z = json_message["params"][0]['toolhead']['position'][2]
+                pass
+            if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
+                position_z = int(
+                    json_message["params"][0]['gcode_move']['position'][2])  # Todo: use gcode_position instead
+                notify(bot, position_z=position_z)
+                take_lapse_photo(position_z)
+            if 'print_stats' in json_message['params'][0]:
+                message = ""
+                state = ""
+                if 'filename' in json_message['params'][0]['print_stats']:
+                    klippy_printing_filename = json_message['params'][0]['print_stats']['filename']
+                if 'state' in json_message['params'][0]['print_stats']:
+                    state = json_message['params'][0]['print_stats']['state']
+                # Fixme: reset notify percent & heigth on finish/caancel/start
+                if 'print_duration' in json_message['params'][0]['print_stats']:
+                    klippy_printing_duration = json_message['params'][0]['print_stats']['print_duration']
+                if state == "printing":
+                    klippy_printing = True
+                    reset_notifications()
+                    send_file_info(bot, klippy_printing_filename,
+                                   f"Printer started printing: {klippy_printing_filename} \n")
+                    # do we need more info in groups?
+                    for group in notify_groups:
+                        bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                        bot.send_message(group, text=f"Printer started printing: {klippy_printing_filename} \n")
+                # Todo: cleanup timelapse dir on cancel print!
+                elif state == 'complete':
+                    klippy_printing = False
+                    send_timelapse(bot)
+                elif state:
+                    klippy_printing = False
+                    message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
-    if json_message["method"] == "notify_status_update":
-        if 'display_status' in json_message["params"][0]:
-            if 'message' in json_message["params"][0]['display_status']:
-                last_message = json_message['params'][0]['display_status']['message']
-            if 'progress' in json_message["params"][0]['display_status']:
-                notify(bot, progress=int(json_message["params"][0]['display_status']['progress'] * 100))
-        if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
-            position_z = json_message["params"][0]['toolhead']['position'][2]
-
-        if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-            position_z = int(json_message["params"][0]['gcode_move']['position'][2])  # Todo: use gcode_position instead
-            notify(bot, position_z=position_z)
-            take_lapse_photo(position_z)
-        if 'print_stats' in json_message['params'][0]:
-            message = ""
-            state = ""
-            if 'filename' in json_message['params'][0]['print_stats']:
-                klippy_printing_filename = json_message['params'][0]['print_stats']['filename']
-            if 'state' in json_message['params'][0]['print_stats']:
-                state = json_message['params'][0]['print_stats']['state']
-            # Fixme: reset notify percent & heigth on finish/caancel/start
-            if 'print_duration' in json_message['params'][0]['print_stats']:
-                klippy_printing_duration = json_message['params'][0]['print_stats']['print_duration']
-            if state == "printing":
-                klippy_printing = True
-                reset_notifications()
-                send_file_info(bot, klippy_printing_filename,
-                               f"Printer started printing: {klippy_printing_filename} \n")
-                # do we need more info in groups?
-                for group in notify_groups:
-                    bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                    bot.send_message(group, text=f"Printer started printing: {klippy_printing_filename} \n")
-            # Todo: cleanup timelapse dir on cancel print!
-            elif state == 'complete':
-                klippy_printing = False
-                send_timelapse(bot)
-            elif state:
-                klippy_printing = False
-                message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
-
-            if message:
-                bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-                bot.send_message(chatId, text=message)
-                for group in notify_groups:
-                    bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                    bot.send_message(group, text=message)
+                if message:
+                    bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+                    bot.send_message(chatId, text=message)
+                    for group in notify_groups:
+                        bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                        bot.send_message(group, text=message)
 
 
 def parselog(bot):
     with open('telegram.log') as f:
         lines = f.readlines()
 
-    wsLines = list(filter(lambda it: ' - {' in it, lines))
-    tt = list(map(lambda el: el.split(' - ')[-1].replace('\n', ''), wsLines))
+    wslines = list(filter(lambda it: ' - {' in it, lines))
+    tt = list(map(lambda el: el.split(' - ')[-1].replace('\n', ''), wslines))
 
     for mes in tt:
         websocket_to_message(mes, bot)
