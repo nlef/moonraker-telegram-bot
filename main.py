@@ -57,6 +57,7 @@ notify_groups: list = list()
 flipVertically: bool = False
 flipHorisontally: bool = False
 gifDuration: int = 5
+videoDuration: int = 10
 reduceGif: int = 2
 poweroff_device: str
 poweroff_device_on: bool = False
@@ -75,6 +76,7 @@ klipper_config_path: str
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
+klippy_printing_progress: float = 0.0
 klippy_printing_filename: str = ''
 ws: websocket.WebSocketApp
 
@@ -151,10 +153,10 @@ def send_file_info(bot, filename, message: str = ''):
         f"http://{host}/server/files/metadata?filename={urllib.parse.quote(filename)}"
     )
     resp = json.loads(response.read())['result']
-
+    eta = int(resp['estimated_time'] * (1 - klippy_printing_progress))
     message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weigth: {resp['filament_weight_total']}g"
-    message += f"\nPrint duration: {timedelta(seconds=int(resp['estimated_time']))}"
-    message += f"\nFinish at {datetime.now() + timedelta(seconds=int(resp['estimated_time'])):%Y-%m-%d %H:%M}"
+    message += f"\nPrint duration: {timedelta(seconds=eta)}"
+    message += f"\nFinish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}"
 
     if 'thumbnails' in resp:
         thumb = max(resp['thumbnails'], key=lambda el: el['size'])
@@ -447,7 +449,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
     filepath = os.path.join('/tmp/', 'video.mp4')
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video,
                           frameSize=(width, height))
-    t_end = time.time() + gifDuration * 2
+    t_end = time.time() + videoDuration
     while success and time.time() < t_end:
         prev_frame_time = time.time()
         success, frame_inner = cap.read()
@@ -513,12 +515,7 @@ def power_off(update: Update, _: CallbackContext) -> None:
 def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if light_device:
-        if light_device_on:
-            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.off", "id": myId,
-                                "params": {f"{light_device}": None}}))
-        else:
-            ws.send(json.dumps({"jsonrpc": "2.0", "method": "machine.device_power.on", "id": myId,
-                                "params": {f"{light_device}": None}}))
+        togle_power_device(light_device, not light_device_on)
     else:
         message_to_reply.reply_text("No light device in config!")
 
@@ -567,7 +564,8 @@ def button(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
-        response = requests.post(f"http://{host}/printer/print/start?filename={filename}")  # Fixme: add quotes?
+        response = requests.post(
+            f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
         if not response.ok:
             query.edit_message_text(text=f"Failed start printing file {filename}?")
         else:
@@ -576,26 +574,20 @@ def button(update: Update, context: CallbackContext) -> None:
         query.delete_message()
 
 
-def create_file_button(element) -> InlineKeyboardButton:
-    if 'path' in element:
-        result = InlineKeyboardButton(element['path'],
-                                      callback_data=hashlib.md5(
-                                          element['path'].encode()).hexdigest() + '.gcode')
-    else:
-        result = InlineKeyboardButton(element['filename'],
-                                      callback_data=hashlib.md5(
-                                          element['filename'].encode()).hexdigest() + '.gcode')
-    return result
-
-
 def get_gcode_files(update: Update, _: CallbackContext) -> None:
+    def create_file_button(element) -> InlineKeyboardButton:
+        if 'path' in element:
+            filename = element['path']
+        else:
+            filename = element['filename']
+
+        return InlineKeyboardButton(filename, callback_data=hashlib.md5(filename.encode()).hexdigest() + '.gcode')
+
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
     resp = json.loads(response.read())
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
-    files_keys = list(
-        map(list, zip(map(create_file_button, files)))
-    )
+    files_keys = list(map(list, zip(map(create_file_button, files))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup)
@@ -663,10 +655,6 @@ def on_error(_, error):
     logger.error(error)
 
 
-def on_close(_):
-    logger.info("### ws closed ###")
-
-
 def subscribe(websock):
     websock.send(
         json.dumps({'jsonrpc': '2.0',
@@ -706,7 +694,7 @@ def websocket_to_message(ws_message, bot):
     if debug:
         logger.debug(ws_message)
 
-    global klippy_printing_filename, klippy_printing, klippy_printing_duration
+    global klippy_printing_filename, klippy_printing, klippy_printing_duration, klippy_printing_progress
     global klippy_connected, last_notify_percent, last_notify_heigth, last_message, poweroff_device_on, light_device_on
 
     if 'error' in json_message:
@@ -721,6 +709,9 @@ def websocket_to_message(ws_message, bot):
                     klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
                     klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
                 return
+            if 'display_status' in json_message['result']:
+                last_message = json_message['result']['display_status']['message']
+                klippy_printing_progress = json_message['result']['display_status']['progress']
             if 'state' in json_message['result']:
                 if json_message['result']['state'] == 'ready':
                     klippy_connected = True
@@ -757,8 +748,6 @@ def websocket_to_message(ws_message, bot):
             klippy_connected = False
 
         if json_message["method"] == "notify_power_changed":
-            # Todo: save configured power devices' states
-            # {"jsonrpc": "2.0", "method": "notify_power_changed", "params": [{"device": "chamber_led", "status": "off", "locked_while_printing": false, "type": "gpio"}]}
             device_name = json_message["params"][0]["device"]
             device_state = True if json_message["params"][0]["device"]["status"] == 'on' else False
             if poweroff_device == device_name:
@@ -849,6 +838,7 @@ if __name__ == '__main__':
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
     flipVertically = conf.get_bool('camera.flipVertically', False)
     gifDuration = conf.get_int('camera.gifDuration', 5)
+    videoDuration = conf.get_int('camera.videoDuration', gifDuration * 2)
     reduceGif = conf.get_int('camera.reduceGif', 0)
     cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
     video_fourcc = conf.get_string('camera.fourcc', 'x264')
@@ -874,8 +864,7 @@ if __name__ == '__main__':
         websocket_to_message(message, botUpdater.bot)
 
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_error=on_error, on_close=on_close)
-    ws.on_open = on_open
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error)
 
     # debug reasons only
     # parselog(botUpdater.bot)
