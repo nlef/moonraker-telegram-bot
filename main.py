@@ -651,6 +651,13 @@ def start_bot(token):
     return updater
 
 
+def on_close(ws, close_status_code, close_msg):
+    logger.info("WebSocket closed")
+    if close_status_code or close_msg:
+        logger.error("WebSocket close status code: " + str(close_status_code))
+        logger.error("WebSocket close message: " + str(close_msg))
+
+
 def on_error(_, error):
     logger.error(error)
 
@@ -864,7 +871,8 @@ if __name__ == '__main__':
         websocket_to_message(message, botUpdater.bot)
 
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error)
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error,
+                                on_close=on_close)
 
     # debug reasons only
     # parselog(botUpdater.bot)
