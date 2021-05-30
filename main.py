@@ -873,6 +873,6 @@ if __name__ == '__main__':
 
     threading.Thread(target=reshedule, daemon=True).start()
 
-    ws.run_forever(ping_interval=30, ping_timeout=5)
+    ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
     botUpdater.stop()
