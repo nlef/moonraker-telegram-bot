@@ -84,6 +84,7 @@ camera {
     flipVertically = false
     flipHorisontally = false
     gifDuration = 5
+    videoDuration = 10
     reduceGif = 2
     fourcc = "x264"
       # One can set opencv VideoWriter fourcc codec. default is 'x264'. 

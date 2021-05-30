@@ -236,23 +236,26 @@ def notify(bot, progress: int = 0, position_z: int = 0):
                 notifymsg += f"\n{last_message}"
             last_notify_heigth = position_z
 
+    def send_photo():
+        if camera_light_enable and light_device and should_togle:
+            togle_power_device(light_device, True)
+            time.sleep(camera_light_timeout)
+
+        photo = take_photo()
+
+        if camera_light_enable and light_device and should_togle:
+            togle_power_device(light_device, False)
+        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+        bot.send_photo(chatId, photo=photo, caption=notifymsg)
+        for group_ in notify_groups:
+            bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+            bot.send_photo(group_, photo=photo, caption=notifymsg)
+
     if notifymsg:
         last_notify_time = time.time()
         if cameraEnabled:
             should_togle = not light_device_on
-            if camera_light_enable and light_device and should_togle:
-                togle_power_device(light_device, True)
-                time.sleep(camera_light_timeout)
-
-            photo = take_photo()
-
-            if camera_light_enable and light_device and should_togle:
-                togle_power_device(light_device, False)
-            bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-            bot.send_photo(chatId, photo=photo, caption=notifymsg)
-            for group in notify_groups:
-                bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
-                bot.send_photo(group, photo=photo, caption=notifymsg)
+            threading.Thread(target=send_photo()).start()
         else:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
             bot.send_message(chatId, text=notifymsg)
@@ -287,6 +290,10 @@ def take_photo() -> BytesIO:
 
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1):
+    threading.Thread(target=create_lapse_photo(position_z)).start()
+
+
+def create_lapse_photo(position_z: float = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
@@ -336,6 +343,10 @@ def send_timelapse(bot):
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
+    threading.Thread(target=sent_photo(update, _)).start()
+
+
+def sent_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -355,6 +366,10 @@ def get_photo(update: Update, _: CallbackContext) -> None:
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
+    threading.Thread(target=send_gif(update, _)).start()
+
+
+def send_gif(update: Update, _: CallbackContext) -> None:
     def process_frame(frame) -> Image:
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -419,6 +434,10 @@ def get_gif(update: Update, _: CallbackContext) -> None:
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
+    threading.Thread(target=send_video(update, _)).start()
+
+
+def send_video(update: Update, _: CallbackContext) -> None:
     def process_video_frame(frame_loc):
         if flipVertically and flipHorisontally:
             frame_loc = cv2.flip(frame_loc, -1)
@@ -802,7 +821,7 @@ def websocket_to_message(ws_message, bot):
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy_printing = False
-                    send_timelapse(bot)
+                    threading.Thread(target=send_timelapse(bot)).start()
                 elif state:
                     klippy_printing = False
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
