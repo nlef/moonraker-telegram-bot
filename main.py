@@ -67,6 +67,7 @@ timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
 video_fourcc: str = 'x264'
+camera_threads: int = 0
 camera_light_enable: bool = False
 camera_light_timeout: int = 0
 debug: bool = False
@@ -261,6 +262,7 @@ def notify(bot, progress: int = 0, position_z: int = 0):
 
 
 def take_photo() -> BytesIO:
+    cv2.setNumThreads(camera_threads)
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
 
@@ -311,6 +313,7 @@ def send_timelapse(bot):
         break
 
     filepath = f'{lapse_dir}/lapse.mp4'
+    cv2.setNumThreads(camera_threads)
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
     photos = glob.glob(f'{lapse_dir}/*.jpg')
@@ -374,6 +377,7 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         time.sleep(camera_light_timeout)
 
     gif = []
+    cv2.setNumThreads(camera_threads)
     cap = cv2.VideoCapture(cameraHost)
     success, image = cap.read()
 
@@ -436,6 +440,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
         togle_power_device(light_device, True)
         time.sleep(camera_light_timeout)
 
+    cv2.setNumThreads(camera_threads)
     cap = cv2.VideoCapture(cameraHost)
     success, frame = cap.read()
 
@@ -754,9 +759,10 @@ def websocket_to_message(ws_message, bot):
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy_connected = False
 
+        # Todo: check for multiple device state change
         if json_message["method"] == "notify_power_changed":
             device_name = json_message["params"][0]["device"]
-            device_state = True if json_message["params"][0]["device"]["status"] == 'on' else False
+            device_state = True if json_message["params"][0]["status"] == 'on' else False
             if poweroff_device == device_name:
                 poweroff_device_on = device_state
             elif light_device == device_name:
@@ -860,8 +866,6 @@ if __name__ == '__main__':
 
     if debug:
         logger.setLevel(logging.DEBUG)
-
-    cv2.setNumThreads(camera_threads)
 
     botUpdater = start_bot(token)
 
