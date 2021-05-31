@@ -297,7 +297,7 @@ def create_lapse_photo(position_z: float = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if (position_z % timelapse_heigth == 0 and timelapse_heigth > 0) or position_z < 0:
+    if (timelapse_heigth > 0 and position_z % timelapse_heigth == 0) or position_z < 0:
         # Todo: check for space avaliable?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
@@ -585,13 +585,13 @@ def button(update: Update, context: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
+        query.edit_message_text(text=f"Start printing file:{filename}", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
         response = requests.post(
             f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
         if not response.ok:
-            query.edit_message_text(text=f"Failed start printing file {filename}?")
+            query.edit_message_text(text=f"Failed start printing file {filename}")
         else:
             query.delete_message()
     else:
