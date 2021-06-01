@@ -283,7 +283,7 @@ def take_photo() -> BytesIO:
 
     bio = BytesIO()
     bio.name = 'status.jpeg'
-    img.save(bio, 'JPEG')
+    img.save(bio, 'JPEG', quality=100, subsampling=0)
     bio.seek(0)
     return bio
 
@@ -336,7 +336,7 @@ def send_timelapse(bot):
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
     bio.seek(0)
-    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}')
+    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}', timeout=120)
     for filename in glob.glob(f'{lapse_dir}/*'):
         os.remove(filename)
     Path(lapse_dir).rmdir()
@@ -471,8 +471,7 @@ def send_video(update: Update, _: CallbackContext) -> None:
     fps_video = cap.get(cv2.CAP_PROP_FPS)
     fps = 10
     filepath = os.path.join('/tmp/', 'video.mp4')
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video,
-                          frameSize=(width, height))
+    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video, frameSize=(width, height))
     t_end = time.time() + videoDuration
     while success and time.time() < t_end:
         prev_frame_time = time.time()
@@ -734,8 +733,7 @@ def websocket_to_message(ws_message, bot):
     if 'id' in json_message:
         if 'id' in json_message and 'result' in json_message:
             if 'status' in json_message['result']:
-                if 'print_stats' in json_message['result']['status'] and \
-                        json_message['result']['status']['print_stats']['state'] == "printing":
+                if 'print_stats' in json_message['result']['status'] and json_message['result']['status']['print_stats']['state'] == "printing":
                     klippy_printing = True
                     klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
                     klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
@@ -774,6 +772,10 @@ def websocket_to_message(ws_message, bot):
         if json_message["method"] == "notify_gcode_response":
             if 'timelapse photo' in json_message["params"]:
                 take_lapse_photo()
+            if json_message["params"][0].startswith('tgnotify'):
+                bot.send_message(chatId, json_message["params"][0][9:])
+            if json_message["params"][0].startswith('tgerror'):
+                bot.send_message(chatId, json_message["params"][0][8:])
         if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy_connected = False
@@ -812,8 +814,7 @@ def websocket_to_message(ws_message, bot):
                 if state == "printing":
                     klippy_printing = True
                     reset_notifications()
-                    send_file_info(bot, klippy_printing_filename,
-                                   f"Printer started printing: {klippy_printing_filename} \n")
+                    send_file_info(bot, klippy_printing_filename, f"Printer started printing: {klippy_printing_filename} \n")
                     # do we need more info in groups?
                     for group in notify_groups:
                         bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
@@ -894,8 +895,7 @@ if __name__ == '__main__':
         websocket_to_message(message, botUpdater.bot)
 
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error,
-                                on_close=on_close)
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
     # debug reasons only
     # parselog(botUpdater.bot)
