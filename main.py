@@ -66,6 +66,7 @@ light_device_on: bool = False
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
+timelapse_cleanup: bool = True
 video_fourcc: str = 'x264'
 camera_threads: int = 0
 camera_light_enable: bool = False
@@ -166,8 +167,8 @@ def send_file_info(bot, filename, message: str = ''):
         ).convert('RGB')
 
         bio = BytesIO()
-        bio.name = f'{filename}.jpeg'
-        img.save(bio, 'JPEG')
+        bio.name = f'{filename}.png'
+        img.save(bio, 'PNG')
         bio.seek(0)
         bot.send_photo(chatId, photo=bio, caption=message)
     else:
@@ -270,7 +271,7 @@ def take_photo() -> BytesIO:
     success, image = cap.read()
 
     if not success:
-        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
+        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.png')))
     else:
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -282,8 +283,8 @@ def take_photo() -> BytesIO:
     cv2.destroyAllWindows()
 
     bio = BytesIO()
-    bio.name = 'status.jpeg'
-    img.save(bio, 'JPEG', quality=100, subsampling=0)
+    bio.name = 'status.png'
+    img.save(bio, 'PNG')
     bio.seek(0)
     return bio
 
@@ -301,7 +302,7 @@ def create_lapse_photo(position_z: float = -1):
         # Todo: check for space avaliable?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-        filename = f'{lapse_dir}/{time.time()}.jpg'
+        filename = f'{lapse_dir}/{time.time()}.png'
         with open(filename, "wb") as outfile:
             outfile.write(take_photo().getbuffer())
 
@@ -313,7 +314,7 @@ def send_timelapse(bot):
     bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     # Fixme: get single file!
-    for filename in glob.glob(f'{lapse_dir}/*.jpg'):
+    for filename in glob.glob(f'{lapse_dir}/*.png'):
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
@@ -323,7 +324,7 @@ def send_timelapse(bot):
     cv2.setNumThreads(camera_threads)
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
-    photos = glob.glob(f'{lapse_dir}/*.jpg')
+    photos = glob.glob(f'{lapse_dir}/*.png')
     photos.sort(key=os.path.getmtime)
     for filename in photos:
         bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
@@ -337,9 +338,10 @@ def send_timelapse(bot):
         bio.write(fh.read())
     bio.seek(0)
     bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}', timeout=120)
-    for filename in glob.glob(f'{lapse_dir}/*'):
-        os.remove(filename)
-    Path(lapse_dir).rmdir()
+    if timelapse_cleanup:
+        for filename in glob.glob(f'{lapse_dir}/*'):
+            os.remove(filename)
+        Path(lapse_dir).rmdir()
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -859,13 +861,14 @@ if __name__ == '__main__':
     host = conf.get_string('server', 'localhost')
     token = conf.get_string('bot_token')
     chatId = int(conf.get_string('chat_id'))
-    notify_percent = conf.get_int('notify.percent', 5)
-    notify_heigth = conf.get_int('notify.heigth', 5)
+    notify_percent = conf.get_int('notify.percent', 0)
+    notify_heigth = conf.get_int('notify.heigth', 0)
     notify_interval = conf.get_int('notify.interval', 0)
     notify_groups = conf.get_list('notify.groups', list())
-    timelapse_heigth = conf.get_float('timelapse.heigth', 0.2)
+    timelapse_heigth = conf.get_float('timelapse.heigth', 0.0)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
+    timelapse_cleanup = conf.get_string('timelapse.cleanup', True)
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
