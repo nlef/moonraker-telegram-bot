@@ -796,6 +796,7 @@ def websocket_to_message(ws_message, bot):
                     last_message = json_message['params'][0]['display_status']['message']
                 if 'progress' in json_message["params"][0]['display_status']:
                     notify(bot, progress=int(json_message["params"][0]['display_status']['progress'] * 100))
+                    klippy_printing_progress = json_message["params"][0]['display_status']['progress']
             if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
@@ -868,7 +869,7 @@ if __name__ == '__main__':
     timelapse_heigth = conf.get_float('timelapse.heigth', 0.0)
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
-    timelapse_cleanup = conf.get_string('timelapse.cleanup', True)
+    timelapse_cleanup = conf.get_bool('timelapse.cleanup', True)
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
