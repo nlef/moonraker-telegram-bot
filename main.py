@@ -256,7 +256,8 @@ def notify(bot, progress: int = 0, position_z: int = 0):
         last_notify_time = time.time()
         if cameraEnabled:
             should_togle = not light_device_on
-            threading.Thread(target=send_photo()).start()
+            # threading.Thread(target=send_photo).start()
+            send_photo()
         else:
             bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
             bot.send_message(chatId, text=notifymsg)
@@ -291,7 +292,8 @@ def take_photo() -> BytesIO:
 
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1):
-    threading.Thread(target=create_lapse_photo(position_z)).start()
+    # threading.Thread(target=create_lapse_photo(position_z)).start()
+    create_lapse_photo(position_z)
 
 
 def create_lapse_photo(position_z: float = -1):
@@ -353,7 +355,8 @@ def send_timelapse(bot):
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
-    threading.Thread(target=sent_photo(update, _)).start()
+    # threading.Thread(target=sent_photo(update, _)).start()
+    sent_photo(update, _)
 
 
 def sent_photo(update: Update, _: CallbackContext) -> None:
@@ -376,7 +379,8 @@ def sent_photo(update: Update, _: CallbackContext) -> None:
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
-    threading.Thread(target=send_gif(update, _)).start()
+    # threading.Thread(target=send_gif(update, _)).start()
+    send_gif(update, _)
 
 
 def send_gif(update: Update, _: CallbackContext) -> None:
@@ -444,7 +448,8 @@ def send_gif(update: Update, _: CallbackContext) -> None:
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
-    threading.Thread(target=send_video(update, _)).start()
+    # threading.Thread(target=send_video(update, _)).start()
+    send_video(update, _)
 
 
 def send_video(update: Update, _: CallbackContext) -> None:
@@ -831,6 +836,8 @@ def websocket_to_message(ws_message, bot):
                 if state == "printing":
                     klippy_printing = True
                     reset_notifications()
+                    if not klippy_printing_filename:
+                        klippy_printing_filename = get_status()[1]
                     send_file_info(bot, klippy_printing_filename, f"Printer started printing: {klippy_printing_filename} \n")
                     # do we need more info in groups?
                     for group in notify_groups:
@@ -839,7 +846,7 @@ def websocket_to_message(ws_message, bot):
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy_printing = False
-                    threading.Thread(target=send_timelapse(bot)).start()
+                    threading.Thread(target=send_timelapse, args=(bot,)).start()
                 elif state:
                     klippy_printing = False
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
@@ -923,8 +930,8 @@ if __name__ == '__main__':
 
     threading.Thread(target=reshedule, daemon=True).start()
 
-    if timelapse_interval_time > 0:
-        threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
+    # if timelapse_interval_time > 0:
+    #     threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
 
     # Fixme: remove timeouts after websocket-client version update > 1.0.1 with enabled multithreading
     ws.run_forever(ping_interval=10, ping_timeout=7, skip_utf8_validation=True)
