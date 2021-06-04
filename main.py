@@ -299,12 +299,20 @@ def create_lapse_photo(position_z: float = -1):
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     if (timelapse_heigth > 0 and position_z % timelapse_heigth == 0) or position_z < 0:
-        # Todo: check for space avaliable?
+        should_togle = not light_device_on
+        if camera_light_enable and light_device and should_togle:
+            togle_power_device(light_device, True)
+            time.sleep(camera_light_timeout)
+
+        # Todo: check for space?
         lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
         filename = f'{lapse_dir}/{time.time()}.png'
         with open(filename, "wb") as outfile:
             outfile.write(take_photo().getbuffer())
+
+        if camera_light_enable and light_device and should_togle:
+            togle_power_device(light_device, False)
 
 
 def send_timelapse(bot):
@@ -721,6 +729,12 @@ def reshedule():
         time.sleep(1)
 
 
+def timelapse_sheduler(interval: int):
+    while True:
+        create_lapse_photo()
+        time.sleep(interval)
+
+
 def websocket_to_message(ws_message, bot):
     json_message = json.loads(ws_message)
     if debug:
@@ -870,6 +884,7 @@ if __name__ == '__main__':
     timelapse_enabled = conf.get_bool('timelapse.enabled', False)
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
     timelapse_cleanup = conf.get_bool('timelapse.cleanup', True)
+    timelapse_interval_time = conf.get_int('timelapse.interval_time', 0)
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
@@ -908,6 +923,10 @@ if __name__ == '__main__':
 
     threading.Thread(target=reshedule, daemon=True).start()
 
-    ws.run_forever(skip_utf8_validation=True)
+    if timelapse_interval_time > 0:
+        threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
+
+    # Fixme: remove timeouts after websocket-client version update > 1.0.1 with enabled multithreading
+    ws.run_forever(ping_interval=10, ping_timeout=7, skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
     botUpdater.stop()
