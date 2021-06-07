@@ -1,4 +1,4 @@
-python-telegram-bot~=13.5
+python-telegram-bot~=13.6
 websocket-client==1.0.1
 Pillow~=8.2.0
 pyhocon~=0.3.57

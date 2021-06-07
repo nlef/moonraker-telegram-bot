@@ -1,9 +1,11 @@
 import argparse
+import faulthandler
 import glob
 import hashlib
 import itertools
 import logging
 import urllib
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
@@ -74,6 +76,9 @@ camera_light_timeout: int = 0
 debug: bool = False
 hidden_methods: list = list()
 
+bot_updater: Updater
+executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
+
 klipper_config_path: str
 klippy_connected: bool = False
 klippy_printing: bool = False
@@ -88,9 +93,6 @@ last_timelapse_heigth: float = 0.2
 last_message: str = ''
 last_notify_time: int = 0
 
-
-# Define a few command handlers. These usually take the two arguments update and
-# context. Error handlers also receive the raised TelegramError object in error.
 
 def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('The following commands are known:\n\n'
@@ -150,6 +152,11 @@ def get_status() -> (str, str):
     return message, printing_filename
 
 
+def send_print_start_info(context: CallbackContext):
+    file = context.job.context
+    send_file_info(context.bot, file, f"Printer started printing: {file} \n")
+
+
 def send_file_info(bot, filename, message: str = ''):
     response = request.urlopen(
         f"http://{host}/server/files/metadata?filename={urllib.parse.quote(filename)}"
@@ -171,8 +178,14 @@ def send_file_info(bot, filename, message: str = ''):
         img.save(bio, 'PNG')
         bio.seek(0)
         bot.send_photo(chatId, photo=bio, caption=message)
+        for group in notify_groups:
+            bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+            bot.send_photo(group, photo=bio, caption=message)
     else:
         bot.send_message(chatId, message)
+        for group in notify_groups:
+            bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+            bot.send_message(group, text=message)
 
 
 def status(update: Update, _: CallbackContext) -> None:
@@ -199,15 +212,23 @@ def create_keyboard():
     return keyboard
 
 
-def greeting_message(bot):
+def greeting_message():
     (mess, filename) = get_status()
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    bot.send_message(chatId, text=mess, reply_markup=reply_markup)
+    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup)
     if filename:
-        send_file_info(bot, filename)
+        send_file_info(bot_updater.bot, filename)
 
 
-def notify(bot, progress: int = 0, position_z: int = 0):
+def send_messsage(context: CallbackContext):
+    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    context.bot.send_message(chatId, text=context.job.context)
+    for group in notify_groups:
+        context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+        context.bot.send_message(group, text=context.job.context)
+
+
+def notify(progress: int = 0, position_z: int = 0):
     global last_notify_percent, last_notify_heigth, last_notify_time, klippy_printing
 
     if not klippy_printing or not klippy_printing_duration > 0.0 or (notify_heigth == 0 + notify_percent == 0) or (
@@ -237,33 +258,34 @@ def notify(bot, progress: int = 0, position_z: int = 0):
                 notifymsg += f"\n{last_message}"
             last_notify_heigth = position_z
 
-    def send_photo():
-        if camera_light_enable and light_device and should_togle:
-            togle_power_device(light_device, True)
-            time.sleep(camera_light_timeout)
+    def send_notification(context: CallbackContext):
+        if cameraEnabled:
+            should_togle = not light_device_on
+            if camera_light_enable and light_device and should_togle:
+                togle_power_device(light_device, True)
+                time.sleep(camera_light_timeout)
 
-        photo = take_photo()
+            photo = take_photo()
 
-        if camera_light_enable and light_device and should_togle:
-            togle_power_device(light_device, False)
-        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-        bot.send_photo(chatId, photo=photo, caption=notifymsg)
-        for group_ in notify_groups:
-            bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-            bot.send_photo(group_, photo=photo, caption=notifymsg)
+            if camera_light_enable and light_device and should_togle:
+                togle_power_device(light_device, False)
+
+            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+            context.bot.send_photo(chatId, photo=photo, caption=notifymsg)
+            for group_ in notify_groups:
+                context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+                context.bot.send_photo(group_, photo=photo, caption=notifymsg)
+        else:
+            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+            context.bot.send_message(chatId, text=notifymsg)
+            for group in notify_groups:
+                context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                context.bot.send_message(group, text=notifymsg)
 
     if notifymsg:
         last_notify_time = time.time()
-        if cameraEnabled:
-            should_togle = not light_device_on
-            # threading.Thread(target=send_photo).start()
-            send_photo()
-        else:
-            bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-            bot.send_message(chatId, text=notifymsg)
-            for group in notify_groups:
-                bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                bot.send_message(group, text=notifymsg)
+        # Todo: pass light_device & other params!
+        bot_updater.job_queue.run_once(send_notification, 0)
 
 
 def take_photo() -> BytesIO:
@@ -272,7 +294,7 @@ def take_photo() -> BytesIO:
     success, image = cap.read()
 
     if not success:
-        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.png')))
+        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
     else:
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -284,47 +306,46 @@ def take_photo() -> BytesIO:
     cv2.destroyAllWindows()
 
     bio = BytesIO()
-    bio.name = 'status.png'
-    img.save(bio, 'PNG')
+    bio.name = 'status.jpeg'
+    img.save(bio, 'JPEG', quality=75, subsampling=0)
     bio.seek(0)
     return bio
 
 
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1):
-    # threading.Thread(target=create_lapse_photo(position_z)).start()
-    create_lapse_photo(position_z)
-
-
-def create_lapse_photo(position_z: float = -1):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     if (timelapse_heigth > 0 and position_z % timelapse_heigth == 0) or position_z < 0:
-        should_togle = not light_device_on
-        if camera_light_enable and light_device and should_togle:
-            togle_power_device(light_device, True)
-            time.sleep(camera_light_timeout)
-
-        # Todo: check for space?
-        lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
-        Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-        filename = f'{lapse_dir}/{time.time()}.png'
-        with open(filename, "wb") as outfile:
-            outfile.write(take_photo().getbuffer())
-
-        if camera_light_enable and light_device and should_togle:
-            togle_power_device(light_device, False)
+        executors_pool.submit(create_lapse_photo)
 
 
-def send_timelapse(bot):
+def create_lapse_photo():
+    should_togle = not light_device_on
+    if camera_light_enable and light_device and should_togle:
+        togle_power_device(light_device, True)
+        time.sleep(camera_light_timeout)
+
+    # Todo: check for space?
+    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
+    Path(lapse_dir).mkdir(parents=True, exist_ok=True)
+    filename = f'{lapse_dir}/{time.time()}.jpeg'
+    with open(filename, "wb") as outfile:
+        outfile.write(take_photo().getbuffer())
+
+    if camera_light_enable and light_device and should_togle:
+        togle_power_device(light_device, False)
+
+
+def send_timelapse(context: CallbackContext):
     if not timelapse_enabled or not klippy_printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     # Fixme: get single file!
-    for filename in glob.glob(f'{lapse_dir}/*.png'):
+    for filename in glob.glob(f'{lapse_dir}/*.jpeg'):
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
@@ -334,20 +355,20 @@ def send_timelapse(bot):
     cv2.setNumThreads(camera_threads)
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
-    photos = glob.glob(f'{lapse_dir}/*.png')
+    photos = glob.glob(f'{lapse_dir}/*.jpeg')
     photos.sort(key=os.path.getmtime)
     for filename in photos:
-        bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         out.write(cv2.imread(filename))
 
     out.release()
-    bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
+    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     bio = BytesIO()
     bio.name = 'lapse.mp4'
     with open(filepath, 'rb') as fh:
         bio.write(fh.read())
     bio.seek(0)
-    bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}', timeout=120)
+    context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}', timeout=120)
     if timelapse_cleanup:
         for filename in glob.glob(f'{lapse_dir}/*'):
             os.remove(filename)
@@ -355,11 +376,6 @@ def send_timelapse(bot):
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
-    # threading.Thread(target=sent_photo(update, _)).start()
-    sent_photo(update, _)
-
-
-def sent_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -379,11 +395,6 @@ def sent_photo(update: Update, _: CallbackContext) -> None:
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
-    # threading.Thread(target=send_gif(update, _)).start()
-    send_gif(update, _)
-
-
-def send_gif(update: Update, _: CallbackContext) -> None:
     def process_frame(frame) -> Image:
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -448,11 +459,6 @@ def send_gif(update: Update, _: CallbackContext) -> None:
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
-    # threading.Thread(target=send_video(update, _)).start()
-    send_video(update, _)
-
-
-def send_video(update: Update, _: CallbackContext) -> None:
     def process_video_frame(frame_loc):
         if flipVertically and flipHorisontally:
             frame_loc = cv2.flip(frame_loc, -1)
@@ -657,33 +663,36 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         update.message.reply_text(f"unknown filetype in {doc.file_name}")
 
 
-def start_bot(token):
-    # Create the Updater and pass it your bot's token.
-    updater = Updater(token, workers=1)  # we have too small ram on oPi zero...
+def bot_error_handler(update: object, context: CallbackContext) -> None:
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-    # Get the dispatcher to register handlers
+
+def start_bot(token):
+    updater = Updater(token, workers=2)  # we have too small ram on oPi zero...
+
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknown_chat))
-    # on different commands - answer in Telegram
+
     dispatcher.add_handler(CallbackQueryHandler(button))
-    dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("status", status))
-    dispatcher.add_handler(CommandHandler("photo", get_photo))
-    dispatcher.add_handler(CommandHandler("gif", get_gif))
-    dispatcher.add_handler(CommandHandler("video", get_video))
+    dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
+    dispatcher.add_handler(CommandHandler("status", status, run_async=True))
+    dispatcher.add_handler(CommandHandler("photo", get_photo, run_async=True))
+    dispatcher.add_handler(CommandHandler("gif", get_gif, run_async=True))
+    dispatcher.add_handler(CommandHandler("video", get_video, run_async=True))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
-    dispatcher.add_handler(CommandHandler("files", get_gcode_files))
+    dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
 
-    # on noncommand i.e message - echo the message on Telegram
+    dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
+
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
-    dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file))
 
-    # Start the Bot
+    dispatcher.add_error_handler(bot_error_handler)
+
     updater.start_polling()
 
     return updater
@@ -740,7 +749,7 @@ def timelapse_sheduler(interval: int):
         time.sleep(interval)
 
 
-def websocket_to_message(ws_message, bot):
+def websocket_to_message(ws_message):
     json_message = json.loads(ws_message)
     if debug:
         logger.debug(ws_message)
@@ -764,8 +773,9 @@ def websocket_to_message(ws_message, bot):
                 klippy_printing_progress = json_message['result']['display_status']['progress']
             if 'state' in json_message['result']:
                 if json_message['result']['state'] == 'ready':
-                    klippy_connected = True
-                    subscribe(ws)
+                    if ws.keep_running:
+                        klippy_connected = True
+                        subscribe(ws)
                 else:
                     klippy_connected = False
                 return
@@ -779,9 +789,9 @@ def websocket_to_message(ws_message, bot):
                         light_device_on = device_state
                 return
             if debug:
-                bot.send_message(chatId, text=f"{json_message['result']}")
+                bot_updater.bot.send_message(chatId, text=f"{json_message['result']}")
         if 'id' in json_message and 'error' in json_message:
-            bot.send_message(chatId, text=f"{json_message['error']['message']}")
+            bot_updater.job_queue.run_once(send_messsage, 0, context=f"{json_message['error']['message']}")
 
         # if json_message["method"] == "notify_gcode_response":
         #     val = ws_message["params"][0]
@@ -794,9 +804,9 @@ def websocket_to_message(ws_message, bot):
             if 'timelapse photo' in json_message["params"]:
                 take_lapse_photo()
             if json_message["params"][0].startswith('tgnotify'):
-                bot.send_message(chatId, json_message["params"][0][9:])
+                bot_updater.bot.send_message(chatId, json_message["params"][0][9:])
             if json_message["params"][0].startswith('tgerror'):
-                bot.send_message(chatId, json_message["params"][0][8:])
+                bot_updater.bot.send_message(chatId, json_message["params"][0][8:])
         if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy_connected = False
@@ -814,14 +824,14 @@ def websocket_to_message(ws_message, bot):
                 if 'message' in json_message["params"][0]['display_status']:
                     last_message = json_message['params'][0]['display_status']['message']
                 if 'progress' in json_message["params"][0]['display_status']:
-                    notify(bot, progress=int(json_message["params"][0]['display_status']['progress'] * 100))
+                    notify(progress=int(json_message["params"][0]['display_status']['progress'] * 100))
                     klippy_printing_progress = json_message["params"][0]['display_status']['progress']
             if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
                 position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
-                notify(bot, position_z=int(position_z))
+                notify(position_z=int(position_z))
                 take_lapse_photo(position_z)
             if 'print_stats' in json_message['params'][0]:
                 message = ""
@@ -838,28 +848,20 @@ def websocket_to_message(ws_message, bot):
                     reset_notifications()
                     if not klippy_printing_filename:
                         klippy_printing_filename = get_status()[1]
-                    send_file_info(bot, klippy_printing_filename, f"Printer started printing: {klippy_printing_filename} \n")
-                    # do we need more info in groups?
-                    for group in notify_groups:
-                        bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                        bot.send_message(group, text=f"Printer started printing: {klippy_printing_filename} \n")
+                    bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy_printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy_printing = False
-                    threading.Thread(target=send_timelapse, args=(bot,)).start()
+                    bot_updater.job_queue.run_once(send_timelapse, 0)
                 elif state:
                     klippy_printing = False
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
                 if message:
-                    bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-                    bot.send_message(chatId, text=message)
-                    for group in notify_groups:
-                        bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                        bot.send_message(group, text=message)
+                    bot_updater.job_queue.run_once(send_messsage, 0, context=message)
 
 
-def parselog(bot):
+def parselog():
     with open('telegram.log') as f:
         lines = f.readlines()
 
@@ -867,7 +869,7 @@ def parselog(bot):
     tt = list(map(lambda el: el.split(' - ')[-1].replace('\n', ''), wslines))
 
     for mes in tt:
-        websocket_to_message(mes, bot)
+        websocket_to_message(mes)
     print('lalal')
 
 
@@ -911,29 +913,31 @@ if __name__ == '__main__':
     hidden_methods = conf.get_list('hidden_methods', list())
 
     if debug:
+        faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
-    botUpdater = start_bot(token)
+    bot_updater = start_bot(token)
 
 
     # websocket communication
     def on_message(ws, message):
-        websocket_to_message(message, botUpdater.bot)
+        websocket_to_message(message)
 
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=on_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
     # debug reasons only
-    # parselog(botUpdater.bot)
+    # parselog()
 
-    greeting_message(botUpdater.bot)
+    greeting_message()
 
     threading.Thread(target=reshedule, daemon=True).start()
 
+    # Todo: move to exec_pool?
     # if timelapse_interval_time > 0:
     #     threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
 
     # Fixme: remove timeouts after websocket-client version update > 1.0.1 with enabled multithreading
-    ws.run_forever(ping_interval=10, ping_timeout=7, skip_utf8_validation=True)
+    ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
-    botUpdater.stop()
+    bot_updater.stop()
