@@ -15,7 +15,6 @@ from urllib import request
 from urllib.request import urlopen
 
 import requests
-from cv2 import VideoCapture
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
@@ -79,7 +78,7 @@ hidden_methods: list = list()
 
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(1)
-cam_cap: VideoCapture
+camera_lock = threading.Lock()
 
 klipper_config_path: str
 klippy_connected: bool = False
@@ -291,9 +290,13 @@ def notify(progress: int = 0, position_z: int = 0):
 
 
 def take_photo() -> BytesIO:
-    cv2.setNumThreads(camera_threads)
-    # cap = cv2.VideoCapture(cameraHost)
-    success, image = cam_cap.read()
+    camera_lock.acquire()
+    cap = cv2.VideoCapture(cameraHost)
+    if not cap.isOpened():
+        logger.debug("videocam is node opened")
+
+    success, image = cap.read()
+    camera_lock.release()
 
     if not success:
         img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
@@ -416,8 +419,10 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         time.sleep(camera_light_timeout)
 
     gif = []
+    camera_lock.acquire()
     cv2.setNumThreads(camera_threads)
-    success, image = cam_cap.read()
+    cap = cv2.VideoCapture(cameraHost)
+    success, image = cap.read()
 
     if not success:
         message_to_reply.reply_text("camera connection failed!")
@@ -431,11 +436,12 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     # TOdo: calc frame count
     while success and time.time() < t_end:
         prev_frame_time = time.time()
-        success, image_inner = cam_cap.read()
+        success, image_inner = cap.read()
         new_frame_time = time.time()
         gif.append(process_frame(image_inner))
         fps = 1 / (new_frame_time - prev_frame_time)
 
+    camera_lock.release()
     if camera_light_enable and light_device and should_togle:
         togle_power_device(light_device, False)
 
@@ -475,26 +481,28 @@ def get_video(update: Update, _: CallbackContext) -> None:
         togle_power_device(light_device, True)
         time.sleep(camera_light_timeout)
 
+    camera_lock.acquire()
     cv2.setNumThreads(camera_threads)
-    # cap = cv2.VideoCapture(cameraHost)
-    success, frame = cam_cap.read()
+    cap = cv2.VideoCapture(cameraHost)
+    success, frame = cap.read()
 
     if not success:
         message_to_reply.reply_text("camera connection failed!")
         return
 
     height, width, channels = frame.shape
-    fps_video = cam_cap.get(cv2.CAP_PROP_FPS)
+    fps_video = cap.get(cv2.CAP_PROP_FPS)
     fps = 10
     filepath = os.path.join('/tmp/', 'video.mp4')
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video, frameSize=(width, height))
     t_end = time.time() + videoDuration
     while success and time.time() < t_end:
         prev_frame_time = time.time()
-        success, frame_inner = cam_cap.read()
+        success, frame_inner = cap.read()
         out.write(process_video_frame(frame_inner))
         fps = 1 / (time.time() - prev_frame_time)
 
+    camera_lock.release()
     out.set(cv2.CAP_PROP_FPS, fps)
     out.release()
 
@@ -911,8 +919,6 @@ if __name__ == '__main__':
 
     bot_updater = start_bot(token)
 
-    cam_cap = cv2.VideoCapture(cameraHost)
-
 
     # websocket communication
     def on_message(ws, message):
@@ -926,7 +932,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    threading.Thread(target=reshedule, daemon=True).start()
+    threading.Thread(target=reshedule, daemon=True, name='Connection_shedul').start()
 
     # Todo: move to exec_pool?
     # if timelapse_interval_time > 0:
