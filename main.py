@@ -79,6 +79,10 @@ hidden_methods: list = list()
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(1)
 camera_lock = threading.Lock()
+light_lock = threading.Lock()
+light_timer_event = threading.Event()
+light_timer_event.set()
+light_need_off: bool = False
 
 klipper_config_path: str
 klippy_connected: bool = False
@@ -324,10 +328,17 @@ def take_lapse_photo(position_z: float = -1):
 
 
 def create_lapse_photo():
-    should_togle = not light_device_on
-    if camera_light_enable and light_device and should_togle:
+    global light_need_off
+
+    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
+        light_lock.acquire()
+        light_need_off = True
         togle_power_device(light_device, True)
+        light_timer_event.clear()
         time.sleep(camera_light_timeout)
+        light_timer_event.set()
+
+    light_timer_event.wait()
 
     # Todo: check for space?
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
@@ -336,8 +347,11 @@ def create_lapse_photo():
     with open(filename, "wb") as outfile:
         outfile.write(take_photo().getbuffer())
 
-    if camera_light_enable and light_device and should_togle:
-        togle_power_device(light_device, False)
+    if camera_light_enable and light_device and light_need_off:
+        if not camera_lock.locked():
+            togle_power_device(light_device, False)
+        if light_lock.locked():
+            light_lock.release()
 
 
 def send_timelapse(context: CallbackContext):
@@ -354,6 +368,8 @@ def send_timelapse(context: CallbackContext):
         break
 
     filepath = f'{lapse_dir}/lapse.mp4'
+    # Todo: check ligth & timer locks?
+    camera_lock.acquire()
     cv2.setNumThreads(camera_threads)
     out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
@@ -364,6 +380,8 @@ def send_timelapse(context: CallbackContext):
         out.write(cv2.imread(filename))
 
     out.release()
+    camera_lock.release()
+
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     bio = BytesIO()
     bio.name = 'lapse.mp4'
@@ -378,6 +396,7 @@ def send_timelapse(context: CallbackContext):
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
+    global light_need_off
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
@@ -385,18 +404,29 @@ def get_photo(update: Update, _: CallbackContext) -> None:
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
 
-    should_togle = not light_device_on
-    if camera_light_enable and light_device and should_togle:
+    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
+        light_lock.acquire()
+        light_need_off = True
         togle_power_device(light_device, True)
+        light_timer_event.clear()
         time.sleep(camera_light_timeout)
+        light_timer_event.set()
 
+    light_timer_event.wait()
     message_to_reply.reply_photo(photo=take_photo())
 
-    if camera_light_enable and light_device and should_togle:
-        togle_power_device(light_device, False)
+    # FixMe: release lock
+
+    if camera_light_enable and light_device and light_need_off:
+        if not camera_lock.locked():
+            togle_power_device(light_device, False)
+        if light_lock.locked():
+            light_lock.release()
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
+    global light_need_off
+
     def process_frame(frame) -> Image:
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if flipVertically:
@@ -413,10 +443,15 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         return
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
 
-    should_togle = not light_device_on
-    if camera_light_enable and light_device and should_togle:
+    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
+        light_lock.acquire()
+        light_need_off = True
         togle_power_device(light_device, True)
+        light_timer_event.clear()
         time.sleep(camera_light_timeout)
+        light_timer_event.set()
+
+    light_timer_event.wait()
 
     gif = []
     camera_lock.acquire()
@@ -442,8 +477,12 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         fps = 1 / (new_frame_time - prev_frame_time)
 
     camera_lock.release()
-    if camera_light_enable and light_device and should_togle:
-        togle_power_device(light_device, False)
+
+    if camera_light_enable and light_device and light_need_off:
+        if not camera_lock.locked():
+            togle_power_device(light_device, False)
+        if light_lock.locked():
+            light_lock.release()
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
@@ -459,7 +498,10 @@ def get_gif(update: Update, _: CallbackContext) -> None:
         message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
+# FixMe: release locks & toogle light on some errors on fileIO
 def get_video(update: Update, _: CallbackContext) -> None:
+    global light_need_off
+
     def process_video_frame(frame_loc):
         if flipVertically and flipHorisontally:
             frame_loc = cv2.flip(frame_loc, -1)
@@ -476,10 +518,16 @@ def get_video(update: Update, _: CallbackContext) -> None:
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    should_togle = not light_device_on
-    if camera_light_enable and light_device and should_togle:
+
+    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
+        light_lock.acquire()
+        light_need_off = True
         togle_power_device(light_device, True)
+        light_timer_event.clear()
         time.sleep(camera_light_timeout)
+        light_timer_event.set()
+
+    light_timer_event.wait()
 
     camera_lock.acquire()
     cv2.setNumThreads(camera_threads)
@@ -506,8 +554,11 @@ def get_video(update: Update, _: CallbackContext) -> None:
     out.set(cv2.CAP_PROP_FPS, fps)
     out.release()
 
-    if camera_light_enable and light_device and should_togle:
-        togle_power_device(light_device, False)
+    if camera_light_enable and light_device and light_need_off:
+        if not camera_lock.locked():
+            togle_power_device(light_device, False)
+        if light_lock.locked():
+            light_lock.release()
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
 
