@@ -77,7 +77,7 @@ debug: bool = False
 hidden_methods: list = list()
 
 bot_updater: Updater
-executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(1)
+executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
 camera_lock = threading.Lock()
 light_lock = threading.Lock()
 light_timer_event = threading.Event()
@@ -265,15 +265,25 @@ def notify(progress: int = 0, position_z: int = 0):
 
     def send_notification(context: CallbackContext):
         if cameraEnabled:
-            should_togle = not light_device_on
-            if camera_light_enable and light_device and should_togle:
+            global light_need_off
+
+            if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
+                light_lock.acquire()
+                light_need_off = True
                 togle_power_device(light_device, True)
+                light_timer_event.clear()
                 time.sleep(camera_light_timeout)
+                light_timer_event.set()
+
+            light_timer_event.wait()
 
             photo = take_photo()
 
-            if camera_light_enable and light_device and should_togle:
-                togle_power_device(light_device, False)
+            if camera_light_enable and light_device and light_need_off:
+                if not camera_lock.locked():
+                    togle_power_device(light_device, False)
+                if light_lock.locked():
+                    light_lock.release()
 
             context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
             context.bot.send_photo(chatId, photo=photo, caption=notifymsg)
@@ -720,7 +730,7 @@ def bot_error_handler(update: object, context: CallbackContext) -> None:
 
 
 def start_bot(token):
-    updater = Updater(token, workers=1)  # we have too small ram on oPi zero...
+    updater = Updater(token, workers=2)  # we have too small ram on oPi zero...
 
     dispatcher = updater.dispatcher
 
