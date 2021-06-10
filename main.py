@@ -20,6 +20,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAct
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
+from camera import Camera
+
 try:
     import thread
 except ImportError:
@@ -49,40 +51,26 @@ logger = logging.getLogger(__name__)
 # some global params
 myId = random.randint(300000)
 host = "localhost"
-cameraEnabled: bool = True
-cameraHost: str = "localhost:8080"
 chatId: int = 12341234
 notify_percent: int = 5
 notify_heigth: int = 5
 notify_interval: int = 0
 notify_groups: list = list()
-flipVertically: bool = False
-flipHorisontally: bool = False
-gifDuration: int = 5
-videoDuration: int = 10
-reduceGif: int = 2
 poweroff_device: str
 poweroff_device_on: bool = False
-light_device: str
-light_device_on: bool = False
+
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
 timelapse_basedir: str
 timelapse_cleanup: bool = True
-video_fourcc: str = 'x264'
-camera_threads: int = 0
-camera_light_enable: bool = False
-camera_light_timeout: int = 0
+
 debug: bool = False
 hidden_methods: list = list()
 
 bot_updater: Updater
-executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
-camera_lock = threading.Lock()
-light_lock = threading.Lock()
-light_timer_event = threading.Event()
-light_timer_event.set()
-light_need_off: bool = False
+executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
+cameraWrap: Camera
+ws: websocket.WebSocketApp
 
 klipper_config_path: str
 klippy_connected: bool = False
@@ -90,7 +78,6 @@ klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
 klippy_printing_progress: float = 0.0
 klippy_printing_filename: str = ''
-ws: websocket.WebSocketApp
 
 last_notify_heigth: int = 0
 last_notify_percent: int = 0
@@ -152,8 +139,8 @@ def get_status() -> (str, str):
     if print_stats['state'] in ('printing', 'paused', 'complete'):
         printing_filename = print_stats['filename']
         message += f"Printing filename: {printing_filename} \n"
-    if light_device:
-        message += emoji.emojize(':flashlight: Light Status: ') + f"{'on' if light_device_on else 'off'}"
+    if cameraWrap.light_device:
+        message += emoji.emojize(':flashlight: Light Status: ') + f"{'on' if cameraWrap.light_state else 'off'}"
     return message, printing_filename
 
 
@@ -265,26 +252,7 @@ def notify(progress: int = 0, position_z: int = 0):
 
     def send_notification(context: CallbackContext):
         if cameraEnabled:
-            global light_need_off
-
-            if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
-                light_lock.acquire()
-                light_need_off = True
-                togle_power_device(light_device, True)
-                light_timer_event.clear()
-                time.sleep(camera_light_timeout)
-                light_timer_event.set()
-
-            light_timer_event.wait()
-
-            photo = take_photo()
-
-            if camera_light_enable and light_device and light_need_off:
-                if not camera_lock.locked():
-                    togle_power_device(light_device, False)
-                if light_lock.locked():
-                    light_lock.release()
-
+            photo = cameraWrap.take_photo()
             context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
             context.bot.send_photo(chatId, photo=photo, caption=notifymsg)
             for group_ in notify_groups:
@@ -299,33 +267,7 @@ def notify(progress: int = 0, position_z: int = 0):
 
     if notifymsg:
         last_notify_time = time.time()
-        # Todo: pass light_device & other params!
         bot_updater.job_queue.run_once(send_notification, 0)
-
-
-def take_photo() -> BytesIO:
-    camera_lock.acquire()
-    cap = cv2.VideoCapture(cameraHost)
-    if not cap.isOpened():
-        logger.debug("videocam is node opened")
-
-    success, image = cap.read()
-    camera_lock.release()
-
-    if not success:
-        img = Image.open(random.choice(glob.glob(f'{klipper_config_path}/imgs/*.jpg')))
-    else:
-        img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        if flipVertically:
-            img = img.transpose(Image.FLIP_TOP_BOTTOM)
-        if flipHorisontally:
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
-
-    bio = BytesIO()
-    bio.name = 'status.jpeg'
-    img.save(bio, 'JPEG', quality=75, subsampling=0)
-    bio.seek(0)
-    return bio
 
 
 # Todo: vase mode calcs
@@ -338,30 +280,12 @@ def take_lapse_photo(position_z: float = -1):
 
 
 def create_lapse_photo():
-    global light_need_off
-
-    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
-        light_lock.acquire()
-        light_need_off = True
-        togle_power_device(light_device, True)
-        light_timer_event.clear()
-        time.sleep(camera_light_timeout)
-        light_timer_event.set()
-
-    light_timer_event.wait()
-
     # Todo: check for space?
     lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
     Path(lapse_dir).mkdir(parents=True, exist_ok=True)
     filename = f'{lapse_dir}/{time.time()}.jpeg'
     with open(filename, "wb") as outfile:
-        outfile.write(take_photo().getbuffer())
-
-    if camera_light_enable and light_device and light_need_off:
-        if not camera_lock.locked():
-            togle_power_device(light_device, False)
-        if light_lock.locked():
-            light_lock.release()
+        outfile.write(cameraWrap.take_photo().getbuffer())
 
 
 def send_timelapse(context: CallbackContext):
@@ -379,18 +303,17 @@ def send_timelapse(context: CallbackContext):
 
     filepath = f'{lapse_dir}/lapse.mp4'
     # Todo: check ligth & timer locks?
-    camera_lock.acquire()
-    cv2.setNumThreads(camera_threads)
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
+    with cameraWrap.camera_lock:
+        cv2.setNumThreads(camera_threads)
+        out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
 
-    photos = glob.glob(f'{lapse_dir}/*.jpeg')
-    photos.sort(key=os.path.getmtime)
-    for filename in photos:
-        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        out.write(cv2.imread(filename))
+        photos = glob.glob(f'{lapse_dir}/*.jpeg')
+        photos.sort(key=os.path.getmtime)
+        for filename in photos:
+            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+            out.write(cv2.imread(filename))
 
-    out.release()
-    camera_lock.release()
+        out.release()
 
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     bio = BytesIO()
@@ -406,182 +329,43 @@ def send_timelapse(context: CallbackContext):
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
-    global light_need_off
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-
-    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
-        light_lock.acquire()
-        light_need_off = True
-        togle_power_device(light_device, True)
-        light_timer_event.clear()
-        time.sleep(camera_light_timeout)
-        light_timer_event.set()
-
-    light_timer_event.wait()
-    message_to_reply.reply_photo(photo=take_photo())
-
-    # FixMe: release lock
-
-    if camera_light_enable and light_device and light_need_off:
-        if not camera_lock.locked():
-            togle_power_device(light_device, False)
-        if light_lock.locked():
-            light_lock.release()
+    message_to_reply.reply_photo(photo=cameraWrap.take_photo())
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
-    global light_need_off
-
-    def process_frame(frame) -> Image:
-        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        if flipVertically:
-            img = img.transpose(Image.FLIP_TOP_BOTTOM)
-        if flipHorisontally:
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
-        if reduceGif > 0:
-            img = img.resize((int(width / reduceGif), int(height / reduceGif)))
-        return img
-
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
 
-    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
-        light_lock.acquire()
-        light_need_off = True
-        togle_power_device(light_device, True)
-        light_timer_event.clear()
-        time.sleep(camera_light_timeout)
-        light_timer_event.set()
-
-    light_timer_event.wait()
-
-    gif = []
-    camera_lock.acquire()
-    cv2.setNumThreads(camera_threads)
-    cap = cv2.VideoCapture(cameraHost)
-    success, image = cap.read()
-
-    if not success:
-        message_to_reply.reply_text("camera connection failed!")
-        return
-
-    height, width, channels = image.shape
-    gif.append(process_frame(image))
-
-    fps = 0
-    t_end = time.time() + gifDuration
-    # TOdo: calc frame count
-    while success and time.time() < t_end:
-        prev_frame_time = time.time()
-        success, image_inner = cap.read()
-        new_frame_time = time.time()
-        gif.append(process_frame(image_inner))
-        fps = 1 / (new_frame_time - prev_frame_time)
-
-    camera_lock.release()
-
-    if camera_light_enable and light_device and light_need_off:
-        if not camera_lock.locked():
-            togle_power_device(light_device, False)
-        if light_lock.locked():
-            light_lock.release()
+    (bio, width, height) = cameraWrap.take_gif()
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-
-    bio = BytesIO()
-    bio.name = 'image.gif'
-    gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)),
-                loop=0)
-    bio.seek(0)
     message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
                                      caption=get_status()[0])
+    # if debug:
+    #     message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
-    if debug:
-        message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
-
-# FixMe: release locks & toogle light on some errors on fileIO
 def get_video(update: Update, _: CallbackContext) -> None:
-    global light_need_off
-
-    def process_video_frame(frame_loc):
-        if flipVertically and flipHorisontally:
-            frame_loc = cv2.flip(frame_loc, -1)
-        elif flipHorisontally:
-            frame_loc = cv2.flip(frame_loc, 1)
-        elif flipVertically:
-            frame_loc = cv2.flip(frame_loc, 0)
-
-        return frame_loc
-
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-
-    if camera_light_enable and light_device and not light_device_on and not light_lock.locked():
-        light_lock.acquire()
-        light_need_off = True
-        togle_power_device(light_device, True)
-        light_timer_event.clear()
-        time.sleep(camera_light_timeout)
-        light_timer_event.set()
-
-    light_timer_event.wait()
-
-    camera_lock.acquire()
-    cv2.setNumThreads(camera_threads)
-    cap = cv2.VideoCapture(cameraHost)
-    success, frame = cap.read()
-
-    if not success:
-        message_to_reply.reply_text("camera connection failed!")
-        return
-
-    height, width, channels = frame.shape
-    fps_video = cap.get(cv2.CAP_PROP_FPS)
-    fps = 10
-    filepath = os.path.join('/tmp/', 'video.mp4')
-    out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=fps_video, frameSize=(width, height))
-    t_end = time.time() + videoDuration
-    while success and time.time() < t_end:
-        prev_frame_time = time.time()
-        success, frame_inner = cap.read()
-        out.write(process_video_frame(frame_inner))
-        fps = 1 / (time.time() - prev_frame_time)
-
-    camera_lock.release()
-    out.set(cv2.CAP_PROP_FPS, fps)
-    out.release()
-
-    if camera_light_enable and light_device and light_need_off:
-        if not camera_lock.locked():
-            togle_power_device(light_device, False)
-        if light_lock.locked():
-            light_lock.release()
-
+    (bio, width, height) = cameraWrap.take_video()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-
-    bio = BytesIO()
-    bio.name = 'video.mp4'
-    with open(filepath, 'rb') as fh:
-        bio.write(fh.read())
-
-    os.remove(filepath)
-    bio.seek(0)
     message_to_reply.reply_video(video=bio, width=width, height=height)
-    if debug:
-        message_to_reply.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
+    # if debug:
+    #     message_to_reply.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
 
 
 def manage_printing(command: str) -> None:
@@ -620,8 +404,8 @@ def power_off(update: Update, _: CallbackContext) -> None:
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    if light_device:
-        togle_power_device(light_device, not light_device_on)
+    if cameraWrap.light_device:
+        cameraWrap.togle_ligth_device()
     else:
         message_to_reply.reply_text("No light device in config!")
 
@@ -730,7 +514,7 @@ def bot_error_handler(update: object, context: CallbackContext) -> None:
 
 
 def start_bot(token):
-    updater = Updater(token, workers=2)  # we have too small ram on oPi zero...
+    updater = Updater(token, workers=4)  # we have too small ram on oPi zero...
 
     dispatcher = updater.dispatcher
 
@@ -817,7 +601,7 @@ def websocket_to_message(ws_message):
         logger.debug(ws_message)
 
     global klippy_printing_filename, klippy_printing, klippy_printing_duration, klippy_printing_progress
-    global klippy_connected, last_notify_percent, last_notify_heigth, last_message, poweroff_device_on, light_device_on
+    global klippy_connected, last_notify_percent, last_notify_heigth, last_message, poweroff_device_on
 
     if 'error' in json_message:
         return
@@ -847,8 +631,8 @@ def websocket_to_message(ws_message):
                     device_state = True if dev["status"] == 'on' else False
                     if poweroff_device == device_name:
                         poweroff_device_on = device_state
-                    elif light_device == device_name:
-                        light_device_on = device_state
+                    if cameraWrap.light_device == device_name:
+                        cameraWrap.light_state = device_state
                 return
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{json_message['result']}")
@@ -879,8 +663,8 @@ def websocket_to_message(ws_message):
             device_state = True if json_message["params"][0]["status"] == 'on' else False
             if poweroff_device == device_name:
                 poweroff_device_on = device_state
-            elif light_device == device_name:
-                light_device_on = device_state
+            if cameraWrap.light_device == device_name:
+                cameraWrap.light_state = device_state
         if json_message["method"] == "notify_status_update":
             if 'display_status' in json_message["params"][0]:
                 if 'message' in json_message["params"][0]['display_status']:
@@ -978,6 +762,9 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
+    cameraWrap = Camera(host, cameraHost, camera_threads, light_device, camera_light_enable, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
+                        reduceGif, videoDuration, klipper_config_path)
+
     bot_updater = start_bot(token)
 
 
@@ -993,13 +780,13 @@ if __name__ == '__main__':
 
     greeting_message()
 
+    # ToDo: use Timer!
     threading.Thread(target=reshedule, daemon=True, name='Connection_shedul').start()
 
-    # Todo: move to exec_pool?
+    # ToDo: use Timer!
     # if timelapse_interval_time > 0:
     #     threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
 
-    # Fixme: remove timeouts after websocket-client version update > 1.0.1 with enabled multithreading
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
 
