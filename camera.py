@@ -4,6 +4,7 @@ import threading
 import time
 import glob
 from io import BytesIO
+from pathlib import Path
 
 import decorator
 import requests
@@ -15,7 +16,8 @@ from PIL import Image
 # Enable logging
 class Camera:
     def __init__(self, moonraker_host: str, host: str, threads: int = 0, light_device: str = "", light_enable: bool = False, light_timeout: int = 0, flip_vertically: bool = False,
-                 flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = ""):
+                 flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "",
+                 timelapse_base_dir: str = "", timelapse_cleanup: bool = False):
         self._host: str = host
         self._threads: int = threads
         self._flipVertically: bool = flip_vertically
@@ -28,8 +30,11 @@ class Camera:
         self._moonraker_host: str = moonraker_host
         self._light_state_lock = threading.Lock()
         self._light_device_on: bool = False
-        self.light_need_off: bool = False
+        self._base_dir: str = timelapse_base_dir
+        self._filename: str = ""
+        self._cleanup: bool = timelapse_cleanup
 
+        self.light_need_off: bool = False
         self.light_enable: bool = light_enable
         self.light_timeout: int = light_timeout
         # Todo: make class for power device
@@ -48,6 +53,14 @@ class Camera:
     def light_state(self, state: bool):
         with self._light_state_lock:
             self._light_device_on = state
+
+    @property
+    def filename(self):
+        return self._filename
+
+    @filename.setter
+    def filename(self, new: str):
+        self._filename = new
 
     def togle_ligth_device(self):
         self.switch_ligth_device(not self.light_state)
@@ -201,5 +214,48 @@ class Camera:
         bio.name = 'image.gif'
         gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)), loop=0)
         bio.seek(0)
+
+        return bio, width, height
+
+    def take_lapse_photo(self):
+        # Todo: check for space?
+        lapse_dir = f'{self._base_dir}/{self._filename}'
+        Path(lapse_dir).mkdir(parents=True, exist_ok=True)
+        filename = f'{lapse_dir}/{time.time()}.jpeg'
+        with open(filename, "wb") as outfile:
+            outfile.write(self.take_photo().getbuffer())
+
+    def create_timelapse(self):
+        lapse_dir = f'{self._base_dir}/{self._filename}'
+        # Fixme: get single file!
+        for filename in glob.glob(f'{lapse_dir}/*.jpeg'):
+            img = cv2.imread(filename)
+            height, width, layers = img.shape
+            size = (width, height)
+            break
+
+        filepath = f'{lapse_dir}/lapse.mp4'
+        # Todo: check ligth & timer locks?
+        with self.camera_lock:
+            cv2.setNumThreads(self._threads)
+            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=15.0, frameSize=size)
+
+            photos = glob.glob(f'{lapse_dir}/*.jpeg')
+            photos.sort(key=os.path.getmtime)
+            for filename in photos:
+                out.write(cv2.imread(filename))
+
+            out.release()
+
+        bio = BytesIO()
+        bio.name = 'lapse.mp4'
+        with open(filepath, 'rb') as fh:
+            bio.write(fh.read())
+        bio.seek(0)
+
+        if self._cleanup:
+            for filename in glob.glob(f'{lapse_dir}/*'):
+                os.remove(filename)
+            Path(lapse_dir).rmdir()
 
         return bio, width, height

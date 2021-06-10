@@ -61,8 +61,6 @@ poweroff_device_on: bool = False
 
 timelapse_heigth: float = 0.2
 timelapse_enabled: bool = False
-timelapse_basedir: str
-timelapse_cleanup: bool = True
 
 debug: bool = False
 hidden_methods: list = list()
@@ -72,7 +70,6 @@ executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
 ws: websocket.WebSocketApp
 
-klipper_config_path: str
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
@@ -81,7 +78,6 @@ klippy_printing_filename: str = ''
 
 last_notify_heigth: int = 0
 last_notify_percent: int = 0
-last_timelapse_heigth: float = 0.2
 last_message: str = ''
 last_notify_time: int = 0
 
@@ -276,16 +272,7 @@ def take_lapse_photo(position_z: float = -1):
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     if (timelapse_heigth > 0 and position_z % timelapse_heigth == 0) or position_z < 0:
-        executors_pool.submit(create_lapse_photo)
-
-
-def create_lapse_photo():
-    # Todo: check for space?
-    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
-    Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-    filename = f'{lapse_dir}/{time.time()}.jpeg'
-    with open(filename, "wb") as outfile:
-        outfile.write(cameraWrap.take_photo().getbuffer())
+        executors_pool.submit(cameraWrap.take_lapse_photo)
 
 
 def send_timelapse(context: CallbackContext):
@@ -293,39 +280,9 @@ def send_timelapse(context: CallbackContext):
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    lapse_dir = f'{timelapse_basedir}/{klippy_printing_filename}'
-    # Fixme: get single file!
-    for filename in glob.glob(f'{lapse_dir}/*.jpeg'):
-        img = cv2.imread(filename)
-        height, width, layers = img.shape
-        size = (width, height)
-        break
-
-    filepath = f'{lapse_dir}/lapse.mp4'
-    # Todo: check ligth & timer locks?
-    with cameraWrap.camera_lock:
-        cv2.setNumThreads(camera_threads)
-        out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*video_fourcc), fps=15.0, frameSize=size)
-
-        photos = glob.glob(f'{lapse_dir}/*.jpeg')
-        photos.sort(key=os.path.getmtime)
-        for filename in photos:
-            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-            out.write(cv2.imread(filename))
-
-        out.release()
-
+    (bio, width, height) = cameraWrap.create_timelapse()
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    bio = BytesIO()
-    bio.name = 'lapse.mp4'
-    with open(filepath, 'rb') as fh:
-        bio.write(fh.read())
-    bio.seek(0)
     context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy_printing_filename}', timeout=120)
-    if timelapse_cleanup:
-        for filename in glob.glob(f'{lapse_dir}/*'):
-            os.remove(filename)
-        Path(lapse_dir).rmdir()
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -591,7 +548,7 @@ def reshedule():
 
 def timelapse_sheduler(interval: int):
     while True:
-        create_lapse_photo()
+        take_lapse_photo()
         time.sleep(interval)
 
 
@@ -612,6 +569,7 @@ def websocket_to_message(ws_message):
                 if 'print_stats' in json_message['result']['status'] and json_message['result']['status']['print_stats']['state'] == "printing":
                     klippy_printing = True
                     klippy_printing_filename = json_message['result']['status']['print_stats']['filename']
+                    cameraWrap.filename = klippy_printing_filename
                     klippy_printing_duration = json_message['result']['status']['print_stats']['print_duration']
                 return
             if 'display_status' in json_message['result']:
@@ -684,6 +642,7 @@ def websocket_to_message(ws_message):
                 state = ""
                 if 'filename' in json_message['params'][0]['print_stats']:
                     klippy_printing_filename = json_message['params'][0]['print_stats']['filename']
+                    cameraWrap.filename = klippy_printing_filename
                 if 'state' in json_message['params'][0]['print_stats']:
                     state = json_message['params'][0]['print_stats']['state']
                 # Fixme: reset notify percent & heigth on finish/caancel/start
@@ -694,6 +653,7 @@ def websocket_to_message(ws_message):
                     reset_notifications()
                     if not klippy_printing_filename:
                         klippy_printing_filename = get_status()[1]
+                        cameraWrap.filename = klippy_printing_filename
                     bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy_printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
@@ -763,7 +723,7 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
 
     cameraWrap = Camera(host, cameraHost, camera_threads, light_device, camera_light_enable, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
-                        reduceGif, videoDuration, klipper_config_path)
+                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup)
 
     bot_updater = start_bot(token)
 
@@ -780,12 +740,9 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    # ToDo: use Timer!
     threading.Thread(target=reshedule, daemon=True, name='Connection_shedul').start()
-
-    # ToDo: use Timer!
-    # if timelapse_interval_time > 0:
-    #     threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
+    if timelapse_interval_time > 0:
+        threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
