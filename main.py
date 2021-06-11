@@ -1,6 +1,5 @@
 import argparse
 import faulthandler
-import glob
 import hashlib
 import itertools
 import logging
@@ -10,7 +9,6 @@ from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
 import sys
-from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
 
@@ -654,6 +652,7 @@ def websocket_to_message(ws_message):
                     if not klippy_printing_filename:
                         klippy_printing_filename = get_status()[1]
                         cameraWrap.filename = klippy_printing_filename
+                        cameraWrap.clean()
                     bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy_printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':

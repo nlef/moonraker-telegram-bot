@@ -1,4 +1,3 @@
-import logging
 import os
 import threading
 import time
@@ -6,14 +5,39 @@ import glob
 from io import BytesIO
 from pathlib import Path
 
-import decorator
 import requests
 from numpy import random
 import cv2
 from PIL import Image
 
 
-# Enable logging
+def cam_ligth_toogle(func):
+    def wrapper(self, *args, **kwargs):
+        if self.light_enable and self.light_device and not self.light_state and not self.light_lock.locked():
+            self.light_timer_event.clear()
+            self.light_lock.acquire()
+            self.light_need_off = True
+            self.switch_ligth_device(True)
+            time.sleep(self.light_timeout)
+            self.light_timer_event.set()
+
+        self.light_timer_event.wait()
+
+        result = func(self, *args, **kwargs)
+
+        if self.light_enable and self.light_device and self.light_need_off:
+            if self.light_lock.locked():
+                self.light_lock.release()
+            if not self.camera_lock.locked() and not self.light_lock.locked():
+                self.light_need_off = False
+                self.switch_ligth_device(False)
+
+        return result
+
+    return wrapper
+
+
+# Todo: add logging
 class Camera:
     def __init__(self, moonraker_host: str, host: str, threads: int = 0, light_device: str = "", light_enable: bool = False, light_timeout: int = 0, flip_vertically: bool = False,
                  flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "",
@@ -76,32 +100,6 @@ class Camera:
                 if res.ok:
                     self._light_device_on = False
 
-    # @decorator.decorator
-    def cam_ligth_toogle(func):
-        def wrapper(self, *args, **kwargs):
-            if self.light_enable and self.light_device and not self.light_state and not self.light_lock.locked():
-                self.light_timer_event.clear()
-                self.light_lock.acquire()
-                self.light_need_off = True
-                self.switch_ligth_device(True)
-                time.sleep(self.light_timeout)
-                self.light_timer_event.set()
-
-            self.light_timer_event.wait()
-
-            result = func(self, *args, **kwargs)
-
-            if self.light_enable and self.light_device and self.light_need_off:
-                if self.light_lock.locked():
-                    self.light_lock.release()
-                if not self.camera_lock.locked() and not self.light_lock.locked():
-                    self.light_need_off = False
-                    self.switch_ligth_device(False)
-
-            return result
-
-        return wrapper
-
     @cam_ligth_toogle
     def take_photo(self) -> BytesIO:
         with self.camera_lock:
@@ -160,8 +158,6 @@ class Camera:
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
 
-        # message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-
         bio = BytesIO()
         bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
@@ -207,7 +203,6 @@ class Camera:
                 gif.append(process_frame(image_inner))
                 fps = 1 / (new_frame_time - prev_frame_time)
 
-        # message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
         if fps <= 0:
             fps = 1
         bio = BytesIO()
@@ -223,7 +218,7 @@ class Camera:
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
         filename = f'{lapse_dir}/{time.time()}.jpeg'
         with open(filename, "wb") as outfile:
-            outfile.write(self.take_photo().getbuffer())
+            outfile.write(self.take_photo(self).getbuffer())
 
     def create_timelapse(self):
         lapse_dir = f'{self._base_dir}/{self._filename}'
@@ -259,3 +254,9 @@ class Camera:
             Path(lapse_dir).rmdir()
 
         return bio, width, height
+
+    def clean(self):
+        if self._cleanup and self._filename:
+            if os.path.isdir(f'{self._base_dir}/{self._filename}'):
+                for filename in glob.glob(f'{self._base_dir}/{self._filename}/*'):
+                    os.remove(filename)
