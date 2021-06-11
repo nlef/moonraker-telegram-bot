@@ -218,7 +218,8 @@ class Camera:
         Path(lapse_dir).mkdir(parents=True, exist_ok=True)
         filename = f'{lapse_dir}/{time.time()}.jpeg'
         with open(filename, "wb") as outfile:
-            outfile.write(self.take_photo(self).getbuffer())
+            photo = self.take_photo()
+            outfile.write(photo.getbuffer())
 
     def create_timelapse(self):
         lapse_dir = f'{self._base_dir}/{self._filename}'
