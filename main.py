@@ -188,7 +188,7 @@ def status(update: Update, _: CallbackContext) -> None:
 def create_keyboard():
     custom_keyboard = [
         '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/gif'
+        '/photo', '/video', '/gif', '/emergency'
     ]
     if poweroff_device:
         custom_keyboard.append('/poweroff')
@@ -328,32 +328,75 @@ def manage_printing(command: str) -> None:
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
-def pause_printing(_: Update, __: CallbackContext) -> None:
-    manage_printing('pause')
+def togle_power_device(device: str, enable: bool):
+    ws.send(json.dumps({"jsonrpc": "2.0",
+                        "method": "machine.device_power.on" if enable else "machine.device_power.off",
+                        "id": myId,
+                        "params": {f"{device}": None}
+                        }))
+
+
+def emergency_stop_printer():
+    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
+
+
+def pause_printing(update: Update, __: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    keyboard = [
+        [
+            InlineKeyboardButton(emoji.emojize(':robot: Yes. Pause print'), callback_data=f'pause_printing'),
+            InlineKeyboardButton(emoji.emojize(':cross_mark: cancel'), callback_data='do_nothing'),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text('Pause printing?', reply_markup=reply_markup)
 
 
 def resume_printing(_: Update, __: CallbackContext) -> None:
     manage_printing('resume')
 
 
-def cancel_printing(_: Update, __: CallbackContext) -> None:
-    manage_printing('cancel')
+def cancel_printing(update: Update, __: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    keyboard = [
+        [
+            InlineKeyboardButton(emoji.emojize(':robot: Yes. Cancel print'), callback_data=f'cancel_printing'),
+            InlineKeyboardButton(emoji.emojize(':cross_mark: cancel'), callback_data='do_nothing'),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text('Cancel printing?', reply_markup=reply_markup)
 
 
-def togle_power_device(device: str, enable: bool):
-    ws.send(json.dumps({"jsonrpc": "2.0",
-                        "method": "machine.device_power.on" if enable else "machine.device_power.off",
-                        "id": myId,
-                        "params": {
-                            f"{device}": None
-                        }
-                        }))
+def emergency_stop(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    keyboard = [
+        [
+            InlineKeyboardButton(emoji.emojize(':robot: Yes. Emergency Stop'), callback_data=f'emergency_stop'),
+            InlineKeyboardButton(emoji.emojize(':cross_mark: cancel'), callback_data='do_nothing'),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text('Execute emergency stop?', reply_markup=reply_markup)
 
 
 def power_off(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     if poweroff_device:
-        togle_power_device(poweroff_device, False)
+
+        keyboard = [
+            [
+                InlineKeyboardButton(emoji.emojize(':robot: Yes. power off'), callback_data=f'power_off_printer'),
+                InlineKeyboardButton(emoji.emojize(':cross_mark: cancel'), callback_data='do_nothing'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        message_to_reply.reply_text('Power Off printer?', reply_markup=reply_markup)
     else:
         message_to_reply.reply_text("No power device in config!")
 
@@ -391,12 +434,26 @@ def start(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Bot commands:', reply_markup=reply_markup)
 
 
-def button(update: Update, context: CallbackContext) -> None:
+def button_handler(update: Update, context: CallbackContext) -> None:
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
     # Todo: maybe regex check?
-    if '.gcode' in query.data and ':' not in query.data:
+    if query.data == 'do_nothing':
+        query.delete_message()
+    elif query.data == 'emergency_stop':
+        emergency_stop_printer()
+        query.delete_message()
+    elif query.data == 'cancel_printing':
+        manage_printing('cancel')
+        query.delete_message()
+    elif query.data == 'pause_printing':
+        manage_printing('pause')
+        query.delete_message()
+    elif query.data == 'power_off_printer':
+        togle_power_device(poweroff_device, False)
+        query.delete_message()
+    elif '.gcode' in query.data and ':' not in query.data:
         keyboard_keys = dict((x['callback_data'], x['text']) for x in
                              itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
         filename = keyboard_keys[query.data]
@@ -416,7 +473,9 @@ def button(update: Update, context: CallbackContext) -> None:
             query.edit_message_text(text=f"Failed start printing file {filename}")
         else:
             query.delete_message()
+
     else:
+        logger.debug(f"unknown message from inline keyboard query: {query.data}")
         query.delete_message()
 
 
@@ -476,7 +535,7 @@ def start_bot(token):
 
     dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknown_chat))
 
-    dispatcher.add_handler(CallbackQueryHandler(button))
+    dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
     dispatcher.add_handler(CommandHandler("photo", get_photo, run_async=True))
@@ -487,6 +546,7 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
+    dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
@@ -741,6 +801,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
+    # TOdo: rewrite using ApShecduller
     threading.Thread(target=reshedule, daemon=True, name='Connection_shedul').start()
     if timelapse_interval_time > 0:
         threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()

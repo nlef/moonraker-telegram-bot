@@ -28,7 +28,7 @@ def cam_ligth_toogle(func):
 
         result = func(self, *args, **kwargs)
 
-        if self.light_enable and self.light_device and self.light_need_off:
+        if self.light_need_off:
             if self.light_lock.locked():
                 self.light_lock.release()
             if not self.camera_lock.locked() and not self.light_lock.locked():
@@ -61,8 +61,9 @@ class Camera:
         self._filename: str = ""
         self._cleanup: bool = timelapse_cleanup
         self._fps: int = timelapse_fps
+        self._light_need_off: bool = False
+        self._light_need_off_lock = threading.Lock()
 
-        self.light_need_off: bool = False
         self.light_enable: bool = light_enable
         self.light_timeout: int = light_timeout
         # Todo: make class for power device
@@ -73,7 +74,7 @@ class Camera:
         self.light_timer_event.set()
 
     @property
-    def light_state(self):
+    def light_state(self) -> bool:
         with self._light_state_lock:
             return self._light_device_on
 
@@ -83,14 +84,25 @@ class Camera:
             self._light_device_on = state
 
     @property
-    def filename(self):
+    def light_need_off(self) -> bool:
+        with self._light_need_off_lock:
+            return self._light_need_off
+
+    @light_need_off.setter
+    def light_need_off(self, new: bool):
+        with self._light_need_off_lock:
+            self._light_need_off = new
+
+    @property
+    def filename(self) -> str:
         return self._filename
 
     @filename.setter
     def filename(self, new: str):
         self._filename = new
 
-    def lapse_dir(self):
+    @property
+    def lapse_dir(self) -> str:
         return f'{self._base_dir}/{self._filename}'
 
     def togle_ligth_device(self):
@@ -224,8 +236,8 @@ class Camera:
 
     def take_lapse_photo(self):
         # Todo: check for space available?
-        Path(self.lapse_dir()).mkdir(parents=True, exist_ok=True)
-        filename = f'{self.lapse_dir()}/{time.time()}.jpeg'
+        Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
+        filename = f'{self.lapse_dir}/{time.time()}.jpeg'
         with open(filename, "wb") as outfile:
             # never add self in params there!
             photo = self.take_photo()
@@ -237,20 +249,20 @@ class Camera:
             time.sleep(1)
 
         # Fixme: get single file!
-        for filename in glob.glob(f'{self.lapse_dir()}/*.jpeg'):
+        for filename in glob.glob(f'{self.lapse_dir}/*.jpeg'):
             img = cv2.imread(filename)
             height, width, layers = img.shape
             size = (width, height)
             break
 
-        filepath = f'{self.lapse_dir()}/lapse.mp4'
+        filepath = f'{self.lapse_dir}/lapse.mp4'
         # Todo: check ligth & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
             # Todo: check for nonempty photos!
-            photos = glob.glob(f'{self.lapse_dir()}/*.jpeg')
+            photos = glob.glob(f'{self.lapse_dir}/*.jpeg')
             photos.sort(key=os.path.getmtime)
             for filename in photos:
                 out.write(cv2.imread(filename))
@@ -264,14 +276,14 @@ class Camera:
         bio.seek(0)
 
         if self._cleanup:
-            for filename in glob.glob(f'{self.lapse_dir()}/*'):
+            for filename in glob.glob(f'{self.lapse_dir}/*'):
                 os.remove(filename)
-            Path(self.lapse_dir()).rmdir()
+            Path(self.lapse_dir).rmdir()
 
         return bio, width, height
 
     def clean(self):
         if self._cleanup and self._filename:
-            if os.path.isdir(self.lapse_dir()):
-                for filename in glob.glob(f'{self.lapse_dir()}/*'):
+            if os.path.isdir(self.lapse_dir):
+                for filename in glob.glob(f'{self.lapse_dir}/*'):
                     os.remove(filename)
