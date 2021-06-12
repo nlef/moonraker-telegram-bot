@@ -86,6 +86,9 @@ class Camera:
     def filename(self, new: str):
         self._filename = new
 
+    def lapse_dir(self):
+        return f'{self._base_dir}/{self._filename}'
+
     def togle_ligth_device(self):
         self.switch_ligth_device(not self.light_state)
 
@@ -213,30 +216,34 @@ class Camera:
         return bio, width, height
 
     def take_lapse_photo(self):
-        # Todo: check for space?
-        lapse_dir = f'{self._base_dir}/{self._filename}'
-        Path(lapse_dir).mkdir(parents=True, exist_ok=True)
-        filename = f'{lapse_dir}/{time.time()}.jpeg'
+        # Todo: check for space available?
+        Path(self.lapse_dir()).mkdir(parents=True, exist_ok=True)
+        filename = f'{self.lapse_dir()}/{time.time()}.jpeg'
         with open(filename, "wb") as outfile:
+            # never add self in params there!
             photo = self.take_photo()
             outfile.write(photo.getbuffer())
 
     def create_timelapse(self):
-        lapse_dir = f'{self._base_dir}/{self._filename}'
+
+        while self.light_need_off:
+            time.sleep(1)
+
         # Fixme: get single file!
-        for filename in glob.glob(f'{lapse_dir}/*.jpeg'):
+        for filename in glob.glob(f'{self.lapse_dir()}/*.jpeg'):
             img = cv2.imread(filename)
             height, width, layers = img.shape
             size = (width, height)
             break
 
-        filepath = f'{lapse_dir}/lapse.mp4'
+        filepath = f'{self.lapse_dir()}/lapse.mp4'
         # Todo: check ligth & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=15.0, frameSize=size)
 
-            photos = glob.glob(f'{lapse_dir}/*.jpeg')
+            # Todo: check for nonempty photos!
+            photos = glob.glob(f'{self.lapse_dir()}/*.jpeg')
             photos.sort(key=os.path.getmtime)
             for filename in photos:
                 out.write(cv2.imread(filename))
@@ -250,14 +257,14 @@ class Camera:
         bio.seek(0)
 
         if self._cleanup:
-            for filename in glob.glob(f'{lapse_dir}/*'):
+            for filename in glob.glob(f'{self.lapse_dir()}/*'):
                 os.remove(filename)
-            Path(lapse_dir).rmdir()
+            Path(self.lapse_dir()).rmdir()
 
         return bio, width, height
 
     def clean(self):
         if self._cleanup and self._filename:
-            if os.path.isdir(f'{self._base_dir}/{self._filename}'):
-                for filename in glob.glob(f'{self._base_dir}/{self._filename}/*'):
+            if os.path.isdir(self.lapse_dir()):
+                for filename in glob.glob(f'{self.lapse_dir()}/*'):
                     os.remove(filename)

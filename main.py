@@ -652,12 +652,12 @@ def websocket_to_message(ws_message):
                     if not klippy_printing_filename:
                         klippy_printing_filename = get_status()[1]
                         cameraWrap.filename = klippy_printing_filename
-                        cameraWrap.clean()
+                    cameraWrap.clean()
                     bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy_printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy_printing = False
-                    bot_updater.job_queue.run_once(send_timelapse, 0)
+                    bot_updater.job_queue.run_once(send_timelapse, 5)
                 elif state:
                     klippy_printing = False
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
