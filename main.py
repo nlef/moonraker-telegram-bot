@@ -68,6 +68,7 @@ executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
 ws: websocket.WebSocketApp
 
+# Todo: class for printer states!
 klippy_connected: bool = False
 klippy_printing: bool = False
 klippy_printing_duration: float = 0.0
@@ -699,6 +700,7 @@ if __name__ == '__main__':
     timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
     timelapse_cleanup = conf.get_bool('timelapse.cleanup', True)
     timelapse_interval_time = conf.get_int('timelapse.interval_time', 0)
+    timelapse_fps = conf.get_int('timelapse.fps', 15)
 
     cameraEnabled = conf.get_bool('camera.enabled', True)
     flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
@@ -722,7 +724,7 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
 
     cameraWrap = Camera(host, cameraHost, camera_threads, light_device, camera_light_enable, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
-                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup)
+                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps)
 
     bot_updater = start_bot(token)
 

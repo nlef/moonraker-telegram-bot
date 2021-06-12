@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 import time
@@ -9,6 +10,8 @@ import requests
 from numpy import random
 import cv2
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 def cam_ligth_toogle(func):
@@ -41,7 +44,7 @@ def cam_ligth_toogle(func):
 class Camera:
     def __init__(self, moonraker_host: str, host: str, threads: int = 0, light_device: str = "", light_enable: bool = False, light_timeout: int = 0, flip_vertically: bool = False,
                  flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "",
-                 timelapse_base_dir: str = "", timelapse_cleanup: bool = False):
+                 timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10):
         self._host: str = host
         self._threads: int = threads
         self._flipVertically: bool = flip_vertically
@@ -57,6 +60,7 @@ class Camera:
         self._base_dir: str = timelapse_base_dir
         self._filename: str = ""
         self._cleanup: bool = timelapse_cleanup
+        self._fps: int = timelapse_fps
 
         self.light_need_off: bool = False
         self.light_enable: bool = light_enable
@@ -111,6 +115,7 @@ class Camera:
             success, image = cap.read()
 
             if not success:
+                logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*.jpg')))
             else:
                 img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
@@ -142,15 +147,15 @@ class Camera:
             cap = cv2.VideoCapture(self._host)
             success, frame = cap.read()
 
-            # if not success:
-            #     message_to_reply.reply_text("camera connection failed!")
-            #     return
+            if not success:
+                logger.debug("failed to get camera frame for video")
+                # Todo: get picture from imgs?
 
             height, width, channels = frame.shape
-            fps_video = cap.get(cv2.CAP_PROP_FPS)
+            fps_cam = cap.get(cv2.CAP_PROP_FPS)
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
-            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_video, frameSize=(width, height))
+            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
@@ -158,6 +163,7 @@ class Camera:
                 out.write(process_video_frame(frame_inner))
                 fps = 1 / (time.time() - prev_frame_time)
 
+            logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
 
@@ -190,11 +196,11 @@ class Camera:
             cap = cv2.VideoCapture(self._host)
             success, image = cap.read()
 
-            # if not success:
-            #     message_to_reply.reply_text("camera connection failed!")
-            #     return
+            if not success:
+                logger.debug("failed to get camera frame for gif")
 
             height, width, channels = image.shape
+            fps_cam = cap.get(cv2.CAP_PROP_FPS)
             gif.append(process_frame(image))
 
             t_end = time.time() + self._gifDuration
@@ -206,6 +212,7 @@ class Camera:
                 gif.append(process_frame(image_inner))
                 fps = 1 / (new_frame_time - prev_frame_time)
 
+        logger.debug(f"Measured gif fps is {fps}, while camera fps {fps_cam}")
         if fps <= 0:
             fps = 1
         bio = BytesIO()
@@ -240,7 +247,7 @@ class Camera:
         # Todo: check ligth & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=15.0, frameSize=size)
+            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
             # Todo: check for nonempty photos!
             photos = glob.glob(f'{self.lapse_dir()}/*.jpeg')
