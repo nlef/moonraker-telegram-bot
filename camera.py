@@ -11,6 +11,8 @@ from numpy import random
 import cv2
 from PIL import Image
 
+from klippy import Klippy
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,10 +44,11 @@ def cam_ligth_toogle(func):
 
 # Todo: add logging
 class Camera:
-    def __init__(self, moonraker_host: str, host: str, threads: int = 0, light_device: str = "", light_enable: bool = False, light_timeout: int = 0, flip_vertically: bool = False,
-                 flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "",
-                 timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10):
-        self._host: str = host
+    def __init__(self, moonraker_host: str, klippy: Klippy, camera_enabled: bool, camera_host: str, threads: int = 0, light_device: str = "", light_enable: bool = False,
+                 light_timeout: int = 0, flip_vertically: bool = False, flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
+                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10):
+        self._host: str = camera_host
+        self.enabled: bool = camera_enabled
         self._threads: int = threads
         self._flipVertically: bool = flip_vertically
         self._flipHorisontally: bool = flip_horisontally
@@ -55,10 +58,10 @@ class Camera:
         self._videoDuration: int = video_duration
         self._imgs: str = imgs
         self._moonraker_host: str = moonraker_host
+        self._klippy: Klippy = klippy
         self._light_state_lock = threading.Lock()
         self._light_device_on: bool = False
         self._base_dir: str = timelapse_base_dir
-        self._filename: str = ""
         self._cleanup: bool = timelapse_cleanup
         self._fps: int = timelapse_fps
         self._light_need_off: bool = False
@@ -94,16 +97,8 @@ class Camera:
             self._light_need_off = new
 
     @property
-    def filename(self) -> str:
-        return self._filename
-
-    @filename.setter
-    def filename(self, new: str):
-        self._filename = new
-
-    @property
     def lapse_dir(self) -> str:
-        return f'{self._base_dir}/{self._filename}'
+        return f'{self._base_dir}/{self._klippy.printing_filename}'
 
     def togle_ligth_device(self):
         self.switch_ligth_device(not self.light_state)
@@ -283,7 +278,7 @@ class Camera:
         return bio, width, height
 
     def clean(self):
-        if self._cleanup and self._filename:
+        if self._cleanup and self._klippy.printing_filename:
             if os.path.isdir(self.lapse_dir):
                 for filename in glob.glob(f'{self.lapse_dir}/*'):
                     os.remove(filename)
