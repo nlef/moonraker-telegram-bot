@@ -1,4 +1,5 @@
 import argparse
+import configparser
 import faulthandler
 import hashlib
 import itertools
@@ -32,7 +33,6 @@ import json
 from PIL import Image
 from io import BytesIO
 import cv2
-from pyhocon import ConfigFactory
 import emoji
 import threading
 
@@ -604,46 +604,48 @@ if __name__ == '__main__':
         help="Location of moonraker telegram bot configuration file")
     system_args = parser.parse_args()
     klipper_config_path = system_args.configfile[:system_args.configfile.rfind('/')]
-    conf = ConfigFactory.parse_file(system_args.configfile)
-    host = conf.get_string('server', 'localhost')
-    token = conf.get_string('bot_token')
-    chatId = int(conf.get_string('chat_id'))
-    notify_percent = conf.get_int('notify.percent', 0)
-    notify_heigth = conf.get_int('notify.heigth', 0)
-    notify_interval = conf.get_int('notify.interval', 0)
-    notify_groups = conf.get_list('notify.groups', list())
-    timelapse_heigth = conf.get_float('timelapse.heigth', 0.0)
-    timelapse_enabled = conf.get_bool('timelapse.enabled', False)
-    timelapse_basedir = conf.get_string('timelapse.basedir', '/tmp/timelapse')
-    timelapse_cleanup = conf.get_bool('timelapse.cleanup', True)
-    timelapse_interval_time = conf.get_int('timelapse.interval_time', 0)
-    timelapse_fps = conf.get_int('timelapse.fps', 15)
+    conf = configparser.ConfigParser()
+    conf.read(system_args.configfile)
+    host = conf.get('bot', 'server', fallback='localhost')
+    token = conf.get('bot', 'bot_token')
+    chatId = conf.getint('bot', 'chat_id')
+    notify_percent = conf.getint('progress_notification', 'percent', fallback=0)
+    notify_heigth = conf.getint('progress_notification', 'heigth', fallback=0)
+    # notify_interval = conf.getint('progress_notification', 'time', fallback=0)
+    notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
+    notify_groups = conf.get('progress_notification', 'groups', fallback='').split(',')
+    timelapse_heigth = conf.getfloat('timelapse', 'heigth', fallback=0.0)
+    timelapse_enabled = 'timelapse' in conf
+    timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
+    timelapse_cleanup = conf.getboolean('timelapse', 'cleanup', fallback=True)
+    timelapse_interval_time = conf.getint('timelapse', 'time', fallback=0)
+    timelapse_fps = conf.getint('timelapse', 'target_fps', fallback=15)
 
-    cameraEnabled = conf.get_bool('camera.enabled', True)
-    flipHorisontally = conf.get_bool('camera.flipHorisontally', False)
-    flipVertically = conf.get_bool('camera.flipVertically', False)
-    gifDuration = conf.get_int('camera.gifDuration', 5)
-    videoDuration = conf.get_int('camera.videoDuration', gifDuration * 2)
-    reduceGif = conf.get_int('camera.reduceGif', 0)
-    cameraHost = conf.get_string('camera.host', f"http://{host}:8080/?action=stream")
-    video_fourcc = conf.get_string('camera.fourcc', 'x264')
-    camera_threads = conf.get_int('camera.threads', int(os.cpu_count() / 2))
-    camera_light_enable = conf.get_bool('camera.light.enable', False)
-    camera_light_timeout = conf.get_int('camera.light.timeout', 0)
+    cameraEnabled = 'camera' in conf
+    flipHorisontally = conf.getboolean('camera', 'flipHorisontally', fallback=False)
+    flipVertically = conf.getboolean('camera', 'flipVertically', fallback=False)
+    gifDuration = conf.getint('camera', 'gifDuration', fallback=5)
+    videoDuration = conf.getint('camera', 'videoDuration', fallback=gifDuration * 2)
+    reduceGif = conf.getint('camera', 'reduceGif', fallback=0)
+    cameraHost = conf.get('camera', 'host', fallback=f"http://{host}:8080/?action=stream")
+    video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
+    camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
+    # camera_light_enable = conf.get_bool('camera.light.enable', False)
+    camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
 
-    poweroff_device = conf.get_string('poweroff_device', "")
-    light_device = conf.get_string('light_device', "")
-    debug = conf.get_bool('debug', False)
-    hidden_methods = conf.get_list('hidden_methods', list())
+    poweroff_device = conf.get('bot', 'poweroff_device', fallback='')
+    light_device = conf.get('bot', 'light_device', fallback="")
+    debug = conf.getboolean('bot', 'debug', fallback=False)
+    hidden_methods = conf.get('telegram_ui', 'hidden_methods', fallback='').split(',')
 
     if debug:
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
-    cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_enable, camera_light_timeout, flipVertically, flipHorisontally,
+    cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally,
                         video_fourcc, gifDuration, reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps)
     bot_updater = start_bot(token)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_interval, notify_groups)
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
