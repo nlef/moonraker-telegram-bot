@@ -36,7 +36,6 @@ import cv2
 import emoji
 import threading
 
-# Enable logging
 logging.basicConfig(
     handlers=[
         RotatingFileHandler(os.path.join('/tmp/', 'telegram.log'), maxBytes=26214400, backupCount=3),
@@ -77,7 +76,8 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/gif - let\'s make some gif from printer cam\n'
                               '/video - will take mp4 video from camera\n'
                               '/poweroff - turn off moonraker power device from config\n'
-                              '/light - toggle light')
+                              '/light - toggle light\n'
+                              '/emergency - emergency stop printing')
 
 
 def echo(update: Update, _: CallbackContext) -> None:
@@ -215,8 +215,6 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
                                      caption=get_status()[0])
-    # if debug:
-    #     message_to_reply.reply_text(f"measured fps is {fps}", disable_notification=True)
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
@@ -229,8 +227,6 @@ def get_video(update: Update, _: CallbackContext) -> None:
     (bio, width, height) = cameraWrap.take_video()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     message_to_reply.reply_video(video=bio, width=width, height=height)
-    # if debug:
-    #     message_to_reply.reply_text(f"measured fps is {fps}, video fps {fps_video}", disable_notification=True)
 
 
 def manage_printing(command: str) -> None:
@@ -625,12 +621,11 @@ if __name__ == '__main__':
     flipHorisontally = conf.getboolean('camera', 'flipHorisontally', fallback=False)
     flipVertically = conf.getboolean('camera', 'flipVertically', fallback=False)
     gifDuration = conf.getint('camera', 'gifDuration', fallback=5)
-    videoDuration = conf.getint('camera', 'videoDuration', fallback=gifDuration * 2)
-    reduceGif = conf.getint('camera', 'reduceGif', fallback=0)
+    videoDuration = conf.getint('camera', 'videoDuration', fallback=5)
+    reduceGif = conf.getint('camera', 'reduceGif', fallback=2)
     cameraHost = conf.get('camera', 'host', fallback=f"http://{host}:8080/?action=stream")
     video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
     camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
-    # camera_light_enable = conf.get_bool('camera.light.enable', False)
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
 
     poweroff_device = conf.get('bot', 'poweroff_device', fallback='')
