@@ -1,6 +1,5 @@
-python-telegram-bot~=13.5
-websocket-client==1.0.1
+python-telegram-bot~=13.6
+websocket-client==1.1.0
 Pillow~=8.2.0
-pyhocon~=0.3.57
 emoji~=1.2.0
 opencv-python~=3.4.8.29
