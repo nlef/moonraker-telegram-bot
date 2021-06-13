@@ -1,3 +1,8 @@
+# THIS EXAMPLE IS OUTDATED; WHILE THE LOGIC IS VALID, SUCH COMPLEX MACROS ARE NOT NEEDED ANYMORE.
+
+
+
+
 This document provides information on implementing klipper G-Code Macros for usage with the moonraker-telegram-bot
 
 # Your new bot and G-Codes

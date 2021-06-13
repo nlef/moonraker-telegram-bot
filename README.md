@@ -1,114 +1,68 @@
 # moonraker-telegram-bot
 
+The general idea of this project is to provide you with a way to control and monitor your printer without having to setup a vpn, opening your home network, or doing any sort of other network-related vodoo.
+In addition you get the benefits of push-style notifications always in your pocket, and a bandwidth-friendly way to check up on your print progress, when not near the printer.
+
+As always with solutions like these, we kindly remind you not to print unattended, and always to take all necessary precautions against fire hazards.
+
+
+
 ## Features
-- Photo&Gif creation without using filesystem (with rotations & resizing for gifs)
-- Systemd service
-- photo notifications on Z-heigth & percentage
+- Printing progress notifications at custom intervals with pictures from a webstream/webcam
+- Light control for pictures and videos, confiugurable delay for camera adjustment
+- Configurable timelapsing 
+- Configurable keyboard for easy control without command typing in the bot
+- Power device control for PSU/MCU control via moonraker
+- Sampling of photos/videos/gifs on request at any time
+- Pause, Cancel, Resume with a double confirmation 
+- Emergency stop with a double confirmation
 
-## telegram bot commands list
-This list of commands is usefull during bot creation/editing with BotFather
+
+## Currently available commands:
+
+These are the commands, which are currently available in the bot. Most of them are configurable according to the manual.
+All commands are available on the bot keyboard, unused commands can be hidden via config.
+
 ```
-    /start - start communication via inline keyboard 
-    /status - send klipper status
-    /pause - pause printing
-    /resume - resume printing
-    /cancel - cancel printing
-    /photo - capture & send me a photo
-    /gif - let's make some gif from printer cam
-    /video - record and send 10 seconds timelaps in mp4
-    /poweroff - turn off moonraker power device from config
-    /light - toggle moonraker light device from config
-    /chat - get curent chatId
+	/status		- get the status (printing, paused, error) of the printer
+	/pause		- pause the current print
+	/resume		- resume the current print
+	/cancel		- cancel the current print
+	/files		- get the last 5 .gcode files, and the option to print them
+	/photo 		- capture a picture from the webstream/webcam
+	/video 		- capture a video from the webstream/webcam
+	/gif 		- capture a gif from the webstream/webcam
+	/poweroff	- turn off a specified moonraker power device
+	/light		- toggle a specified moonraker power device
+	/emergency	- run an emergency stop
 ```
 
-## Bot installation
+## Installation, configuration and updating
 
-For updates or if you use it for the first time
+When installing the bot for the first time, simply clone this distro. 
+
 ```
 cd ~
 git clone https://github.com/nlef/moonraker-telegram-bot.git
 cd moonraker-telegram-bot
 ```
-then start install script
+
+When the process is done, run the install script:
+
 ```
 ./install.sh
 ```
 
-Then edit your config (telegram.conf) using fluidd web interface or some other way
+You will get asked, where to place the configuration file to. It is recommended to place it in the same catalog, where klipper configs are located, for ease of access and backup.
+You can check on all the parameters and what they do in the [config_sample](docs/config_sample.md). As with klipper, start with the minimum, and expand the functionality based on your needs.
 
-### Configuration
-Some tips to set up your telegram bot.
-- server should point to your moonraker host (like "192.168.1.50") You would better set it to your raspberry/orange host IP for default setup with Kiauh.
-- bot_token - token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
-- chat_id - id for your chat with bot. To get this id, after creating a new bot write something to this bot, then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
-  you will see json with information about your message, sent to the bot. Find chat_id there.
-```
-server = "localhost"
-  # Using localhost is enough in most cases (also for default setup with Kiauh)
-  # some sbc could have problems with connection to board ip addres due to power safe mode enabled on wifi
-chat_id = ""
-  # id for your chat with bot. To get this id, after creating a new bot write something to this bot,
-  # then navigate to https://api.telegram.org/bot<bot_token>/getUpdates
-  # you will see json with information about your message, sent to the bot. Find chat_id there.
-bot_token = "*123***:***123123*"
-  # token for your bot. To create a new bot in telegram, talk to <a href="https://telegram.me/BotFather">BotFather</a>
-poweroff_device = "printer"
-  # name of power device, configured in moonraker.
-light_device = "led"
-  # name of light device, configured in moonraker.
-
-notify {
-    # setting parameters to 0  will disable the corresponding notifications 
-    percent = 5
-    heigth = 5
-    interval = 5
-      # minimum interval between notifications in seconds
-    groups = [ 123123123123, 123123132132]
-      # group ids to which notifications should be sent 
-}
-
-timelapse {
-    enabled = true
-      # default is false
-    heigth = 0.2
-      # it will take photos if height change is equal provided in param
-      # one may add gcode "RESPOND PREFIX=timelapse MSG=photo" in layer change g-code slicer
-      # to enable photos on layer change regardless of layer height
-    basedir = "/tmp/timelapse"
-      # base drectory, were timelapse photos and videos are stored ( now it is automaticly cleaning) 
-}
-
-camera {
-    host = "http://{host}:8080/?action=stream"
-        # camera streaming url. default is mjpeg url format on host address.
-    flipVertically = false
-    flipHorisontally = false
-    gifDuration = 5
-    videoDuration = 10
-    reduceGif = 2
-    fourcc = "x264"
-      # One can set opencv VideoWriter fourcc codec. default is 'x264'. 
-      # For weak devices it's good to use 'mp4v' for performance reasons (videos may not be playeble on Apple devices). 
-    threads = 2
-      # Default is cpu_count/2. this param will limit threads count for video processing
-    light {
-        enable = true
-          # if we should togle on light device from config before taking photo/video/gif
-        timeout = 5
-          # seconds to wait after togle on light device before taking photo/video/gif
-    }`
-}
-
-hidden_methods = ["/start"]
-  # list of bot methods to be removed from the keyboard 
-```
+Before you can start using the bot you will have to create and configure a telegram bot.
+The process is straightforward and is explained in the 'config_sample' in more detail. 
 
 
-### Helpfull console commands
-- check logs: ```sudo journalctl -r -u moonraker-telegram-bot```
-- restart service (e.g. to read changes in config): ```sudo systemctl restart moonraker-telegram-bot```
+To update the bot, we recommend simply using the moonraker update manager. This is explained in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager/).
+Here is the section needed:
 
-### Moonraker update section
 ```
 [update_manager client moonraker-telegram-bot]
 type: git_repo
@@ -118,6 +72,32 @@ env: ~/moonraker-telegram-bot-env/bin/python
 requirements: requirements.txt
 install_script: install.sh
 ```
+
+Alternatively you can update by hand at your own risk, by doing a pull and running the install.sh again.
+Please understand, that entering commands into the console takes a certain amount of knowledge and is your own responsibility.
+
+
+When tweaking the bot, remember that you have to restart the service every time you change the config:
+`sudo systemctl restart moonraker-telegram-bot`
+
+
+
+## Issues and bug reports
+
+We will be happy to assist you with any issues that you have, as long as you can form a coherent sentence and are polite in your requests.
+Please write an issue, and we will try our best to reproduce and fix it.
+Feature requests and ideas are also more than welcome.
+
+When writing issues/contacting for support please attach the 'telegram.log' as well as the output of `sudo journalctl -r -u moonraker-telegram-bot`
+
+
+
+
+### Happy Printing!
+
+
+
+
 
 ---
 
