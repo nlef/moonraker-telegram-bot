@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Notifier():
     def __init__(self, bot_updater: Updater, chact_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, heigth: int = 5, interval: int = 0,
-                 notify_groups: list = list()):
+                 notify_groups: list = list(), debug_logging: bool = False):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chact_id
         self._cam_wrap: Camera = camera_wrapper
@@ -27,6 +27,8 @@ class Notifier():
         self._last_message: str = ''
         self._last_notify_time: int = 0
         self._klippy: Klippy = klippy
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
 
     @property
     def message(self):

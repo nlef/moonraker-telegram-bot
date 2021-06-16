@@ -627,6 +627,7 @@ if __name__ == '__main__':
     video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
     camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
+    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='low')
 
     poweroff_device = conf.get('bot', 'poweroff_device', fallback='')
     light_device = conf.get('bot', 'light_device', fallback="")
@@ -637,10 +638,10 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
-    cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally,
-                        video_fourcc, gifDuration, reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps)
+    cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
+                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups)
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups, debug)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 

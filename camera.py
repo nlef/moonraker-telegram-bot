@@ -42,11 +42,11 @@ def cam_ligth_toogle(func):
     return wrapper
 
 
-# Todo: add logging
 class Camera:
     def __init__(self, moonraker_host: str, klippy: Klippy, camera_enabled: bool, camera_host: str, threads: int = 0, light_device: str = "",
                  light_timeout: int = 0, flip_vertically: bool = False, flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
-                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10):
+                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, debug_logging: bool = False,
+                 picture_quality: str = 'low'):
         self._host: str = camera_host
         self.enabled: bool = camera_enabled
         self._threads: int = threads
@@ -74,6 +74,12 @@ class Camera:
         self.light_lock = threading.Lock()
         self.light_timer_event = threading.Event()
         self.light_timer_event.set()
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
+        if picture_quality == 'low':
+            self._img_extension: str = 'jpeg'
+        elif picture_quality == 'high':
+            self._img_extension: str = 'png'
 
     @property
     def light_state(self) -> bool:
@@ -122,7 +128,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*.jpg')))
+                img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
                 img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
                 if self._flipVertically:
@@ -131,8 +137,12 @@ class Camera:
                     img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
         bio = BytesIO()
-        bio.name = 'status.jpeg'
-        img.save(bio, 'JPEG', quality=75, subsampling=0)
+        bio.name = f'status.{self._img_extension}'
+        # Todo: some quality params?
+        if self._img_extension in ['jpg', 'jpeg']:
+            img.save(bio, 'JPEG', quality=80, subsampling=0, optimize=True)
+        elif self._img_extension == 'png':
+            img.save(bio, 'PNG', optimize=True)
         bio.seek(0)
         return bio
 
@@ -231,7 +241,7 @@ class Camera:
     def take_lapse_photo(self):
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
-        filename = f'{self.lapse_dir}/{time.time()}.jpeg'
+        filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
         with open(filename, "wb") as outfile:
             # never add self in params there!
             photo = self.take_photo()
@@ -243,7 +253,7 @@ class Camera:
             time.sleep(1)
 
         # Fixme: get single file!
-        for filename in glob.glob(f'{self.lapse_dir}/*.jpeg'):
+        for filename in glob.glob(f'{self.lapse_dir}/*.{self._img_extension}'):
             img = cv2.imread(filename)
             height, width, layers = img.shape
             size = (width, height)
@@ -256,7 +266,7 @@ class Camera:
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
             # Todo: check for nonempty photos!
-            photos = glob.glob(f'{self.lapse_dir}/*.jpeg')
+            photos = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')
             photos.sort(key=os.path.getmtime)
             for filename in photos:
                 out.write(cv2.imread(filename))
