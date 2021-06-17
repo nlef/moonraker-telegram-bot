@@ -80,6 +80,11 @@ class Camera:
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
             self._img_extension: str = 'png'
+        # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
+        if cv2.ocl.haveOpenCL():
+            logger.debug('OpenCL is available')
+            cv2.ocl.setUseOpenCL(True)
+            logger.debug(f'OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}')
 
     @property
     def light_state(self) -> bool:
@@ -130,11 +135,15 @@ class Camera:
                 logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
-                img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-                if self._flipVertically:
-                    img = img.transpose(Image.FLIP_TOP_BOTTOM)
-                if self._flipHorisontally:
-                    img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                image = cv2.UMat(image)
+                if self._flipVertically and self._flipHorisontally:
+                    image = cv2.flip(image, -1)
+                elif self._flipHorisontally:
+                    image = cv2.flip(image, 1)
+                elif self._flipVertically:
+                    image = cv2.flip(image, 0)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(cv2.UMat.get(image))
 
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
@@ -149,6 +158,7 @@ class Camera:
     @cam_ligth_toogle
     def take_video(self):
         def process_video_frame(frame_loc):
+            frame_loc = cv2.UMat(frame_loc)
             if self._flipVertically and self._flipHorisontally:
                 frame_loc = cv2.flip(frame_loc, -1)
             elif self._flipHorisontally:
@@ -156,17 +166,17 @@ class Camera:
             elif self._flipVertically:
                 frame_loc = cv2.flip(frame_loc, 0)
 
-            return frame_loc
+            return cv2.UMat.get(frame_loc)
 
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             cap = cv2.VideoCapture(self._host)
             success, frame = cap.read()
-
             if not success:
                 logger.debug("failed to get camera frame for video")
                 # Todo: get picture from imgs?
 
+            # height, width, channels = frame.shape
             height, width, channels = frame.shape
             fps_cam = cap.get(cv2.CAP_PROP_FPS)
             fps = 10
@@ -196,14 +206,19 @@ class Camera:
     @cam_ligth_toogle
     def take_gif(self):
         def process_frame(frame) -> Image:
-            img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            if self._flipVertically:
-                img = img.transpose(Image.FLIP_TOP_BOTTOM)
-            if self._flipHorisontally:
-                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            frame = cv2.UMat(frame)
+            if self._flipVertically and self._flipHorisontally:
+                frame = cv2.flip(frame, -1)
+            elif self._flipHorisontally:
+                frame = cv2.flip(frame, 1)
+            elif self._flipVertically:
+                frame = cv2.flip(frame, 0)
             if self._reduceGif > 0:
-                img = img.resize((int(width / self._reduceGif), int(height / self._reduceGif)))
-            return img
+                frame = cv2.resize(frame, (int(width / self._reduceGif), int(height / self._reduceGif)))
+
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            return Image.fromarray(cv2.UMat.get(frame))
 
         gif = []
         fps = 0
