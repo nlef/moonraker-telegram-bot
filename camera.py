@@ -149,9 +149,9 @@ class Camera:
         bio.name = f'status.{self._img_extension}'
         # Todo: some quality params?
         if self._img_extension in ['jpg', 'jpeg']:
-            img.save(bio, 'JPEG', quality=80, subsampling=0, optimize=True)
+            img.save(bio, 'JPEG', quality=80, subsampling=0)
         elif self._img_extension == 'png':
-            img.save(bio, 'PNG', optimize=True)
+            img.save(bio, 'PNG')
         bio.seek(0)
         return bio
 
