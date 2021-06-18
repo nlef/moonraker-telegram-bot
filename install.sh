@@ -19,7 +19,7 @@ cleanup_leagacy() {
 }
 
 install_packages() {
-  PKGLIST="python3-cryptography python3-gevent python3-opencv x264 libx264-dev"
+  PKGLIST="python3-cryptography python3-gevent python3-opencv x264 libx264-dev libwebp-dev"
   sudo apt-get update
   sudo apt-get install --yes ${PKGLIST}
 }

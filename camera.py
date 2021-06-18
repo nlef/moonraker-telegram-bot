@@ -80,6 +80,9 @@ class Camera:
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
             self._img_extension: str = 'png'
+        else:
+            self._img_extension: str = picture_quality
+
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug('OpenCL is available')
@@ -152,6 +155,8 @@ class Camera:
             img.save(bio, 'JPEG', quality=80, subsampling=0)
         elif self._img_extension == 'png':
             img.save(bio, 'PNG')
+        elif self._img_extension == 'webp':
+            img.save(bio, 'WebP', quality=0, lossless=True)
         bio.seek(0)
         return bio
 
