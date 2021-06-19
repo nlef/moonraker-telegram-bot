@@ -524,7 +524,7 @@ def websocket_to_message(ws, ws_message):
                 take_lapse_photo()
             if json_message["params"][0].startswith('tgnotify'):
                 notifier.send_notifcation(json_message["params"][0][9:])
-            if json_message["params"][0].startswith('tgerror'):
+            if json_message["params"][0].startswith('tgalarm'):
                 notifier.send_error(json_message["params"][0][8:])
         if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
