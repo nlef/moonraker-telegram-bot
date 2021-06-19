@@ -76,6 +76,7 @@ class Camera:
         self.light_timer_event.set()
         if debug_logging:
             logger.setLevel(logging.DEBUG)
+            logger.debug(cv2.getBuildInformation())
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
@@ -187,6 +188,7 @@ class Camera:
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
+            logger.debug(cv2.VideoWriter.getBackendName(out))
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
