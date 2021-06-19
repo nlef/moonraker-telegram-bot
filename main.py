@@ -114,10 +114,10 @@ def get_status() -> (str, str):
 
 def send_print_start_info(context: CallbackContext):
     file = context.job.context
-    send_file_info(context.bot, file, f"Printer started printing: {file} \n")
+    send_file_info(context.bot, file, notifier.silent_status, f"Printer started printing: {file} \n")
 
 
-def send_file_info(bot, filename, message: str = ''):
+def send_file_info(bot, filename, silent: bool, message: str = ''):
     response = request.urlopen(
         f"http://{host}/server/files/metadata?filename={urllib.parse.quote(filename)}"
     )
@@ -137,19 +137,19 @@ def send_file_info(bot, filename, message: str = ''):
         bio.name = f'{filename}.png'
         img.save(bio, 'PNG')
         bio.seek(0)
-        bot.send_photo(chatId, photo=bio, caption=message)
+        bot.send_photo(chatId, photo=bio, caption=message, disable_notification=silent)
     else:
-        bot.send_message(chatId, message)
+        bot.send_message(chatId, message, disable_notification=silent)
 
 
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     (mess, filename) = get_status()
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING, disable_notification=notifier.silent_commands)
     message_to_reply.reply_text(mess)
     if filename:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-        send_file_info(message_to_reply.bot, filename)
+        send_file_info(message_to_reply.bot, filename, notifier.silent_commands)
 
 
 def create_keyboard():
@@ -169,9 +169,9 @@ def create_keyboard():
 def greeting_message():
     (mess, filename) = get_status()
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup)
+    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     if filename:
-        send_file_info(bot_updater.bot, filename)
+        send_file_info(bot_updater.bot, filename, notifier.silent_status)
 
 
 # Todo: vase mode calcs
@@ -190,7 +190,8 @@ def send_timelapse(context: CallbackContext):
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     (bio, width, height) = cameraWrap.create_timelapse()
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120)
+    context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
+                           disable_notification=notifier.silent_commands)
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -200,7 +201,7 @@ def get_photo(update: Update, _: CallbackContext) -> None:
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-    message_to_reply.reply_photo(photo=cameraWrap.take_photo())
+    message_to_reply.reply_photo(photo=cameraWrap.take_photo(), disable_notification=notifier.silent_commands)
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
@@ -213,7 +214,7 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     (bio, width, height) = cameraWrap.take_gif()
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=True,
+    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands,
                                      caption=get_status()[0])
 
 
@@ -226,7 +227,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     (bio, width, height) = cameraWrap.take_video()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_video(video=bio, width=width, height=height)
+    message_to_reply.reply_video(video=bio, width=width, height=height, disable_notification=notifier.silent_commands)
 
 
 def manage_printing(command: str) -> None:
@@ -257,7 +258,7 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
 
 def pause_printing(update: Update, __: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'))
+    update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'), disable_notification=notifier.silent_commands)
 
 
 def resume_printing(_: Update, __: CallbackContext) -> None:
@@ -266,21 +267,21 @@ def resume_printing(_: Update, __: CallbackContext) -> None:
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Cancel printing?', reply_markup=confirm_keyboard('cancel_printing'))
+    update.message.reply_text('Cancel printing?', reply_markup=confirm_keyboard('cancel_printing'), disable_notification=notifier.silent_commands)
 
 
 def emergency_stop(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'))
+    update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'), disable_notification=notifier.silent_commands)
 
 
 def power_off(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     if poweroff_device:
-        message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'))
+        message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands)
     else:
-        message_to_reply.reply_text("No power device in config!")
+        message_to_reply.reply_text("No power device in config!", disable_notification=notifier.silent_commands)
 
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
@@ -288,7 +289,7 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
     if cameraWrap.light_device:
         cameraWrap.togle_ligth_device()
     else:
-        message_to_reply.reply_text("No light device in config!")
+        message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands)
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
@@ -352,7 +353,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
     files_keys = list(map(list, zip(map(create_file_button, files))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
-    update.message.reply_text('Gcode files to print:', reply_markup=reply_markup)
+    update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
@@ -374,11 +375,11 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                 ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            update.message.reply_text(f"successfully uploaded file: {doc.file_name}", reply_markup=reply_markup)
+            update.message.reply_text(f"successfully uploaded file: {doc.file_name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
         else:
-            update.message.reply_text(f"failed uploading file: {doc.file_name}")
+            update.message.reply_text(f"failed uploading file: {doc.file_name}", disable_notification=notifier.silent_commands)
     else:
-        update.message.reply_text(f"unknown filetype in {doc.file_name}")
+        update.message.reply_text(f"unknown filetype in {doc.file_name}", disable_notification=notifier.silent_commands)
 
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:
@@ -509,7 +510,7 @@ def websocket_to_message(ws, ws_message):
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{json_message['result']}")
         if 'id' in json_message and 'error' in json_message:
-            notifier.send_messsage(f"{json_message['error']['message']}")
+            notifier.send_error(f"{json_message['error']['message']}")
 
         # if json_message["method"] == "notify_gcode_response":
         #     val = ws_message["params"][0]
@@ -522,9 +523,9 @@ def websocket_to_message(ws, ws_message):
             if 'timelapse photo' in json_message["params"]:
                 take_lapse_photo()
             if json_message["params"][0].startswith('tgnotify'):
-                bot_updater.bot.send_message(chatId, json_message["params"][0][9:])
+                notifier.send_notifcation(json_message["params"][0][9:])
             if json_message["params"][0].startswith('tgerror'):
-                bot_updater.bot.send_message(chatId, json_message["params"][0][8:])
+                notifier.send_error(json_message["params"][0][8:])
         if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy.connected = False
@@ -562,22 +563,26 @@ def websocket_to_message(ws, ws_message):
                 if 'print_duration' in json_message['params'][0]['print_stats']:
                     klippy.printing_duration = json_message['params'][0]['print_stats']['print_duration']
                 if state == "printing":
-                    klippy.printing = True
-                    notifier.reset_notifications()
-                    if not klippy.printing_filename:
-                        klippy.printing_filename = get_status()[1]
-                    cameraWrap.clean()
-                    bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy.printing_filename)
+                    if not klippy.printing:
+                        klippy.printing = True
+                        notifier.reset_notifications()
+                        if not klippy.printing_filename:
+                            klippy.printing_filename = get_status()[1]
+                        cameraWrap.clean()
+                        bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy.printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
                     bot_updater.job_queue.run_once(send_timelapse, 5)
+                    message += f"Finished printing {klippy.printing_filename} \n"
+                elif state == 'error':
+                    notifier.send_error(f"Printer state change error: {json_message['params'][0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
                 if message:
-                    notifier.send_messsage(message)
+                    notifier.send_notifcation(message)
 
 
 def parselog():
@@ -634,6 +639,10 @@ if __name__ == '__main__':
     debug = conf.getboolean('bot', 'debug', fallback=False)
     hidden_methods = conf.get('telegram_ui', 'hidden_methods', fallback='').split(',')
 
+    silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
+    silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
+    silent_status = conf.getboolean('telegram_ui', 'silent_status', fallback=True)
+
     if debug:
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
@@ -641,7 +650,8 @@ if __name__ == '__main__':
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups, debug)
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
+                        silent_status)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 

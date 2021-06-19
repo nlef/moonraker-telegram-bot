@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Notifier():
     def __init__(self, bot_updater: Updater, chact_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, heigth: int = 5, interval: int = 0,
-                 notify_groups: list = list(), debug_logging: bool = False):
+                 notify_groups: list = list(), debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chact_id
         self._cam_wrap: Camera = camera_wrapper
@@ -21,6 +21,10 @@ class Notifier():
         self._heigth: int = heigth
         self._interval: int = interval
         self.notify_groups: list = notify_groups
+
+        self.silent_progress = silent_progress
+        self.silent_commands = silent_commands
+        self.silent_status = silent_status
 
         self._last_heigth: int = 0
         self._last_percent: int = 0
@@ -72,28 +76,39 @@ class Notifier():
             if self._cam_wrap.enabled:
                 photo = self._cam_wrap.take_photo()
                 context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.UPLOAD_PHOTO)
-                context.bot.send_photo(self._chatId, photo=photo, caption=notifymsg)
+                context.bot.send_photo(self._chatId, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
                 for group_ in self.notify_groups:
                     context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    context.bot.send_photo(group_, photo=photo, caption=notifymsg)
+                    context.bot.send_photo(group_, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
             else:
                 context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)
-                context.bot.send_message(self._chatId, text=notifymsg)
+                context.bot.send_message(self._chatId, text=notifymsg, disable_notification=self.silent_progress)
                 for group in self.notify_groups:
                     context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                    context.bot.send_message(group, text=notifymsg)
+                    context.bot.send_message(group, text=notifymsg, disable_notification=self.silent_progress)
 
         if notifymsg:
             self._last_notify_time = time.time()
             self._bot_updater.job_queue.run_once(send_notification, 0)
 
-    def send_messsage(self, message: str):
+    # Todo: add silent for notification!
+    def send_error(self, message: str):
         def send_messsage(context: CallbackContext):
             context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)
             context.bot.send_message(self._chatId, text=context.job.context)
             for group in self.notify_groups:
                 context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
                 context.bot.send_message(group, text=context.job.context)
+
+        self._bot_updater.job_queue.run_once(send_messsage, 0, context=message)
+
+    def send_notifcation(self, message: str):
+        def send_messsage(context: CallbackContext):
+            context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)
+            context.bot.send_message(self._chatId, text=context.job.context, disable_notification=self.silent_status)
+            for group in self.notify_groups:
+                context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                context.bot.send_message(group, text=context.job.context, disable_notification=self.silent_status)
 
         self._bot_updater.job_queue.run_once(send_messsage, 0, context=message)
 
