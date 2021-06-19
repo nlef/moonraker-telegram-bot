@@ -593,7 +593,7 @@ def parselog():
     tt = list(map(lambda el: el.split(' - ')[-1].replace('\n', ''), wslines))
 
     for mes in tt:
-        websocket_to_message(mes)
+        websocket_to_message(ws, mes)
     print('lalal')
 
 
@@ -614,7 +614,7 @@ if __name__ == '__main__':
     notify_heigth = conf.getint('progress_notification', 'heigth', fallback=0)
     # notify_interval = conf.getint('progress_notification', 'time', fallback=0)
     notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-    notify_groups = conf.get('progress_notification', 'groups', fallback='').split(',')
+    notify_groups = conf.get('progress_notification', 'groups').split(',') if 'groups' in conf['progress_notification'] else list()
     timelapse_heigth = conf.getfloat('timelapse', 'heigth', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
