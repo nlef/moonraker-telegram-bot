@@ -188,7 +188,7 @@ class Camera:
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
-            logger.debug(cv2.VideoWriter.getBackendName(out))
+            logger.debug('opencv BackEnd: ' + cv2.VideoWriter.getBackendName(out))
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
@@ -263,10 +263,10 @@ class Camera:
     def take_lapse_photo(self):
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
+        # never add self in params there!
+        photo = self.take_photo()
         filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
         with open(filename, "wb") as outfile:
-            # never add self in params there!
-            photo = self.take_photo()
             outfile.write(photo.getbuffer())
 
     def create_timelapse(self):
@@ -281,11 +281,12 @@ class Camera:
             size = (width, height)
             break
 
-        filepath = f'{self.lapse_dir}/lapse.mp4'
+        filepath = f'{self.lapse_dir}/{self._klippy.printing_filename}.mp4'
         # Todo: check ligth & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
+            logger.debug('opencv BackEnd: ' + cv2.VideoWriter.getBackendName(out))
 
             # Todo: check for nonempty photos!
             photos = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')
@@ -296,7 +297,7 @@ class Camera:
             out.release()
 
         bio = BytesIO()
-        bio.name = 'lapse.mp4'
+        bio.name = f'{self._klippy.printing_filename}.mp4'
         with open(filepath, 'rb') as fh:
             bio.write(fh.read())
         bio.seek(0)

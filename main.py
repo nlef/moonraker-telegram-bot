@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
 import sys
+from pathlib import Path
 from urllib import request
 from urllib.request import urlopen
 
@@ -38,7 +39,6 @@ import threading
 
 logging.basicConfig(
     handlers=[
-        RotatingFileHandler(os.path.join('/tmp/', 'telegram.log'), maxBytes=26214400, backupCount=3),
         logging.StreamHandler(sys.stdout)
     ],
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -438,7 +438,7 @@ def subscribe(websock):
                             'print_stats': ['filename', 'state', 'print_duration'],
                             'display_status': ['progress', 'message'],
                             'toolhead': ['position'],
-                            'gcode_move': ['position'],
+                            'gcode_move': ['position', 'gcode_position'],
 
                         }
                     },
@@ -549,7 +549,8 @@ def websocket_to_message(ws, ws_message):
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-                position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
+                # position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
+                position_z = json_message["params"][0]['gcode_move']['gcode_position'][2]
                 notifier.notify(position_z=int(position_z))
                 take_lapse_photo(position_z)
             if 'print_stats' in json_message['params'][0]:
@@ -632,16 +633,21 @@ if __name__ == '__main__':
     video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
     camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
-    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='low')
+    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='webp')
 
     poweroff_device = conf.get('bot', 'poweroff_device', fallback='')
     light_device = conf.get('bot', 'light_device', fallback="")
     debug = conf.getboolean('bot', 'debug', fallback=False)
-    hidden_methods = conf.get('telegram_ui', 'hidden_methods', fallback='').split(',')
+    log_path = conf.get('bot', 'log_path', fallback='/tmp')
+    hidden_methods = conf.get('telegram_ui', 'hidden_methods').split(',') if 'hidden_methods' in conf['telegram_ui'] else list()
 
     silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
     silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
     silent_status = conf.getboolean('telegram_ui', 'silent_status', fallback=True)
+
+    if not log_path == '/tmp':
+        Path(log_path).mkdir(parents=True, exist_ok=True)
+    logger.addHandler(RotatingFileHandler(os.path.join(f'{log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3))
 
     if debug:
         faulthandler.enable()

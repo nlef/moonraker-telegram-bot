@@ -32,6 +32,7 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #debug: true
 #	This enables extensive logging. Only use it for debugging/troubleshooting.
 #	Default is to omit this/false.
+#log_path: /tmp
 ```
 
 
@@ -135,4 +136,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #hidden_methods: /gif, /video
 #	This allows you to hide unused buttons from your bots keyboard. For example, if you do not intend to commit war crimes,
 #	you can disable the /gif button. 
+#silent_progress: true
+#silent_commands: true
+#silent_status: true
 ```

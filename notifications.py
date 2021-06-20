@@ -43,6 +43,21 @@ class Notifier():
         self._last_message = new
 
     def notify(self, progress: int = 0, position_z: int = 0):
+        # Todo:  push chatId & groups in context?
+        def send_notification(context: CallbackContext):
+            if self._cam_wrap.enabled:
+                photo = self._cam_wrap.take_photo()
+                context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.UPLOAD_PHOTO)
+                context.bot.send_photo(self._chatId, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
+                for group_ in self.notify_groups:
+                    context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+                    context.bot.send_photo(group_, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
+            else:
+                context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)
+                context.bot.send_message(self._chatId, text=notifymsg, disable_notification=self.silent_progress)
+                for group in self.notify_groups:
+                    context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+                    context.bot.send_message(group, text=notifymsg, disable_notification=self.silent_progress)
 
         if not self._klippy.printing or not self._klippy.printing_duration > 0.0 or (self._heigth == 0 + self._percent == 0) or (
                 time.time() < self._last_notify_time + self._interval):
@@ -70,22 +85,6 @@ class Notifier():
                 if self._last_message:
                     notifymsg += f"\n{self._last_message}"
                 self._last_heigth = position_z
-
-        # Todo:  push chatId & groups in context?
-        def send_notification(context: CallbackContext):
-            if self._cam_wrap.enabled:
-                photo = self._cam_wrap.take_photo()
-                context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.UPLOAD_PHOTO)
-                context.bot.send_photo(self._chatId, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
-                for group_ in self.notify_groups:
-                    context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    context.bot.send_photo(group_, photo=photo, caption=notifymsg, disable_notification=self.silent_progress)
-            else:
-                context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)
-                context.bot.send_message(self._chatId, text=notifymsg, disable_notification=self.silent_progress)
-                for group in self.notify_groups:
-                    context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                    context.bot.send_message(group, text=notifymsg, disable_notification=self.silent_progress)
 
         if notifymsg:
             self._last_notify_time = time.time()
