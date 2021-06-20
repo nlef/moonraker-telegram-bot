@@ -136,6 +136,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #hidden_methods: /gif, /video
 #	This allows you to hide unused buttons from your bots keyboard. For example, if you do not intend to commit war crimes,
 #	you can disable the /gif button. 
+disabled_macros: PAUSE,RESUME
 #silent_progress: true
 #silent_commands: true
 #silent_status: true

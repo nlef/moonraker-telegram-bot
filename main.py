@@ -62,7 +62,7 @@ executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
 notifier: Notifier
 ws: websocket.WebSocketApp
-klippy: Klippy = Klippy()
+klippy: Klippy
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
@@ -155,7 +155,7 @@ def status(update: Update, _: CallbackContext) -> None:
 def create_keyboard():
     custom_keyboard = [
         '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/gif', '/emergency'
+        '/photo', '/video', '/gif', '/emergency', '/macros'
     ]
     if poweroff_device:
         custom_keyboard.append('/poweroff')
@@ -292,6 +292,13 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
         message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands)
 
 
+def execute_comand(comand: str):
+    data = {'commands': [f'{comand}']}
+    res = requests.post(f"http://{host}/api/printer/command", json=data)
+    if not res.ok:
+        logger.error(res.reason)
+
+
 def button_handler(update: Update, context: CallbackContext) -> None:
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     query = update.callback_query
@@ -311,6 +318,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == 'power_off_printer':
         togle_power_device(poweroff_device, False)
         query.delete_message()
+    elif 'gmacro:' in query.data:
+        execute_comand(query.data.replace('gmacro:', ''))
     elif '.gcode' in query.data and ':' not in query.data:
         keyboard_keys = dict((x['callback_data'], x['text']) for x in
                              itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
@@ -325,8 +334,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=f"Start printing file:{filename}", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
-        response = requests.post(
-            f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
+        response = requests.post(f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
         if not response.ok:
             query.edit_message_text(text=f"Failed start printing file {filename}")
         else:
@@ -354,6 +362,14 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+
+
+def get_macros(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'gmacro:{el}'), klippy.macros))))
+    reply_markup = InlineKeyboardMarkup(files_keys)
+
+    update.message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
@@ -406,6 +422,7 @@ def start_bot(token):
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
+    dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
 
@@ -640,6 +657,7 @@ if __name__ == '__main__':
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
     hidden_methods = conf.get('telegram_ui', 'hidden_methods').split(',') if 'hidden_methods' in conf['telegram_ui'] else list()
+    disabled_macros = conf.get('telegram_ui', 'disabled_macros').split(',') if 'disabled_macros' in conf['telegram_ui'] else list()
 
     silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
     silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
@@ -653,6 +671,7 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
+    klippy = Klippy(host, disabled_macros)
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)
