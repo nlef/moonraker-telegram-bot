@@ -48,7 +48,7 @@ host: http://localhost:8080/?action=stream
 #	for example a vlc stream from a runcam webcam is absolutely possible. Do not feel contstrained by mjpeg streams.
 #flipVertically: false
 #	You can flip the camera image vertically, if needed. Disabled by default. Set to true if needed.
-#flipHorisontally: false
+#flipHorizontally: false
 #	You can flip the camera image horizontally, if needed. Disabled by default. Set to true if needed.
 #fourcc: x264
 #	You can change the opencv VideoWriter fourcc codec. The default value is 'x264'.
@@ -84,7 +84,7 @@ This section is responsible for the notification on printing progress updates. T
 #	When set to 5, notifications are sent at 5%, 10%, 15%, etc.
 #	When set to 3, notifications are sent at 3%, 6&, 9%, etc.
 #	The default is not to send notifications based on print percentage.
-#heigth: 5
+#height: 5
 #	This is an interval in mm, when a notification with a picture is sent to the chat.
 #	When set to 5, notifications are sent at 5mm, 10mm, 15mm, etc, print height.
 #	When set to 3, notifications are sent at 3mm, 6mm, 9mm, etc, print height
@@ -116,7 +116,7 @@ Please consider, that in the current release both picture capturing methods are 
 #cleanup: true
 #	Should the bot clean the catalog with pictures and video after the successful sending to the telegram chat.
 #	Default is true. You might want to set it to false, if you intend on using the pictures later.
-#heigth: 0.2
+#height: 0.2
 #	The bot can take timelapse pictures based on the z axis height. The default is not to take pictures based on height.
 #	Your layer height should be a multiple/equal to this number.
 #time: 5

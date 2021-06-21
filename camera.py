@@ -16,13 +16,13 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
-def cam_ligth_toogle(func):
+def cam_light_toogle(func):
     def wrapper(self, *args, **kwargs):
         if self.light_timeout > 0 and self.light_device and not self.light_state and not self.light_lock.locked():
             self.light_timer_event.clear()
             self.light_lock.acquire()
             self.light_need_off = True
-            self.switch_ligth_device(True)
+            self.switch_light_device(True)
             time.sleep(self.light_timeout)
             self.light_timer_event.set()
 
@@ -35,7 +35,7 @@ def cam_ligth_toogle(func):
                 self.light_lock.release()
             if not self.camera_lock.locked() and not self.light_lock.locked():
                 self.light_need_off = False
-                self.switch_ligth_device(False)
+                self.switch_light_device(False)
 
         return result
 
@@ -44,14 +44,14 @@ def cam_ligth_toogle(func):
 
 class Camera:
     def __init__(self, moonraker_host: str, klippy: Klippy, camera_enabled: bool, camera_host: str, threads: int = 0, light_device: str = "",
-                 light_timeout: int = 0, flip_vertically: bool = False, flip_horisontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
+                 light_timeout: int = 0, flip_vertically: bool = False, flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
                  video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, debug_logging: bool = False,
                  picture_quality: str = 'low'):
         self._host: str = camera_host
         self.enabled: bool = camera_enabled
         self._threads: int = threads
         self._flipVertically: bool = flip_vertically
-        self._flipHorisontally: bool = flip_horisontally
+        self._flipHorizontally: bool = flip_horizontally
         self._fourcc: str = fourcc
         self._gifDuration: int = gif_duration
         self._reduceGif: int = reduce_gif
@@ -114,10 +114,10 @@ class Camera:
     def lapse_dir(self) -> str:
         return f'{self._base_dir}/{self._klippy.printing_filename}'
 
-    def togle_ligth_device(self):
-        self.switch_ligth_device(not self.light_state)
+    def togle_light_device(self):
+        self.switch_light_device(not self.light_state)
 
-    def switch_ligth_device(self, state: bool):
+    def switch_light_device(self, state: bool):
         with self._light_state_lock:
             if state:
                 res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.light_device}&action=on")
@@ -128,7 +128,7 @@ class Camera:
                 if res.ok:
                     self._light_device_on = False
 
-    @cam_ligth_toogle
+    @cam_light_toogle
     def take_photo(self) -> BytesIO:
         with self.camera_lock:
             cap = cv2.VideoCapture(self._host)
@@ -140,9 +140,9 @@ class Camera:
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
                 image = cv2.UMat(image)
-                if self._flipVertically and self._flipHorisontally:
+                if self._flipVertically and self._flipHorizontally:
                     image = cv2.flip(image, -1)
-                elif self._flipHorisontally:
+                elif self._flipHorizontally:
                     image = cv2.flip(image, 1)
                 elif self._flipVertically:
                     image = cv2.flip(image, 0)
@@ -161,13 +161,13 @@ class Camera:
         bio.seek(0)
         return bio
 
-    @cam_ligth_toogle
+    @cam_light_toogle
     def take_video(self):
         def process_video_frame(frame_loc):
             frame_loc = cv2.UMat(frame_loc)
-            if self._flipVertically and self._flipHorisontally:
+            if self._flipVertically and self._flipHorizontally:
                 frame_loc = cv2.flip(frame_loc, -1)
-            elif self._flipHorisontally:
+            elif self._flipHorizontally:
                 frame_loc = cv2.flip(frame_loc, 1)
             elif self._flipVertically:
                 frame_loc = cv2.flip(frame_loc, 0)
@@ -210,13 +210,13 @@ class Camera:
 
         return bio, width, height
 
-    @cam_ligth_toogle
+    @cam_light_toogle
     def take_gif(self):
         def process_frame(frame) -> Image:
             frame = cv2.UMat(frame)
-            if self._flipVertically and self._flipHorisontally:
+            if self._flipVertically and self._flipHorizontally:
                 frame = cv2.flip(frame, -1)
-            elif self._flipHorisontally:
+            elif self._flipHorizontally:
                 frame = cv2.flip(frame, 1)
             elif self._flipVertically:
                 frame = cv2.flip(frame, 0)
@@ -282,7 +282,7 @@ class Camera:
             break
 
         filepath = f'{self.lapse_dir}/{self._klippy.printing_filename}.mp4'
-        # Todo: check ligth & timer locks?
+        # Todo: check light & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)

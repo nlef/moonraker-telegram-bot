@@ -11,7 +11,6 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
-from urllib import request
 from urllib.request import urlopen
 
 import requests
@@ -88,54 +87,29 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}")
 
 
-def get_status() -> (str, str):
-    response = request.urlopen(
-        f"http://{host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message&display_status=message")
-    resp = json.loads(response.read())
-    print_stats = resp['result']['status']['print_stats']
-    webhook = resp['result']['status']['webhooks']
-    message = emoji.emojize(':robot: Printer status: ', use_aliases=True) + f"{webhook['state']}\n"
-    if 'display_status' in resp['result']['status']:
-        if 'message' in resp['result']['status']['display_status']:
-            msg = resp['result']['status']['display_status']['message']
-            if msg and msg is not None:
-                message += f"{msg}\n"
-    if 'state_message' in webhook:
-        message += f"State message: {webhook['state_message']}\n"
-    message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
-    printing_filename = ''
-    if print_stats['state'] in ('printing', 'paused', 'complete'):
-        printing_filename = print_stats['filename']
-        message += f"Printing filename: {printing_filename} \n"
-    if cameraWrap.light_device:
-        message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if cameraWrap.light_state else 'off'}"
-    return message, printing_filename
-
-
 def send_print_start_info(context: CallbackContext):
     file = context.job.context
     send_file_info(context.bot, file, notifier.silent_status, f"Printer started printing: {file} \n")
 
 
+# Todo: refactor into Klippy
 def send_file_info(bot, filename, silent: bool, message: str = ''):
-    response = request.urlopen(
+    response = requests.get(
         f"http://{host}/server/files/metadata?filename={urllib.parse.quote(filename)}"
     )
-    resp = json.loads(response.read())['result']
+    resp = response.json()['result']
     eta = int(resp['estimated_time'] * (1 - klippy.printing_progress))
-    message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weigth: {resp['filament_weight_total']}g"
+    message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g"
     message += f"\nPrint duration: {timedelta(seconds=eta)}"
     message += f"\nFinish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}"
 
     if 'thumbnails' in resp:
         thumb = max(resp['thumbnails'], key=lambda el: el['size'])
-        img = Image.open(
-            urlopen(f"http://{host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")
-        ).convert('RGB')
+        img = Image.open(urlopen(f"http://{host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")).convert('RGB')
 
         bio = BytesIO()
-        bio.name = f'{filename}.png'
-        img.save(bio, 'PNG')
+        bio.name = f'{filename}.webp'
+        img.save(bio, 'WebP', quality=0, lossless=True)
         bio.seek(0)
         bot.send_photo(chatId, photo=bio, caption=message, disable_notification=silent)
     else:
@@ -144,7 +118,7 @@ def send_file_info(bot, filename, silent: bool, message: str = ''):
 
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    (mess, filename) = get_status()
+    (mess, filename) = klippy.get_status()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING, disable_notification=notifier.silent_commands)
     message_to_reply.reply_text(mess)
     if filename:
@@ -167,11 +141,12 @@ def create_keyboard():
 
 
 def greeting_message():
-    (mess, filename) = get_status()
+    if klippy.check_connection():
+        mess = 'Printer online'
+    else:
+        mess = 'Bot online, no moonraker connection! Failing...'
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
-    if filename:
-        send_file_info(bot_updater.bot, filename, notifier.silent_status)
 
 
 # Todo: vase mode calcs
@@ -179,7 +154,7 @@ def take_lapse_photo(position_z: float = -1):
     if not timelapse_enabled or not klippy.printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if (timelapse_heigth > 0 and position_z % timelapse_heigth == 0) or position_z < 0:
+    if (timelapse_height > 0 and position_z % timelapse_height == 0) or position_z < 0:
         executors_pool.submit(cameraWrap.take_lapse_photo)
 
 
@@ -215,7 +190,7 @@ def get_gif(update: Update, _: CallbackContext) -> None:
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands,
-                                     caption=get_status()[0])
+                                     caption=klippy.get_status()[0])
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
@@ -234,7 +209,7 @@ def manage_printing(command: str) -> None:
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
-def togle_power_device(device: str, enable: bool):
+def toggle_power_device(device: str, enable: bool):
     ws.send(json.dumps({"jsonrpc": "2.0",
                         "method": "machine.device_power.on" if enable else "machine.device_power.off",
                         "id": myId,
@@ -287,16 +262,9 @@ def power_off(update: Update, _: CallbackContext) -> None:
 def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if cameraWrap.light_device:
-        cameraWrap.togle_ligth_device()
+        cameraWrap.togle_light_device()
     else:
         message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands)
-
-
-def execute_comand(comand: str):
-    data = {'commands': [f'{comand}']}
-    res = requests.post(f"http://{host}/api/printer/command", json=data)
-    if not res.ok:
-        logger.error(res.reason)
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
@@ -316,10 +284,11 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         manage_printing('pause')
         query.delete_message()
     elif query.data == 'power_off_printer':
-        togle_power_device(poweroff_device, False)
+        toggle_power_device(poweroff_device, False)
         query.delete_message()
     elif 'gmacro:' in query.data:
-        execute_comand(query.data.replace('gmacro:', ''))
+        klippy.execute_command(query.data.replace('gmacro:', ''))
+        query.delete_message()
     elif '.gcode' in query.data and ':' not in query.data:
         keyboard_keys = dict((x['callback_data'], x['text']) for x in
                              itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
@@ -355,8 +324,8 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
         return InlineKeyboardButton(filename, callback_data=hashlib.md5(filename.encode()).hexdigest() + '.gcode')
 
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    response = request.urlopen(f"http://{host}/server/files/list?root=gcodes")
-    resp = json.loads(response.read())
+    response = requests.get(f"http://{host}/server/files/list?root=gcodes")
+    resp = response.json()
     files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
     files_keys = list(map(list, zip(map(create_file_button, files))))
     reply_markup = InlineKeyboardMarkup(files_keys)
@@ -402,8 +371,8 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
 
-def start_bot(token):
-    updater = Updater(token, workers=4)  # we have too small ram on oPi zero...
+def start_bot(bot_token):
+    updater = Updater(bot_token, workers=4)
 
     dispatcher = updater.dispatcher
 
@@ -540,7 +509,7 @@ def websocket_to_message(ws, ws_message):
             if 'timelapse photo' in json_message["params"]:
                 take_lapse_photo()
             if json_message["params"][0].startswith('tgnotify'):
-                notifier.send_notifcation(json_message["params"][0][9:])
+                notifier.send_notification(json_message["params"][0][9:])
             if json_message["params"][0].startswith('tgalarm'):
                 notifier.send_error(json_message["params"][0][8:])
         if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
@@ -577,7 +546,7 @@ def websocket_to_message(ws, ws_message):
                     klippy.printing_filename = json_message['params'][0]['print_stats']['filename']
                 if 'state' in json_message['params'][0]['print_stats']:
                     state = json_message['params'][0]['print_stats']['state']
-                # Fixme: reset notify percent & heigth on finish/caancel/start
+                # Fixme: reset notify percent & heigth on finish/cancel/start
                 if 'print_duration' in json_message['params'][0]['print_stats']:
                     klippy.printing_duration = json_message['params'][0]['print_stats']['print_duration']
                 if state == "printing":
@@ -585,7 +554,7 @@ def websocket_to_message(ws, ws_message):
                         klippy.printing = True
                         notifier.reset_notifications()
                         if not klippy.printing_filename:
-                            klippy.printing_filename = get_status()[1]
+                            klippy.printing_filename = klippy.get_status()[1]
                         cameraWrap.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy.printing_filename)
                 # Todo: cleanup timelapse dir on cancel print!
@@ -600,7 +569,7 @@ def websocket_to_message(ws, ws_message):
                     message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
 
                 if message:
-                    notifier.send_notifcation(message)
+                    notifier.send_notification(message)
 
 
 def parselog():
@@ -629,11 +598,11 @@ if __name__ == '__main__':
     token = conf.get('bot', 'bot_token')
     chatId = conf.getint('bot', 'chat_id')
     notify_percent = conf.getint('progress_notification', 'percent', fallback=0)
-    notify_heigth = conf.getint('progress_notification', 'heigth', fallback=0)
-    # notify_interval = conf.getint('progress_notification', 'time', fallback=0)
+    notify_height = conf.getint('progress_notification', 'height', fallback=0)
+    notify_interval = conf.getint('progress_notification', 'time', fallback=0)
     notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
     notify_groups = conf.get('progress_notification', 'groups').split(',') if 'groups' in conf['progress_notification'] else list()
-    timelapse_heigth = conf.getfloat('timelapse', 'heigth', fallback=0.0)
+    timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
     timelapse_cleanup = conf.getboolean('timelapse', 'cleanup', fallback=True)
@@ -641,7 +610,7 @@ if __name__ == '__main__':
     timelapse_fps = conf.getint('timelapse', 'target_fps', fallback=15)
 
     cameraEnabled = 'camera' in conf
-    flipHorisontally = conf.getboolean('camera', 'flipHorisontally', fallback=False)
+    flipHorisontally = conf.getboolean('camera', 'flipHorizontally', fallback=False)
     flipVertically = conf.getboolean('camera', 'flipVertically', fallback=False)
     gifDuration = conf.getint('camera', 'gifDuration', fallback=5)
     videoDuration = conf.getint('camera', 'videoDuration', fallback=5)
@@ -652,12 +621,12 @@ if __name__ == '__main__':
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
     camera_picture_quality = conf.get('camera', 'picture_quality', fallback='webp')
 
-    poweroff_device = conf.get('bot', 'poweroff_device', fallback='')
+    poweroff_device = conf.get('bot', 'power_device', fallback='')
     light_device = conf.get('bot', 'light_device', fallback="")
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
-    hidden_methods = conf.get('telegram_ui', 'hidden_methods').split(',') if 'hidden_methods' in conf['telegram_ui'] else list()
-    disabled_macros = conf.get('telegram_ui', 'disabled_macros').split(',') if 'disabled_macros' in conf['telegram_ui'] else list()
+    hidden_methods = conf.get('telegram_ui', 'hidden_methods').split(',') if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
+    disabled_macros = conf.get('telegram_ui', 'disabled_macros').split(',') if 'telegram_ui' in conf and 'disabled_macros' in conf['telegram_ui'] else list()
 
     silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
     silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
@@ -675,7 +644,7 @@ if __name__ == '__main__':
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_heigth, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
                         silent_status)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
@@ -685,8 +654,8 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    # TOdo: rewrite using ApShecduller
-    threading.Thread(target=reshedule, daemon=True, name='Connection_shedul').start()
+    # TOdo: rewrite using ApScheduler
+    threading.Thread(target=reshedule, daemon=True, name='Connection_scheduler').start()
     if timelapse_interval_time > 0:
         threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
 
