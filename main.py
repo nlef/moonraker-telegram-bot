@@ -12,10 +12,12 @@ import os
 import sys
 from pathlib import Path
 from urllib.request import urlopen
+from zipfile import ZipFile
 
 import requests
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
@@ -344,27 +346,48 @@ def get_macros(update: Update, _: CallbackContext) -> None:
 def upload_file(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
-    if '.gcode' in doc.file_name:
-        bio = BytesIO()
-        bio.name = doc.file_name
-        bio.write(doc.get_file().download_as_bytearray())
-        bio.seek(0)
-        files = {'file': bio}
-        res = requests.post(f"http://{host}/server/files/upload", files=files)
-        if res.ok:
-            filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + '.gcode'
-            keyboard = [
-                [
-                    InlineKeyboardButton(emoji.emojize(':robot: print file', use_aliases=True), callback_data=f'print_file:{filehash}'),
-                    InlineKeyboardButton(emoji.emojize(':cross_mark: do nothing', use_aliases=True), callback_data='do_nothing'),
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            update.message.reply_text(f"successfully uploaded file: {doc.file_name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
-        else:
-            update.message.reply_text(f"failed uploading file: {doc.file_name}", disable_notification=notifier.silent_commands)
-    else:
+    if not doc.file_name.endswith(('.gcode', '.zip')):
         update.message.reply_text(f"unknown filetype in {doc.file_name}", disable_notification=notifier.silent_commands)
+        return
+
+    try:
+        file_byte_array = doc.get_file().download_as_bytearray()
+    except BadRequest as badreq:
+        update.message.reply_text(f"Bad request: {badreq.message}", disable_notification=notifier.silent_commands)
+        return
+
+    uploaded_bio = BytesIO()
+    uploaded_bio.name = doc.file_name
+    uploaded_bio.write(file_byte_array)
+    uploaded_bio.seek(0)
+
+    sending_bio = BytesIO()
+    if doc.file_name.endswith('.gcode'):
+        sending_bio = uploaded_bio
+    elif doc.file_name.endswith('.zip'):
+        with ZipFile(uploaded_bio) as my_zip_file:
+            if len(my_zip_file.namelist()) > 1:
+                update.message.reply_text(f"Multiple files in archive {doc.file_name}", disable_notification=notifier.silent_commands)
+                return
+
+            contained_file = my_zip_file.open(my_zip_file.namelist()[0])
+            sending_bio.name = contained_file.name
+            sending_bio.write(contained_file.read())
+            sending_bio.seek(0)
+
+    res = requests.post(f"http://{host}/server/files/upload", files={'file': sending_bio})
+    if res.ok:
+        filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + '.gcode'
+        keyboard = [
+            [
+                InlineKeyboardButton(emoji.emojize(':robot: print file', use_aliases=True), callback_data=f'print_file:{filehash}'),
+                InlineKeyboardButton(emoji.emojize(':cross_mark: do nothing', use_aliases=True), callback_data='do_nothing'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text(f"Successfully uploaded file: {doc.file_name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+    else:
+        update.message.reply_text(f"Failed uploading file: {doc.file_name}", disable_notification=notifier.silent_commands)
 
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:
