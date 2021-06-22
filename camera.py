@@ -188,7 +188,6 @@ class Camera:
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
-            logger.debug('opencv BackEnd: ' + cv2.VideoWriter.getBackendName(out))
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
@@ -286,7 +285,6 @@ class Camera:
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
-            logger.debug('opencv BackEnd: ' + cv2.VideoWriter.getBackendName(out))
 
             # Todo: check for nonempty photos!
             photos = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')
