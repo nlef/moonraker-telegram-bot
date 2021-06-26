@@ -78,7 +78,8 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/video - will take mp4 video from camera\n'
                               '/poweroff - turn off moonraker power device from config\n'
                               '/light - toggle light\n'
-                              '/emergency - emergency stop printing')
+                              '/emergency - emergency stop printing',
+                              '/shutdown - shutdown Pi gracefully')
 
 
 def echo(update: Update, _: CallbackContext) -> None:
@@ -121,8 +122,8 @@ def send_file_info(bot, filename, silent: bool, message: str = ''):
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     (mess, filename) = klippy.get_status()
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING, disable_notification=notifier.silent_commands)
-    message_to_reply.reply_text(mess)
+    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands)
     if filename:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
         send_file_info(message_to_reply.bot, filename, notifier.silent_commands)
@@ -131,7 +132,7 @@ def status(update: Update, _: CallbackContext) -> None:
 def create_keyboard():
     custom_keyboard = [
         '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/gif', '/emergency', '/macros'
+        '/photo', '/video', '/gif', '/emergency', '/macros', '/shutdown'
     ]
     if poweroff_device:
         custom_keyboard.append('/poweroff')
@@ -223,6 +224,10 @@ def emergency_stop_printer():
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
 
 
+def shutdown_pi_host():
+    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"machine.shutdown", "id": myId}))
+
+
 def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
     keyboard = [
         [
@@ -252,6 +257,11 @@ def emergency_stop(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'), disable_notification=notifier.silent_commands)
 
 
+def shutdown_host(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands)
+
+
 def power_off(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
@@ -278,6 +288,9 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif query.data == 'emergency_stop':
         emergency_stop_printer()
+        query.delete_message()
+    elif query.data == 'shutdown_host':
+        shutdown_pi_host()
         query.delete_message()
     elif query.data == 'cancel_printing':
         manage_printing('cancel')
@@ -413,6 +426,7 @@ def start_bot(bot_token):
     dispatcher.add_handler(CommandHandler("poweroff", power_off))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
+    dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
 
