@@ -102,9 +102,11 @@ def send_file_info(bot, filename, silent: bool, message: str = ''):
     )
     resp = response.json()['result']
     eta = int(resp['estimated_time'] * (1 - klippy.printing_progress))
-    message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g"
-    message += f"\nPrint duration: {timedelta(seconds=eta)}"
-    message += f"\nFinish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}"
+    filemanet_lenght = round(resp['filament_total'] / 1000, 2)
+    message += f"Printed {klippy.printing_progress * 100}%\n"
+    message += f"Filament: {round(filemanet_lenght * (1 - klippy.printing_progress), 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
+    message += f"Estimated time left: {timedelta(seconds=eta)}\n"
+    message += f"Finish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}\n"
 
     if 'thumbnails' in resp:
         thumb = max(resp['thumbnails'], key=lambda el: el['size'])
@@ -398,9 +400,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(f"Successfully uploaded file: {doc.file_name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"Successfully uploaded file: {sending_bio.name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
     else:
-        update.message.reply_text(f"Failed uploading file: {doc.file_name}", disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"Failed uploading file: {sending_bio.name}", disable_notification=notifier.silent_commands)
 
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:

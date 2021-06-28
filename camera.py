@@ -273,12 +273,10 @@ class Camera:
         while self.light_need_off:
             time.sleep(1)
 
-        # Fixme: get single file!
-        for filename in glob.glob(f'{self.lapse_dir}/*.{self._img_extension}'):
-            img = cv2.imread(filename)
-            height, width, layers = img.shape
-            size = (width, height)
-            break
+        filename = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')[0]
+        img = cv2.imread(filename)
+        height, width, layers = img.shape
+        size = (width, height)
 
         filepath = f'{self.lapse_dir}/{self._klippy.printing_filename}.mp4'
         # Todo: check light & timer locks?
