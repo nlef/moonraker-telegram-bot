@@ -640,7 +640,7 @@ if __name__ == '__main__':
     notify_height = conf.getint('progress_notification', 'height', fallback=0)
     notify_interval = conf.getint('progress_notification', 'time', fallback=0)
     notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-    notify_groups = conf.get('progress_notification', 'groups').split(',') if 'groups' in conf['progress_notification'] else list()
+    notify_groups = conf.get('progress_notification', 'groups').split(',') if 'progress_notification' in conf and 'groups' in conf['progress_notification'] else list()
     timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
