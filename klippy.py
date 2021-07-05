@@ -13,6 +13,7 @@ class Klippy():
         self._disabled_macros = disabled_macros
         self.connected: bool = False
         self.printing: bool = False
+        self.paused: bool = False
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
         self.printing_filename: str = ''

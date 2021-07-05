@@ -103,8 +103,8 @@ def send_file_info(bot, filename, silent: bool, message: str = ''):
     resp = response.json()['result']
     eta = int(resp['estimated_time'] * (1 - klippy.printing_progress))
     filemanet_lenght = round(resp['filament_total'] / 1000, 2)
-    message += f"Printed {klippy.printing_progress * 100}%\n"
-    message += f"Filament: {round(filemanet_lenght * (1 - klippy.printing_progress), 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
+    message += f"Printed {round(klippy.printing_progress * 100, 0)}%\n"
+    message += f"Filament: {round(filemanet_lenght * klippy.printing_progress, 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
     message += f"Estimated time left: {timedelta(seconds=eta)}\n"
     message += f"Finish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}\n"
 
@@ -206,8 +206,9 @@ def get_video(update: Update, _: CallbackContext) -> None:
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     (bio, width, height) = cameraWrap.take_video()
+    # Todo: check for file size more than 50mb
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_video(video=bio, width=width, height=height, disable_notification=notifier.silent_commands)
+    message_to_reply.reply_video(video=bio, width=width, height=height, timeout=120, disable_notification=notifier.silent_commands)
 
 
 def manage_printing(command: str) -> None:
@@ -589,6 +590,7 @@ def websocket_to_message(ws, ws_message):
                 if 'print_duration' in json_message['params'][0]['print_stats']:
                     klippy.printing_duration = json_message['params'][0]['print_stats']['print_duration']
                 if state == "printing":
+                    klippy.paused = False
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
@@ -596,6 +598,8 @@ def websocket_to_message(ws, ws_message):
                             klippy.printing_filename = klippy.get_status()[1]
                         cameraWrap.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=klippy.printing_filename)
+                elif state == "paused":
+                    klippy.paused = True
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False

@@ -146,8 +146,13 @@ class Camera:
                     image = cv2.flip(image, 1)
                 elif self._flipVertically:
                     image = cv2.flip(image, 0)
+                # Fixme: segfault!
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv2.UMat.get(image))
+
+            cap.release()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
 
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
@@ -198,6 +203,9 @@ class Camera:
             logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
+            cap.release()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
 
         bio = BytesIO()
         bio.name = 'video.mp4'
@@ -249,6 +257,10 @@ class Camera:
                 gif.append(process_frame(image_inner))
                 fps = 1 / (new_frame_time - prev_frame_time)
 
+            cap.release()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
+
         logger.debug(f"Measured gif fps is {fps}, while camera fps {fps_cam}")
         if fps <= 0:
             fps = 1
@@ -273,6 +285,8 @@ class Camera:
         while self.light_need_off:
             time.sleep(1)
 
+        # Todo: add lock file! remove after successfull timelapse creation. On startUp check locks and recreate lapses!
+        os.mknod(f'{self.lapse_dir}/lapse.lock')
         filename = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')[0]
         img = cv2.imread(filename)
         height, width, layers = img.shape
@@ -291,12 +305,16 @@ class Camera:
                 out.write(cv2.imread(filename))
 
             out.release()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
 
         bio = BytesIO()
         bio.name = f'{self._klippy.printing_filename}.mp4'
         with open(filepath, 'rb') as fh:
             bio.write(fh.read())
         bio.seek(0)
+
+        os.mknod(f'{self.lapse_dir}/lapse.lock')
 
         if self._cleanup:
             for filename in glob.glob(f'{self.lapse_dir}/*'):
