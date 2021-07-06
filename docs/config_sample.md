@@ -33,6 +33,9 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	This enables extensive logging. Only use it for debugging/troubleshooting.
 #	Default is to omit this/false.
 #log_path: /tmp
+#eta_source: slicer
+#   Values avaliable: slicer, file
+#   Default value is slicer.
 ```
 
 
