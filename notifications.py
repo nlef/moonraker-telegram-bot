@@ -11,7 +11,7 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
-class Notifier():
+class Notifier:
     def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0,
                  notify_groups: list = list(), debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
         self._bot_updater: Updater = bot_updater
@@ -72,9 +72,7 @@ class Notifier():
                 if self._last_message:
                     notifymsg += f"\n{self._last_message}"
                 if self._klippy.printing_duration > 0:
-                    estimated_time = int((self._klippy.printing_duration * 100 / progress) - self._klippy.printing_duration)
-                    notifymsg += f"\nEstimated time {timedelta(seconds=estimated_time)}"
-                    notifymsg += f"\nFinish at {datetime.now() + timedelta(seconds=estimated_time):%Y-%m-%d %H:%M}"
+                    notifymsg += self._klippy.get_eta_message()
                 self._last_percent = progress
 
         if position_z != 0 and self._height != 0:
@@ -90,7 +88,6 @@ class Notifier():
             self._last_notify_time = time.time()
             self._bot_updater.job_queue.run_once(send_notification, 0)
 
-    # Todo: add silent for notification!
     def send_error(self, message: str):
         def send_message(context: CallbackContext):
             context.bot.send_chat_action(chat_id=self._chatId, action=ChatAction.TYPING)

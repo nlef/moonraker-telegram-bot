@@ -57,7 +57,6 @@ poweroff_device_on: bool = False
 
 debug: bool = False
 hidden_methods: list = list()
-eta_source: str = 'slicer'
 
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
@@ -673,7 +672,7 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
-    klippy = Klippy(host, disabled_macros)
+    klippy = Klippy(host, disabled_macros, eta_source)
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)

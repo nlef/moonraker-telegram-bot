@@ -12,22 +12,33 @@ from io import BytesIO
 logger = logging.getLogger(__name__)
 
 
-class Klippy():
-    def __init__(self, moonraker_host: str, disabled_macros: list):
+class Klippy:
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
-        self._eta_source: str = 'slicer'
+        self._eta_source: str = eta_source
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
-        self.printing_filename: str = ''
+        self._printing_filename: str = ''
+        self.file_estimated_time: float = 0.0
         self.vsd_progress: float = 0.0
 
     @property
     def macros(self):
         return self._get_marco_list()
+
+    @property
+    def printing_filename(self):
+        return self._printing_filename
+
+    @printing_filename.setter
+    def printing_filename(self, new: str):
+        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
+        resp = response.json()['result']
+        self.file_estimated_time = resp['estimated_time']
 
     def _get_marco_list(self) -> list:
         resp = requests.get(f'http://{self._host}/printer/objects/list')
@@ -80,21 +91,29 @@ class Klippy():
         if not res.ok:
             logger.error(res.reason)
 
+    def get_eta(self) -> timedelta:
+        if self._eta_source == 'slicer':
+            eta = int(self.file_estimated_time - self.printing_duration)
+        else:  # eta by file
+            eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
+        # eta_vsd = int(resp['estimated_time'] * (1 - klippy.vsd_progress))
+
+        return timedelta(seconds=eta)
+
+    def get_eta_message(self):
+        eta = self.get_eta()
+        return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
+
     def get_file_info(self, message: str = '') -> (str, BytesIO):
         # response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}")
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
         resp = response.json()['result']
-        if self._eta_source == 'slicer':
-            eta = int(resp['estimated_time'] - self.printing_duration)
-        else:  # eta by file
-            eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
+        self.file_estimated_time = resp['estimated_time']
 
-        # eta_vsd = int(resp['estimated_time'] * (1 - klippy.vsd_progress))
         filemanet_lenght = round(resp['filament_total'] / 1000, 2)
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
         message += f"Filament: {round(filemanet_lenght * self.printing_progress, 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
-        message += f"Estimated time left: {timedelta(seconds=eta)}\n"
-        message += f"Finish at {datetime.now() + timedelta(seconds=eta):%Y-%m-%d %H:%M}\n"
+        message += self.get_eta_message()
 
         if 'thumbnails' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
