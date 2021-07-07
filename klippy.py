@@ -35,9 +35,10 @@ class Klippy:
         return self._printing_filename
 
     @printing_filename.setter
-    def printing_filename(self, new: str):
-        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
+    def printing_filename(self, new_value: str):
+        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         resp = response.json()['result']
+        self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
 
     def _get_marco_list(self) -> list:
@@ -105,7 +106,6 @@ class Klippy:
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
-        # response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}")
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
         resp = response.json()['result']
         self.file_estimated_time = resp['estimated_time']
