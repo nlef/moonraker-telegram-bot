@@ -61,7 +61,7 @@ class Camera:
         self._klippy: Klippy = klippy
         self._light_state_lock = threading.Lock()
         self._light_device_on: bool = False
-        self._base_dir: str = timelapse_base_dir
+        self._base_dir: str = timelapse_base_dir  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = timelapse_cleanup
         self._fps: int = timelapse_fps
         self._light_need_off: bool = False
@@ -286,7 +286,7 @@ class Camera:
             time.sleep(1)
 
         # Todo: add lock file! remove after successfull timelapse creation. On startUp check locks and recreate lapses!
-        os.mknod(f'{self.lapse_dir}/lapse.lock')
+        #os.mknod(f'{self.lapse_dir}/lapse.lock')
         filename = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')[0]
         img = cv2.imread(filename)
         height, width, layers = img.shape
@@ -314,7 +314,7 @@ class Camera:
             bio.write(fh.read())
         bio.seek(0)
 
-        os.mknod(f'{self.lapse_dir}/lapse.lock')
+        #os.mknod(f'{self.lapse_dir}/lapse.lock')
 
         if self._cleanup:
             for filename in glob.glob(f'{self.lapse_dir}/*'):
