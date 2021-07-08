@@ -1,5 +1,6 @@
 import logging
 import os
+import pathlib
 import threading
 import time
 import glob
@@ -281,25 +282,35 @@ class Camera:
             outfile.write(photo.getbuffer())
 
     def create_timelapse(self):
+        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename)
+
+    def create_timelapse(self, filename: str):
+        return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
+
+    def _create_timelapse(self, lapse_dir: str, printing_filename: str):
 
         while self.light_need_off:
             time.sleep(1)
 
-        # Todo: add lock file! remove after successfull timelapse creation. On startUp check locks and recreate lapses!
-        #os.mknod(f'{self.lapse_dir}/lapse.lock')
-        filename = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')[0]
+        if not Path(f'{lapse_dir}/lapse.lock').is_file():
+            os.mknod(f'{lapse_dir}/lapse.lock')
+
+        filename = glob.glob(f'{lapse_dir}/*.{self._img_extension}')[0]
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
 
-        filepath = f'{self.lapse_dir}/{self._klippy.printing_filename}.mp4'
+        video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
+        if Path(video_filepath).is_file():
+            os.remove(video_filepath)
+
         # Todo: check light & timer locks?
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
+            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
             # Todo: check for nonempty photos!
-            photos = glob.glob(f'{self.lapse_dir}/*.{self._img_extension}')
+            photos = glob.glob(f'{lapse_dir}/*.{self._img_extension}')
             photos.sort(key=os.path.getmtime)
             for filename in photos:
                 out.write(cv2.imread(filename))
@@ -309,22 +320,26 @@ class Camera:
             cv2.waitKey(1)
 
         bio = BytesIO()
-        bio.name = f'{self._klippy.printing_filename}.mp4'
-        with open(filepath, 'rb') as fh:
+        bio.name = f'{printing_filename}.mp4'
+        with open(video_filepath, 'rb') as fh:
             bio.write(fh.read())
         bio.seek(0)
 
-        #os.mknod(f'{self.lapse_dir}/lapse.lock')
+        os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
-            for filename in glob.glob(f'{self.lapse_dir}/*'):
+            for filename in glob.glob(f'{lapse_dir}/*'):
                 os.remove(filename)
-            Path(self.lapse_dir).rmdir()
+            Path(lapse_dir).rmdir()
 
-        return bio, width, height
+        return bio, width, height, video_filepath
 
     def clean(self):
         if self._cleanup and self._klippy.printing_filename:
             if os.path.isdir(self.lapse_dir):
                 for filename in glob.glob(f'{self.lapse_dir}/*'):
                     os.remove(filename)
+
+    def detect_unfinished_lapses(self):
+        folder_names = list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))
+        return folder_names

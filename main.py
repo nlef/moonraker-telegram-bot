@@ -134,6 +134,18 @@ def greeting_message():
         mess = 'Bot online, no moonraker connection! Failing...'
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
+    check_unfinished_lapses()
+
+
+def check_unfinished_lapses():
+    files = cameraWrap.detect_unfinished_lapses()
+    if not files:
+        return
+    bot_updater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'lapse:{el}'), files))))
+    files_keys.append([InlineKeyboardButton(emoji.emojize(':no_entry_sign: ', use_aliases=True), callback_data='do_nothing')])
+    reply_markup = InlineKeyboardMarkup(files_keys)
+    bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
 # Todo: vase mode calcs
@@ -150,10 +162,15 @@ def send_timelapse(context: CallbackContext):
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
     context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    (bio, width, height) = cameraWrap.create_timelapse()
-    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
-                           disable_notification=notifier.silent_commands)
+    (bio, width, height, video_path) = cameraWrap.create_timelapse()
+    if bio.getbuffer().nbytes > 52428800:
+        mess = 'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder'
+        mess += f'\n{video_path}'
+        context.bot.send_message(chatId, text=mess, disable_notification=notifier.silent_commands)
+    else:
+        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
+        context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
+                               disable_notification=notifier.silent_commands)
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -188,9 +205,11 @@ def get_video(update: Update, _: CallbackContext) -> None:
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
     (bio, width, height) = cameraWrap.take_video()
-    # Todo: check for file size more than 50mb
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_video(video=bio, width=width, height=height, timeout=120, disable_notification=notifier.silent_commands)
+    if bio.getbuffer().nbytes > 52428800:
+        message_to_reply.reply_text('Telegram has a 50mb restriction...', disable_notification=notifier.silent_commands)
+    else:
+        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
+        message_to_reply.reply_video(video=bio, width=width, height=height, timeout=120, disable_notification=notifier.silent_commands)
 
 
 def manage_printing(command: str) -> None:
@@ -308,7 +327,20 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             query.edit_message_text(text=f"Failed start printing file {filename}")
         else:
             query.delete_message()
-
+    elif 'lapse:' in query.data:
+        lapse_name = query.data.replace('lapse:', '')
+        query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        (bio, width, height, video_path) = cameraWrap.create_timelapse(lapse_name)
+        if bio.getbuffer().nbytes > 52428800:
+            mess = 'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder'
+            mess += f'\n{video_path}'
+            context.bot.send_message(chatId, text=mess, disable_notification=notifier.silent_commands)
+        else:
+            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
+            context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
+                                   disable_notification=notifier.silent_commands)
+        query.delete_message()
+        check_unfinished_lapses()
     else:
         logger.debug(f"unknown message from inline keyboard query: {query.data}")
         query.delete_message()
@@ -666,7 +698,10 @@ if __name__ == '__main__':
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)
-    logger.addHandler(RotatingFileHandler(os.path.join(f'{log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3))
+
+    rotatingHandler = RotatingFileHandler(os.path.join(f'{log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3)
+    rotatingHandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(rotatingHandler)
 
     if debug:
         faulthandler.enable()
