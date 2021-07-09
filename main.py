@@ -582,11 +582,10 @@ def websocket_to_message(ws_loc, ws_message):
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-                # position_z = json_message["params"][0]['gcode_move']['position'][2]  # Todo: use gcode_position instead
                 position_z = json_message["params"][0]['gcode_move']['gcode_position'][2]
                 notifier.notify(position_z=int(position_z))
                 take_lapse_photo(position_z)
-            if 'virtual_sdcard' in json_message['params'][0]:
+            if 'virtual_sdcard' in json_message['params'][0] and 'progress' in json_message['params'][0]['virtual_sdcard']:
                 klippy.vsd_progress = json_message['params'][0]['virtual_sdcard']['progress']
             if 'print_stats' in json_message['params'][0]:
                 message = ""

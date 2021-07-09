@@ -21,14 +21,14 @@ def send_message(context: CallbackContext):
 
 class Notifier:
     def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0,
-                 notify_groups: list = list(), debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
+                 notify_groups: list = None, debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._percent: int = percent
         self._height: int = height
         self._interval: int = interval
-        self.notify_groups: list = notify_groups
+        self.notify_groups: list = notify_groups if notify_groups else list()
 
         self.silent_progress = silent_progress
         self.silent_commands = silent_commands
