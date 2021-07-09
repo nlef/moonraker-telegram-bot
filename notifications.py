@@ -1,6 +1,5 @@
 import logging
 import time
-from datetime import datetime, timedelta
 
 from telegram import ChatAction
 from telegram.ext import Updater, CallbackContext
@@ -9,6 +8,15 @@ from camera import Camera
 from klippy import Klippy
 
 logger = logging.getLogger(__name__)
+
+
+def send_message(context: CallbackContext):
+    (mess, chatId, notify_groups, silent) = context.job.context
+    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    context.bot.send_message(chatId, text=mess, disable_notification=silent)
+    for group in notify_groups:
+        context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+        context.bot.send_message(group, text=mess, disable_notification=silent)
 
 
 class Notifier:
@@ -44,8 +52,8 @@ class Notifier:
 
     def notify(self, progress: int = 0, position_z: int = 0):
         def send_notification(context: CallbackContext):
-            (mess, chatId, notify_groups, silent) = context.job.context
             if self._cam_wrap.enabled:
+                (mess, chatId, notify_groups, silent) = context.job.context
                 photo = self._cam_wrap.take_photo()
                 context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
                 context.bot.send_photo(chatId, photo=photo, caption=mess, disable_notification=silent)
@@ -53,11 +61,7 @@ class Notifier:
                     context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
                     context.bot.send_photo(group_, photo=photo, caption=mess, disable_notification=silent)
             else:
-                context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-                context.bot.send_message(chatId, text=mess, disable_notification=silent)
-                for group in notify_groups:
-                    context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                    context.bot.send_message(group, text=mess, disable_notification=silent)
+                send_message(context)
 
         if not self._klippy.printing or not self._klippy.printing_duration > 0.0 or (self._height == 0 + self._percent == 0) or (
                 time.time() < self._last_notify_time + self._interval):
@@ -89,25 +93,9 @@ class Notifier:
             self._bot_updater.job_queue.run_once(send_notification, 0, context=(notifymsg, self._chatId, self.notify_groups, self.silent_progress))
 
     def send_error(self, message: str):
-        def send_message(context: CallbackContext):
-            (mess, chatId, notify_groups) = context.job.context
-            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-            context.bot.send_message(chatId, text=mess)
-            for group in notify_groups:
-                context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                context.bot.send_message(group, text=mess)
-
-        self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups))
+        self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, False))
 
     def send_notification(self, message: str):
-        def send_message(context: CallbackContext):
-            (mess, chatId, notify_groups, silent) = context.job.context
-            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-            context.bot.send_message(chatId, text=mess, disable_notification=silent)
-            for group in self.notify_groups:
-                context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-                context.bot.send_message(group, text=mess, disable_notification=silent)
-
         self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, self.silent_status))
 
     def reset_notifications(self) -> None:

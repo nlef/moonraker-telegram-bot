@@ -53,7 +53,7 @@ class Klippy:
         try:
             response = requests.get(f"http://{self._host}/printer/info")
             return True if response.ok else False
-        except Exception as err:
+        except Exception:
             return False
 
     def get_status(self) -> str:

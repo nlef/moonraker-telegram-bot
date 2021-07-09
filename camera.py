@@ -6,6 +6,7 @@ import time
 import glob
 from io import BytesIO
 from pathlib import Path
+from typing import List
 
 import requests
 from numpy import random
@@ -151,9 +152,10 @@ class Camera:
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv2.UMat.get(image))
 
-            cap.release()
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
+            # TOdo: maybe remove!
+            # cap.release()
+            # cv2.destroyAllWindows()
+            # cv2.waitKey(1)
 
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
@@ -272,7 +274,7 @@ class Camera:
 
         return bio, width, height
 
-    def take_lapse_photo(self):
+    def take_lapse_photo(self) -> None:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
@@ -284,7 +286,7 @@ class Camera:
     def create_timelapse(self):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename)
 
-    def create_timelapse(self, filename: str):
+    def create_timelapse_for_file(self, filename: str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
     def _create_timelapse(self, lapse_dir: str, printing_filename: str):
@@ -334,12 +336,11 @@ class Camera:
 
         return bio, width, height, video_filepath
 
-    def clean(self):
+    def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename:
             if os.path.isdir(self.lapse_dir):
                 for filename in glob.glob(f'{self.lapse_dir}/*'):
                     os.remove(filename)
 
-    def detect_unfinished_lapses(self):
-        folder_names = list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))
-        return folder_names
+    def detect_unfinished_lapses(self) -> List[str]:
+        return list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))

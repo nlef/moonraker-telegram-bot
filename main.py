@@ -6,12 +6,10 @@ import itertools
 import logging
 import urllib
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
-from urllib.request import urlopen
 from zipfile import ZipFile
 
 import requests
@@ -32,7 +30,6 @@ except ImportError:
 import time
 import json
 
-from PIL import Image
 from io import BytesIO
 import cv2
 import emoji
@@ -149,28 +146,31 @@ def check_unfinished_lapses():
 
 
 # Todo: vase mode calcs
-def take_lapse_photo(position_z: float = -1):
+def take_lapse_photo(position_z: float = -1001):
     if not timelapse_enabled or not klippy.printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
         return
-    if (timelapse_height > 0 and position_z % timelapse_height == 0) or position_z < 0:
+    if (timelapse_height > 0 and position_z % timelapse_height == 0) or position_z < -1000:
         executors_pool.submit(cameraWrap.take_lapse_photo)
+
+
+def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
+    if bio.getbuffer().nbytes > 52428800:
+        bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
+    else:
+        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
+        bot.send_video(chatId, video=bio, width=width, height=height, caption=caption, timeout=120,
+                       disable_notification=notifier.silent_commands)
 
 
 def send_timelapse(context: CallbackContext):
     if not timelapse_enabled or not klippy.printing_filename:
         logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
-        return
-    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    (bio, width, height, video_path) = cameraWrap.create_timelapse()
-    if bio.getbuffer().nbytes > 52428800:
-        mess = 'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder'
-        mess += f'\n{video_path}'
-        context.bot.send_message(chatId, text=mess, disable_notification=notifier.silent_commands)
     else:
-        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-        context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
-                               disable_notification=notifier.silent_commands)
+        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        (bio, width, height, video_path) = cameraWrap.create_timelapse()
+        send_video(context.bot, bio, width, height, f'time-lapse of {klippy.printing_filename}',
+                   f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -201,15 +201,10 @@ def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
         message_to_reply.reply_text("camera is disabled")
-        return
-
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-    (bio, width, height) = cameraWrap.take_video()
-    if bio.getbuffer().nbytes > 52428800:
-        message_to_reply.reply_text('Telegram has a 50mb restriction...', disable_notification=notifier.silent_commands)
     else:
-        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-        message_to_reply.reply_video(video=bio, width=width, height=height, timeout=120, disable_notification=notifier.silent_commands)
+        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        (bio, width, height) = cameraWrap.take_video()
+        send_video(message_to_reply.bot, bio, width, height, err_mess='Telegram has a 50mb restriction...')
 
 
 def manage_printing(command: str) -> None:
@@ -330,15 +325,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (bio, width, height, video_path) = cameraWrap.create_timelapse(lapse_name)
-        if bio.getbuffer().nbytes > 52428800:
-            mess = 'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder'
-            mess += f'\n{video_path}'
-            context.bot.send_message(chatId, text=mess, disable_notification=notifier.silent_commands)
-        else:
-            context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-            context.bot.send_video(chatId, video=bio, width=width, height=height, caption=f'time-lapse of {klippy.printing_filename}', timeout=120,
-                                   disable_notification=notifier.silent_commands)
+        (bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
+        send_video(context.bot, bio, width, height, f'time-lapse of {lapse_name}',
+                   f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+
         query.delete_message()
         check_unfinished_lapses()
     else:
@@ -509,7 +499,7 @@ def timelapse_sheduler(interval: int):
         time.sleep(interval)
 
 
-def websocket_to_message(ws, ws_message):
+def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     if debug:
         logger.debug(ws_message)
@@ -535,9 +525,9 @@ def websocket_to_message(ws, ws_message):
 
             if 'state' in json_message['result']:
                 if json_message['result']['state'] == 'ready':
-                    if ws.keep_running:
+                    if ws_loc.keep_running:
                         klippy.connected = True
-                        subscribe(ws)
+                        subscribe(ws_loc)
                 else:
                     klippy.connected = False
                 return
@@ -625,6 +615,7 @@ def websocket_to_message(ws, ws_message):
                     bot_updater.job_queue.run_once(send_timelapse, 5)
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
+                    klippy.printing = False
                     notifier.send_error(f"Printer state change error: {json_message['params'][0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
