@@ -1,7 +1,7 @@
 This document is a reference for options available in the moonraker-telegram-bot
 
-The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up the bot and setting up an initial config file.
-
+The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up
+the bot and setting up an initial config file.
 
 ## [bot]
 
@@ -37,7 +37,6 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #   Values avaliable: slicer, file
 #   Default value is slicer.
 ```
-
 
 ## [camera]
 
@@ -75,7 +74,6 @@ host: http://localhost:8080/?action=stream
 #	taking the picture, recording a video, doing timelapse photos. The default is not to use a delay.
 ```
 
-
 ## [progress_notification]
 
 This section is responsible for the notification on printing progress updates. This entire section is optional.
@@ -103,11 +101,10 @@ This section is responsible for the notification on printing progress updates. T
 #	Only notifications are sent.
 ```
 
-
 ## [timelapse]
 
-This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional.
-Please consider, that in the current release both picture capturing methods are unstable, and it is recommended to use 
+This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional. Please consider, that in the current release
+both picture capturing methods are unstable, and it is recommended to use
 `RESPOND PREFIX=timelapse MSG=photo` instead to take pictures via gcode/macro/slicer. This warning will be removed, when the feature is considered stable.
 
 ```
@@ -127,8 +124,9 @@ Please consider, that in the current release both picture capturing methods are 
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
 #	15 fps equals 15 images per second lapsing. The default is 15 fps.
+#manual_mode: false
+#   if True, only commands from gcode will manage timelapse    
 ```
-
 
 ## [telegram_ui]
 

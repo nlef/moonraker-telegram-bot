@@ -55,6 +55,10 @@ poweroff_device_on: bool = False
 debug: bool = False
 hidden_methods: list = list()
 
+timelapse_enabled: bool = False
+timelapse_mode_manual: bool = False
+timelapse_running: bool = False
+
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
@@ -147,10 +151,19 @@ def check_unfinished_lapses():
 
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1001):
-    if not timelapse_enabled or not klippy.printing_filename:
-        logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
+    if not timelapse_enabled:
+        logger.debug(f"lapse is disabled")
         return
-    if (timelapse_height > 0 and position_z % timelapse_height == 0) or position_z < -1000:
+    elif not klippy.printing_filename:
+        logger.debug(f"lapse is inactive for file undefined")
+        return
+    elif not timelapse_running:
+        logger.debug(f"lapse is not running at the moment")
+        return
+
+    if timelapse_height > 0 and position_z % timelapse_height == 0:
+        executors_pool.submit(cameraWrap.take_lapse_photo)
+    elif position_z < -1000:
         executors_pool.submit(cameraWrap.take_lapse_photo)
 
 
@@ -504,7 +517,7 @@ def websocket_to_message(ws_loc, ws_message):
     if debug:
         logger.debug(ws_message)
 
-    global poweroff_device_on
+    global poweroff_device_on, timelapse_running
 
     if 'error' in json_message:
         return
@@ -553,6 +566,22 @@ def websocket_to_message(ws_loc, ws_message):
         #
     else:
         if json_message["method"] == "notify_gcode_response":
+            if timelapse_mode_manual:
+                if 'timelapse start' in json_message["params"]:
+                    if not klippy.printing_filename:
+                        klippy.get_status()
+                    cameraWrap.clean()
+                    timelapse_running = True
+                    
+                if 'timelapse stop' in json_message["params"]:
+                    timelapse_running = False
+                if 'timelapse pause' in json_message["params"]:
+                    timelapse_running = False
+                if 'timelapse continue' in json_message["params"]:
+                    timelapse_running = True
+                if 'timelapse create' in json_message["params"]:
+                    bot_updater.job_queue.run_once(send_timelapse, 1)
+
             if 'timelapse photo' in json_message["params"]:
                 take_lapse_photo()
             if json_message["params"][0].startswith('tgnotify'):
@@ -599,22 +628,31 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.printing_duration = json_message['params'][0]['print_stats']['print_duration']
                 if state == "printing":
                     klippy.paused = False
+                    if not timelapse_mode_manual:
+                        timelapse_running = True
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
                         if not klippy.printing_filename:
                             klippy.get_status()
-                        cameraWrap.clean()
+                        if not timelapse_mode_manual:
+                            cameraWrap.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
                 elif state == "paused":
                     klippy.paused = True
+                    if not timelapse_mode_manual:
+                        timelapse_running = False
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
-                    bot_updater.job_queue.run_once(send_timelapse, 5)
+                    if not timelapse_mode_manual:
+                        timelapse_running = False
+                        bot_updater.job_queue.run_once(send_timelapse, 5)
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
+                    if not timelapse_mode_manual:
+                        timelapse_running = False
                     notifier.send_error(f"Printer state change error: {json_message['params'][0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
@@ -660,6 +698,7 @@ if __name__ == '__main__':
     timelapse_cleanup = conf.getboolean('timelapse', 'cleanup', fallback=True)
     timelapse_interval_time = conf.getint('timelapse', 'time', fallback=0)
     timelapse_fps = conf.getint('timelapse', 'target_fps', fallback=15)
+    timelapse_mode_manual = conf.getboolean('timelapse', 'manual_mode', fallback=False)
 
     cameraEnabled = 'camera' in conf
     flipHorisontally = conf.getboolean('camera', 'flipHorizontally', fallback=False)
