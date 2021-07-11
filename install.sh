@@ -1,5 +1,6 @@
 #!/bin/bash
 # This script installs Moonraker telegram bot
+set -eu
 
 SYSTEMDDIR="/etc/systemd/system"
 MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
@@ -8,9 +9,14 @@ KLIPPER_CONF_DIR="${HOME}/klipper_config"
 CURRENT_USER=${USER}
 
 stop_sevice() {
-  ## stop existing instance
-  echo "Stopping moonraker-telegram-bot instance ..."
-  sudo systemctl stop moonraker-telegram-bot
+  serviceName="moonraker-telegram-bot"
+  if sudo systemctl --all --type service | grep -q "$serviceName"; then
+    ## stop existing instance
+    echo "Stopping moonraker-telegram-bot instance ..."
+    sudo systemctl stop moonraker-telegram-bot
+  else
+    echo "$serviceName service does not exist."
+  fi
 }
 
 cleanup_leagacy() {

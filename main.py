@@ -572,7 +572,7 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.get_status()
                     cameraWrap.clean()
                     timelapse_running = True
-                    
+
                 if 'timelapse stop' in json_message["params"]:
                     timelapse_running = False
                 if 'timelapse pause' in json_message["params"]:

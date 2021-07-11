@@ -125,10 +125,14 @@ class Camera:
                 res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.light_device}&action=on")
                 if res.ok:
                     self._light_device_on = True
+                else:
+                    logger.error(f'Light device switch failed: {res.reason}')
             else:
                 res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.light_device}&action=off")
                 if res.ok:
                     self._light_device_on = False
+                else:
+                    logger.error(f'Light device switch failed: {res.reason}')
 
     @cam_light_toogle
     def take_photo(self) -> BytesIO:
@@ -343,4 +347,5 @@ class Camera:
                     os.remove(filename)
 
     def detect_unfinished_lapses(self) -> List[str]:
+        # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
         return list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))
