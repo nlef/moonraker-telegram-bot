@@ -98,7 +98,8 @@ class Klippy:
         else:  # eta by file
             eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
         # eta_vsd = int(resp['estimated_time'] * (1 - klippy.vsd_progress))
-
+        if eta < 0:
+            eta = 0
         return timedelta(seconds=eta)
 
     def get_eta_message(self):

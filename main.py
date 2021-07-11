@@ -13,6 +13,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import requests
+from memory_profiler import profile
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
 from telegram.error import BadRequest
@@ -100,6 +101,7 @@ def send_file_info(bot, silent: bool, message: str = ''):
     message, bio = klippy.get_file_info(message)
     if bio is not None:
         bot.send_photo(chatId, photo=bio, caption=message, disable_notification=silent)
+        bio.close()
     else:
         bot.send_message(chatId, message, disable_notification=silent)
 
@@ -167,6 +169,8 @@ def take_lapse_photo(position_z: float = -1001):
         executors_pool.submit(cameraWrap.take_lapse_photo)
 
 
+# Todo: rename)
+@profile
 def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
     if bio.getbuffer().nbytes > 52428800:
         bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
@@ -174,6 +178,7 @@ def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: st
         bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
         bot.send_video(chatId, video=bio, width=width, height=height, caption=caption, timeout=120,
                        disable_notification=notifier.silent_commands)
+    bio.close()
 
 
 def send_timelapse(context: CallbackContext):
@@ -186,6 +191,7 @@ def send_timelapse(context: CallbackContext):
                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
 
+@profile
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
@@ -193,7 +199,9 @@ def get_photo(update: Update, _: CallbackContext) -> None:
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-    message_to_reply.reply_photo(photo=cameraWrap.take_photo(), disable_notification=notifier.silent_commands)
+    bio = cameraWrap.take_photo()
+    message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands)
+    bio.close()
 
 
 def get_gif(update: Update, _: CallbackContext) -> None:
@@ -208,8 +216,10 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
     message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands,
                                      caption=klippy.get_status())
+    bio.close()
 
 
+@profile
 def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
@@ -421,6 +431,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         update.message.reply_text(f"Successfully uploaded file: {sending_bio.name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
     else:
         update.message.reply_text(f"Failed uploading file: {sending_bio.name}", disable_notification=notifier.silent_commands)
+
+    uploaded_bio.close()
+    sending_bio.close()
 
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:

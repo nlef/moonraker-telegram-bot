@@ -60,6 +60,7 @@ class Notifier:
                 for group_ in notify_groups:
                     context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
                     context.bot.send_photo(group_, photo=photo, caption=mess, disable_notification=silent)
+                photo.close()
             else:
                 send_message(context)
 

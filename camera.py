@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List
 
 import requests
+from memory_profiler import profile
 from numpy import random
 import cv2
 from PIL import Image
@@ -135,6 +136,7 @@ class Camera:
                     logger.error(f'Light device switch failed: {res.reason}')
 
     @cam_light_toogle
+    @profile
     def take_photo(self) -> BytesIO:
         with self.camera_lock:
             cap = cv2.VideoCapture(self._host)
@@ -155,8 +157,8 @@ class Camera:
                 # Fixme: segfault!
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv2.UMat.get(image))
+                image = None  # do not remove! memory cleanups!
 
-            # TOdo: maybe remove!
             cap.release()
             cv2.destroyAllWindows()
             # cv2.waitKey(1)
@@ -174,17 +176,17 @@ class Camera:
         return bio
 
     @cam_light_toogle
+    @profile
     def take_video(self):
         def process_video_frame(frame_loc):
-            frame_loc = cv2.UMat(frame_loc)
+            frame_loc_ = cv2.UMat(frame_loc)
             if self._flipVertically and self._flipHorizontally:
-                frame_loc = cv2.flip(frame_loc, -1)
+                frame_loc_ = cv2.flip(frame_loc_, -1)
             elif self._flipHorizontally:
-                frame_loc = cv2.flip(frame_loc, 1)
+                frame_loc_ = cv2.flip(frame_loc_, 1)
             elif self._flipVertically:
-                frame_loc = cv2.flip(frame_loc, 0)
-
-            return cv2.UMat.get(frame_loc)
+                frame_loc_ = cv2.flip(frame_loc_, 0)
+            return cv2.UMat.get(frame_loc_)
 
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
@@ -196,6 +198,7 @@ class Camera:
 
             # height, width, channels = frame.shape
             height, width, channels = frame.shape
+            frame = None  # do not remove! memory cleanups!
             fps_cam = cap.get(cv2.CAP_PROP_FPS)
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
@@ -204,7 +207,11 @@ class Camera:
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
                 success, frame_inner = cap.read()
-                out.write(process_video_frame(frame_inner))
+                res = process_video_frame(frame_inner)
+                out.write(res)
+                # do not remove! memory cleanups!
+                res = None
+                frame_inner = None
                 fps = 1 / (time.time() - prev_frame_time)
 
             logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
@@ -286,6 +293,7 @@ class Camera:
         filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
         with open(filename, "wb") as outfile:
             outfile.write(photo.getbuffer())
+        photo.close()
 
     def create_timelapse(self):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename)
@@ -293,6 +301,7 @@ class Camera:
     def create_timelapse_for_file(self, filename: str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
+    @profile
     def _create_timelapse(self, lapse_dir: str, printing_filename: str):
 
         while self.light_need_off:
@@ -305,6 +314,7 @@ class Camera:
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
+        img = None  # do not remove! memory cleanups!
 
         video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
         if Path(video_filepath).is_file():

@@ -5,3 +5,4 @@ emoji~=1.2.0
 opencv-python~=3.4.8.29
 requests~=2.25.1
 numpy~=1.20.1
+memory_profiler
