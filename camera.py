@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List
 
 import requests
-from memory_profiler import profile
 from numpy import random
 import cv2
 from PIL import Image
@@ -136,7 +135,6 @@ class Camera:
                     logger.error(f'Light device switch failed: {res.reason}')
 
     @cam_light_toogle
-    @profile
     def take_photo(self) -> BytesIO:
         with self.camera_lock:
             cap = cv2.VideoCapture(self._host)
@@ -176,7 +174,6 @@ class Camera:
         return bio
 
     @cam_light_toogle
-    @profile
     def take_video(self):
         def process_video_frame(frame_loc):
             frame_loc_ = cv2.UMat(frame_loc)
@@ -301,7 +298,6 @@ class Camera:
     def create_timelapse_for_file(self, filename: str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
-    @profile
     def _create_timelapse(self, lapse_dir: str, printing_filename: str):
 
         while self.light_need_off:

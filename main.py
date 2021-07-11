@@ -13,7 +13,6 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import requests
-from memory_profiler import profile
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
 from telegram.error import BadRequest
@@ -170,7 +169,6 @@ def take_lapse_photo(position_z: float = -1001):
 
 
 # Todo: rename)
-@profile
 def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
     if bio.getbuffer().nbytes > 52428800:
         bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
@@ -191,7 +189,6 @@ def send_timelapse(context: CallbackContext):
                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
 
-@profile
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
@@ -219,7 +216,6 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     bio.close()
 
 
-@profile
 def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraEnabled:
