@@ -157,8 +157,8 @@ class Camera:
                 img = Image.fromarray(cv2.UMat.get(image))
 
             # TOdo: maybe remove!
-            # cap.release()
-            # cv2.destroyAllWindows()
+            cap.release()
+            cv2.destroyAllWindows()
             # cv2.waitKey(1)
 
         bio = BytesIO()

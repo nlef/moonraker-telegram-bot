@@ -45,7 +45,7 @@ class Klippy:
         resp = requests.get(f'http://{self._host}/printer/objects/list')
         if not resp.ok:
             return list()
-        macro_lines = list(filter(lambda it: 'gcode_macro' in it, resp.json()['result']['objects']))
+        macro_lines = list(filter(lambda it: 'gcode_macro' in it and ' _' not in it, resp.json()['result']['objects']))
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
         return [key for key in loaded_macros if key not in self._disabled_macros]
 
