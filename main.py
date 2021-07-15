@@ -374,6 +374,16 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
 
 
+def exec_gcode(update: Update, context: CallbackContext) -> None:
+    # maybe use context.args
+    message = update.message if update.message else update.effective_message
+    if not message.text == '/gcode':
+        command = message.text.replace('/gcode ', '')
+        klippy.execute_command(command)
+    else:
+        message.reply_text('No command provided')
+
+
 def get_macros(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'gmacro:{el}'), klippy.macros))))
@@ -458,6 +468,7 @@ def start_bot(bot_token):
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
+    dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
 

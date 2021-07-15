@@ -54,7 +54,7 @@ host: http://localhost:8080/?action=stream
 #	You can flip the camera image horizontally, if needed. Disabled by default. Set to true if needed.
 #fourcc: x264
 #	You can change the opencv VideoWriter fourcc codec. The default value is 'x264'.
-# 	An alternative is m4v for playback on specific apple devices, or if the machine which is going to do
+# 	An alternative is mp4v for playback on specific apple devices, or if the machine which is going to do
 #	the encoding is very weak.
 #threads: 2 
 #	You may limit the threads used for image processing. Default value is calculalated, (os.cpu_count() / 2)
