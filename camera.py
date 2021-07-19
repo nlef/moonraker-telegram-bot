@@ -137,7 +137,7 @@ class Camera:
     @cam_light_toogle
     def take_photo(self) -> BytesIO:
         with self.camera_lock:
-            cap = cv2.VideoCapture(self._host)
+            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
 
             success, image = cap.read()
 
@@ -187,7 +187,7 @@ class Camera:
 
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
-            cap = cv2.VideoCapture(self._host)
+            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
             success, frame = cap.read()
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -249,7 +249,7 @@ class Camera:
         fps = 0
         with self.camera_lock:
             cv2.setNumThreads(self._threads)
-            cap = cv2.VideoCapture(self._host)
+            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
             success, image = cap.read()
 
             if not success:

@@ -711,7 +711,8 @@ if __name__ == '__main__':
     notify_height = conf.getint('progress_notification', 'height', fallback=0)
     notify_interval = conf.getint('progress_notification', 'time', fallback=0)
     notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-    notify_groups = conf.get('progress_notification', 'groups').split(',') if 'progress_notification' in conf and 'groups' in conf['progress_notification'] else list()
+    notify_groups = [el.strip() for el in conf.get('progress_notification', 'groups').split(',')] if 'progress_notification' in conf and 'groups' in conf[
+        'progress_notification'] else list()
     timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
@@ -738,8 +739,8 @@ if __name__ == '__main__':
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
     eta_source = conf.get('bot', 'eta_source', fallback='slicer')
 
-    hidden_methods = conf.get('telegram_ui', 'hidden_methods').split(',') if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
-    disabled_macros = conf.get('telegram_ui', 'disabled_macros').split(',') if 'telegram_ui' in conf and 'disabled_macros' in conf['telegram_ui'] else list()
+    hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
+    disabled_macros = [el.strip() for el in conf.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in conf and 'disabled_macros' in conf['telegram_ui'] else list()
 
     silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
     silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
