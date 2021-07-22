@@ -716,6 +716,7 @@ if __name__ == '__main__':
     timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
+    timelapse_ready_dir = conf.get('timelapse', 'ready_lapses', fallback='')
     timelapse_cleanup = conf.getboolean('timelapse', 'cleanup', fallback=True)
     timelapse_interval_time = conf.getint('timelapse', 'time', fallback=0)
     timelapse_fps = conf.getint('timelapse', 'target_fps', fallback=15)
@@ -759,7 +760,7 @@ if __name__ == '__main__':
 
     klippy = Klippy(host, disabled_macros, eta_source)
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
-                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
+                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, timelapse_ready_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
                         silent_status)

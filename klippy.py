@@ -24,6 +24,7 @@ class Klippy:
         self.printing_progress: float = 0.0
         self._printing_filename: str = ''
         self.file_estimated_time: float = 0.0
+        self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
 
     @property
@@ -34,12 +35,17 @@ class Klippy:
     def printing_filename(self):
         return self._printing_filename
 
+    @property
+    def printing_filename_with_time(self):
+        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"  # Todo: maybe add seconds?
+
     @printing_filename.setter
     def printing_filename(self, new_value: str):
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         resp = response.json()['result']
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
+        self.file_print_start_time = resp['print_start_time']
 
     def _get_marco_list(self) -> list:
         resp = requests.get(f'http://{self._host}/printer/objects/list')

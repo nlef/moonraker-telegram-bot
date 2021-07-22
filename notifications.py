@@ -77,7 +77,7 @@ class Notifier:
                 if self._last_message:
                     notifymsg += f"\n{self._last_message}"
                 if self._klippy.printing_duration > 0:
-                    notifymsg += self._klippy.get_eta_message()
+                    notifymsg += f"\n{self._klippy.get_eta_message()}"
                 self._last_percent = progress
 
         if position_z != 0 and self._height != 0:

@@ -47,8 +47,8 @@ def cam_light_toogle(func):
 class Camera:
     def __init__(self, moonraker_host: str, klippy: Klippy, camera_enabled: bool, camera_host: str, threads: int = 0, light_device: str = "",
                  light_timeout: int = 0, flip_vertically: bool = False, flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
-                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, debug_logging: bool = False,
-                 picture_quality: str = 'low'):
+                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", timelapse_ready_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10,
+                 debug_logging: bool = False, picture_quality: str = 'low'):
         self._host: str = camera_host
         self.enabled: bool = camera_enabled
         self._threads: int = threads
@@ -64,6 +64,7 @@ class Camera:
         self._light_state_lock = threading.Lock()
         self._light_device_on: bool = False
         self._base_dir: str = timelapse_base_dir  # Fixme: relative path failed! ~/timelapse
+        self._ready_dir: str = timelapse_ready_dir  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = timelapse_cleanup
         self._fps: int = timelapse_fps
         self._light_need_off: bool = False
@@ -114,7 +115,7 @@ class Camera:
 
     @property
     def lapse_dir(self) -> str:
-        return f'{self._base_dir}/{self._klippy.printing_filename}'
+        return f'{self._base_dir}/{self._klippy.printing_filename_with_time}'
 
     def togle_light_device(self):
         self.switch_light_device(not self.light_state)
@@ -293,7 +294,7 @@ class Camera:
         photo.close()
 
     def create_timelapse(self):
-        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename)
+        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time)
 
     def create_timelapse_for_file(self, filename: str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
@@ -335,6 +336,9 @@ class Camera:
         bio.name = f'{printing_filename}.mp4'
         with open(video_filepath, 'rb') as fh:
             bio.write(fh.read())
+            if self._ready_dir:
+                with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
+                    cpf.write(bio.getbuffer())
         bio.seek(0)
 
         os.remove(f'{lapse_dir}/lapse.lock')

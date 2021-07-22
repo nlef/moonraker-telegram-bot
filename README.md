@@ -80,7 +80,7 @@ Please understand, that entering commands into the console takes a certain amoun
 When tweaking the bot, remember that you have to restart the service every time you change the config:
 `sudo systemctl restart moonraker-telegram-bot`
 
-
+Moonraker [history] component must be configured
 
 ## Issues and bug reports
 
