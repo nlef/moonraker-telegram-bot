@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 def cam_light_toogle(func):
     def wrapper(self, *args, **kwargs):
+        self.use_light()
+
         if self.light_timeout > 0 and self.light_device and not self.light_state and not self.light_lock.locked():
             self.light_timer_event.clear()
             self.light_lock.acquire()
@@ -30,14 +32,22 @@ def cam_light_toogle(func):
 
         self.light_timer_event.wait()
 
+        # Todo: maybe add try block?
         result = func(self, *args, **kwargs)
 
-        if self.light_need_off:
-            if self.light_lock.locked():
-                self.light_lock.release()
-            if not self.camera_lock.locked() and not self.light_lock.locked():
+        self.free_light()
+
+        def delayed_light_off():
+            if self.light_requests == 0:
+                if self.light_lock.locked():
+                    self.light_lock.release()
                 self.light_need_off = False
                 self.switch_light_device(False)
+            else:
+                logger.debug(f"light requests count: {self.light_requests}")
+
+        if self.light_need_off and self.light_requests == 0:
+            threading.Timer(.5, delayed_light_off).start()
 
         return result
 
@@ -87,6 +97,8 @@ class Camera:
         else:
             self._img_extension: str = picture_quality
 
+        self._light_requests: int = 0
+        self._light_request_lock = threading.Lock()
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug('OpenCL is available')
@@ -116,6 +128,19 @@ class Camera:
     @property
     def lapse_dir(self) -> str:
         return f'{self._base_dir}/{self._klippy.printing_filename_with_time}'
+
+    @property
+    def light_requests(self) -> int:
+        with self._light_request_lock:
+            return self._light_requests
+
+    def use_light(self):
+        with self._light_request_lock:
+            self._light_requests += 1
+
+    def free_light(self):
+        with self._light_request_lock:
+            self._light_requests -= 1
 
     def togle_light_device(self):
         self.switch_light_device(not self.light_state)
