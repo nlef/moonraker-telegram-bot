@@ -113,7 +113,7 @@ both picture capturing methods are unstable, and it is recommended to use
 #	This sets the folder, where to save timelapse pictures and the resulting video. 
 #	Default is '/tmp/timelapse', but you can set it to any catalog, which the bot 
 #	has rights to write to. Might be useful for saving the sd cards life by writing to external storage.
-#ready_lapses:
+#copy_finished_timelapse_dir:
 #cleanup: true
 #	Should the bot clean the catalog with pictures and video after the successful sending to the telegram chat.
 #	Default is true. You might want to set it to false, if you intend on using the pictures later.
