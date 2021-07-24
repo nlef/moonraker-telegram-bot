@@ -83,13 +83,11 @@ class Camera:
         self.light_timeout: int = light_timeout
         # Todo: make class for power device
         self.light_device: str = light_device
-        self.camera_lock = threading.Lock()
+        self._camera_lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event = threading.Event()
         self.light_timer_event.set()
-        if debug_logging:
-            logger.setLevel(logging.DEBUG)
-            logger.debug(cv2.getBuildInformation())
+
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
@@ -99,6 +97,10 @@ class Camera:
 
         self._light_requests: int = 0
         self._light_request_lock = threading.Lock()
+
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
+            logger.debug(cv2.getBuildInformation())
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug('OpenCL is available')
@@ -162,7 +164,7 @@ class Camera:
 
     @cam_light_toogle
     def take_photo(self) -> BytesIO:
-        with self.camera_lock:
+        with self._camera_lock:
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
 
             success, image = cap.read()
@@ -211,7 +213,7 @@ class Camera:
                 frame_loc_ = cv2.flip(frame_loc_, 0)
             return cv2.UMat.get(frame_loc_)
 
-        with self.camera_lock:
+        with self._camera_lock:
             cv2.setNumThreads(self._threads)
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
             success, frame = cap.read()
@@ -273,7 +275,7 @@ class Camera:
 
         gif = []
         fps = 0
-        with self.camera_lock:
+        with self._camera_lock:
             cv2.setNumThreads(self._threads)
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
             success, image = cap.read()
@@ -343,7 +345,7 @@ class Camera:
             os.remove(video_filepath)
 
         # Todo: check light & timer locks?
-        with self.camera_lock:
+        with self._camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
