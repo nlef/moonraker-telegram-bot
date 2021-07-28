@@ -64,8 +64,10 @@ class Notifier:
             else:
                 send_message(context)
 
-        if not self._klippy.printing or not self._klippy.printing_duration > 0.0 or (self._height == 0 + self._percent == 0) or (
-                time.time() < self._last_notify_time + self._interval):
+        if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 + self._percent == 0):
+            return
+
+        if self._interval > 0 and time.time() < self._last_notify_time + self._interval:
             return
 
         notifymsg = ''
