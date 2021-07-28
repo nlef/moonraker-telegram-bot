@@ -58,7 +58,8 @@ hidden_methods: list = list()
 timelapse_enabled: bool = False
 timelapse_mode_manual: bool = False
 timelapse_running: bool = False
-
+timelapse_last_height: float = 0.0
+    
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
@@ -149,7 +150,6 @@ def check_unfinished_lapses():
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
-
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1001):
     if not timelapse_enabled:
@@ -162,8 +162,14 @@ def take_lapse_photo(position_z: float = -1001):
         logger.debug(f"lapse is not running at the moment")
         return
 
-    if timelapse_height > 0 and position_z % timelapse_height == 0:
+    global timelapse_last_height
+
+    if 0 < position_z < timelapse_last_height - timelapse_height:
+        timelapse_last_height = position_z
+
+    if timelapse_height > 0 and round(position_z * 100) % round(timelapse_height * 100) == 0 and position_z > timelapse_last_height:
         executors_pool.submit(cameraWrap.take_lapse_photo)
+        timelapse_last_height = position_z
     elif position_z < -1000:
         executors_pool.submit(cameraWrap.take_lapse_photo)
 
