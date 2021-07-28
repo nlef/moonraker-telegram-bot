@@ -41,6 +41,10 @@ class Klippy:
 
     @printing_filename.setter
     def printing_filename(self, new_value: str):
+        if not new_value:
+            self._printing_filename = ''
+            # set file params to zero?
+            return
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         resp = response.json()['result']
         self._printing_filename = new_value
