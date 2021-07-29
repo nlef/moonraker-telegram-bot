@@ -49,7 +49,7 @@ class Klippy:
         resp = response.json()['result']
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
-        self.file_print_start_time = resp['print_start_time']
+        self.file_print_start_time = resp['print_start_time'] if resp['print_start_time'] else time.time()
 
     def _get_marco_list(self) -> list:
         resp = requests.get(f'http://{self._host}/printer/objects/list')
