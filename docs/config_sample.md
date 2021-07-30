@@ -2,7 +2,7 @@ This document is a reference for options available in the moonraker-telegram-bot
 
 The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up
 the bot and setting up an initial config file.
-
+# Sample bot configuration 
 ## [bot]
 
 Configuration of the main bot parameters
@@ -104,8 +104,8 @@ This section is responsible for the notification on printing progress updates. T
 ## [timelapse]
 
 This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional. Please consider, that in the current release
-both picture capturing methods are unstable, and it is recommended to use
-`RESPOND PREFIX=timelapse MSG=photo` instead to take pictures via gcode/macro/slicer. This warning will be removed, when the feature is considered stable.
+the capturing method "time" is unstable, and it is recommended to use height or `RESPOND PREFIX=timelapse MSG=photo` instead 
+to take pictures via gcode/macro/slicer. This warning will be removed, when the feature is considered stable.
 
 ```
 [timelapse]
@@ -113,7 +113,10 @@ both picture capturing methods are unstable, and it is recommended to use
 #	This sets the folder, where to save timelapse pictures and the resulting video. 
 #	Default is '/tmp/timelapse', but you can set it to any catalog, which the bot 
 #	has rights to write to. Might be useful for saving the sd cards life by writing to external storage.
-#copy_finished_timelapse_dir:
+#copy_finished_timelapse_dir: /home/pi/timelapse/finished
+#	This sets the folder, to which finished timelapses get copied to. 
+#	The default behaviour is not to copy it anywhere. This might be useful, if you want to keep only the videos, but clean up the pictures,
+#	or if you want to upload the videos to some network location.
 #cleanup: true
 #	Should the bot clean the catalog with pictures and video after the successful sending to the telegram chat.
 #	Default is true. You might want to set it to false, if you intend on using the pictures later.
@@ -138,8 +141,16 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #hidden_methods: /gif, /video
 #	This allows you to hide unused buttons from your bots keyboard. For example, if you do not intend to commit war crimes,
 #	you can disable the /gif button. 
-disabled_macros: PAUSE,RESUME
 #silent_progress: true
+#	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, but it does not have sound or vibration.
+#	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
+#	Default is false.
 #silent_commands: true
+#	Sends all other messages (for example the emergency stop confirmation) without an alert.You still get a "red" notification, but it does not have sound or vibration.
+#	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
+#	Default is false.
 #silent_status: true
+#	Sendsthe status message (printer status) without an alert. You still get a "red" notification, but it does not have sound or vibration.
+#	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
+#	Default is false.
 ```
