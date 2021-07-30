@@ -59,7 +59,7 @@ timelapse_enabled: bool = False
 timelapse_mode_manual: bool = False
 timelapse_running: bool = False
 timelapse_last_height: float = 0.0
-    
+
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 cameraWrap: Camera
@@ -150,6 +150,7 @@ def check_unfinished_lapses():
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
+
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1001):
     if not timelapse_enabled:
@@ -164,10 +165,10 @@ def take_lapse_photo(position_z: float = -1001):
 
     global timelapse_last_height
 
-    if 0 < position_z < timelapse_last_height - timelapse_height:
+    if 0.0 < position_z < timelapse_last_height - timelapse_height:
         timelapse_last_height = position_z
 
-    if timelapse_height > 0 and round(position_z * 100) % round(timelapse_height * 100) == 0 and position_z > timelapse_last_height:
+    if timelapse_height > 0.0 and round(position_z * 100) % round(timelapse_height * 100) == 0 and position_z > timelapse_last_height:
         executors_pool.submit(cameraWrap.take_lapse_photo)
         timelapse_last_height = position_z
     elif position_z < -1000:
@@ -603,7 +604,7 @@ def websocket_to_message(ws_loc, ws_message):
                     timelapse_running = False
                 if 'timelapse pause' in json_message["params"]:
                     timelapse_running = False
-                if 'timelapse continue' in json_message["params"]:
+                if 'timelapse resume' in json_message["params"]:
                     timelapse_running = True
                 if 'timelapse create' in json_message["params"]:
                     bot_updater.job_queue.run_once(send_timelapse, 1)
@@ -645,6 +646,8 @@ def websocket_to_message(ws_loc, ws_message):
             if 'print_stats' in json_message['params'][0]:
                 message = ""
                 state = ""
+                # Fixme:  maybe do not parse without state? history data may not be avaliable
+                # Message with filename will be sent before printing is started
                 if 'filename' in json_message['params'][0]['print_stats']:
                     klippy.printing_filename = json_message['params'][0]['print_stats']['filename']
                 if 'state' in json_message['params'][0]['print_stats']:
