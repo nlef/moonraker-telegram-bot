@@ -23,6 +23,8 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	You get it when you create a new bot. To create a new bot, you have to talk to @BotFather in telegram. 
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
 #	Only the chat with the correct chat_id can send/receive commans to the bot.
+#socks_proxy: 192.168.0.22:1080
+# socks5 proxy addres and port
 #light_device: leds
 #	This is the power device in moonraker, to which the lights of the printer/chamber are connected to.
 #	If you do not have lights/have no need to cycle them, you can skip this.

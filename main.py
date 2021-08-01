@@ -453,8 +453,12 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
 
-def start_bot(bot_token):
-    updater = Updater(bot_token, workers=4)
+def start_bot(bot_token, socks):
+    request_kwargs = {}
+    if socks:
+        request_kwargs['proxy_url'] = f'socks5://{socks}'
+
+    updater = Updater(bot_token, workers=4, request_kwargs=request_kwargs)
 
     dispatcher = updater.dispatcher
 
@@ -714,6 +718,7 @@ if __name__ == '__main__':
     conf = configparser.ConfigParser()
     conf.read(system_args.configfile)
     host = conf.get('bot', 'server', fallback='localhost')
+    socks_proxy = conf.get('bot', 'socks_proxy', fallback='')
     token = conf.get('bot', 'bot_token')
     chatId = conf.getint('bot', 'chat_id')
     notify_percent = conf.getint('progress_notification', 'percent', fallback=0)
@@ -770,9 +775,8 @@ if __name__ == '__main__':
     klippy = Klippy(host, disabled_macros, eta_source)
     cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
-    bot_updater = start_bot(token)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
-                        silent_status)
+    bot_updater = start_bot(token, socks_proxy)
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands, silent_status)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
