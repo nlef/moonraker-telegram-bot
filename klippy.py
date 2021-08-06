@@ -93,6 +93,7 @@ class Klippy:
         elif print_stats['state'] == 'complete':
             pass
         # Todo: use powerdevice classes
+        # Todo: add powerOff device status
         # if cameraWrap.light_device:
         #     message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if cameraWrap.light_state else 'off'}"
         # return message, printing_filename

@@ -8,12 +8,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import List
 
-import requests
 from numpy import random
 import cv2
 from PIL import Image
 
 from klippy import Klippy
+from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,11 @@ def cam_light_toogle(func):
     def wrapper(self, *args, **kwargs):
         self.use_light()
 
-        if self.light_timeout > 0 and self.light_device and not self.light_state and not self.light_lock.locked():
+        if self.light_timeout > 0 and self.light_device and not self.light_device.device_state and not self.light_lock.locked():
             self.light_timer_event.clear()
             self.light_lock.acquire()
             self.light_need_off = True
-            self.switch_light_device(True)
+            self.light_device.switch_device(True)
             time.sleep(self.light_timeout)
             self.light_timer_event.set()
 
@@ -42,7 +42,7 @@ def cam_light_toogle(func):
                 if self.light_lock.locked():
                     self.light_lock.release()
                 self.light_need_off = False
-                self.switch_light_device(False)
+                self.light_device.switch_device(False)
             else:
                 logger.debug(f"light requests count: {self.light_requests}")
 
@@ -55,10 +55,9 @@ def cam_light_toogle(func):
 
 
 class Camera:
-    def __init__(self, moonraker_host: str, klippy: Klippy, camera_enabled: bool, camera_host: str, threads: int = 0, light_device: str = "",
-                 light_timeout: int = 0, flip_vertically: bool = False, flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2,
-                 video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "", copy_finished_timelapse_dir: str = "", timelapse_cleanup: bool = False,
-                 timelapse_fps: int = 10, debug_logging: bool = False, picture_quality: str = 'low'):
+    def __init__(self, klippy: Klippy, camera_enabled: bool, camera_host: str, light_device: PowerDevice, threads: int = 0, light_timeout: int = 0, flip_vertically: bool = False,
+                 flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "",
+                 copy_finished_timelapse_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, debug_logging: bool = False, picture_quality: str = 'low'):
         self._host: str = camera_host
         self.enabled: bool = camera_enabled
         self._threads: int = threads
@@ -69,10 +68,7 @@ class Camera:
         self._reduceGif: int = reduce_gif
         self._videoDuration: int = video_duration
         self._imgs: str = imgs
-        self._moonraker_host: str = moonraker_host
         self._klippy: Klippy = klippy
-        self._light_state_lock = threading.Lock()
-        self._light_device_on: bool = False
         self._base_dir: str = timelapse_base_dir  # Fixme: relative path failed! ~/timelapse
         self._ready_dir: str = copy_finished_timelapse_dir  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = timelapse_cleanup
@@ -81,8 +77,7 @@ class Camera:
         self._light_need_off_lock = threading.Lock()
 
         self.light_timeout: int = light_timeout
-        # Todo: make class for power device
-        self.light_device: str = light_device
+        self.light_device: PowerDevice = light_device
         self._camera_lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event = threading.Event()
@@ -106,16 +101,6 @@ class Camera:
             logger.debug('OpenCL is available')
             cv2.ocl.setUseOpenCL(True)
             logger.debug(f'OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}')
-
-    @property
-    def light_state(self) -> bool:
-        with self._light_state_lock:
-            return self._light_device_on
-
-    @light_state.setter
-    def light_state(self, state: bool):
-        with self._light_state_lock:
-            self._light_device_on = state
 
     @property
     def light_need_off(self) -> bool:
@@ -143,24 +128,6 @@ class Camera:
     def free_light(self):
         with self._light_request_lock:
             self._light_requests -= 1
-
-    def togle_light_device(self):
-        self.switch_light_device(not self.light_state)
-
-    def switch_light_device(self, state: bool):
-        with self._light_state_lock:
-            if state:
-                res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.light_device}&action=on")
-                if res.ok:
-                    self._light_device_on = True
-                else:
-                    logger.error(f'Light device switch failed: {res.reason}')
-            else:
-                res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.light_device}&action=off")
-                if res.ok:
-                    self._light_device_on = False
-                else:
-                    logger.error(f'Light device switch failed: {res.reason}')
 
     @cam_light_toogle
     def take_photo(self) -> BytesIO:

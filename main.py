@@ -22,6 +22,7 @@ import websocket
 from camera import Camera
 from klippy import Klippy
 from notifications import Notifier
+from power_device import PowerDevice
 
 try:
     import thread
@@ -49,9 +50,6 @@ logger = logging.getLogger(__name__)
 myId = random.randint(300000)
 host = "localhost"
 chatId: int = 12341234
-poweroff_device: str
-poweroff_device_on: bool = False
-
 debug: bool = False
 hidden_methods: list = list()
 
@@ -66,6 +64,8 @@ cameraWrap: Camera
 notifier: Notifier
 ws: websocket.WebSocketApp
 klippy: Klippy
+light_power_device: PowerDevice
+psu_power_device: PowerDevice
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
@@ -78,7 +78,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/photo - capture & send me a photo\n'
                               '/gif - let\'s make some gif from printer cam\n'
                               '/video - will take mp4 video from camera\n'
-                              '/poweroff - turn off moonraker power device from config\n'
+                              '/power - toggle moonraker power device from config\n'
                               '/light - toggle light\n'
                               '/emergency - emergency stop printing',
                               '/shutdown - shutdown Pi gracefully')
@@ -121,9 +121,9 @@ def create_keyboard():
         '/status', '/pause', '/cancel', '/resume', '/files',
         '/photo', '/video', '/gif', '/emergency', '/macros', '/shutdown'
     ]
-    if poweroff_device:
-        custom_keyboard.append('/poweroff')
-    if light_device:
+    if psu_power_device:
+        custom_keyboard.append('/power')
+    if light_power_device:
         custom_keyboard.append('/light')
     filtered = [key for key in custom_keyboard if key not in hidden_methods]
     keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
@@ -237,14 +237,6 @@ def manage_printing(command: str) -> None:
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
-def toggle_power_device(device: str, enable: bool):
-    ws.send(json.dumps({"jsonrpc": "2.0",
-                        "method": "machine.device_power.on" if enable else "machine.device_power.off",
-                        "id": myId,
-                        "params": {f"{device}": None}
-                        }))
-
-
 def emergency_stop_printer():
     ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
 
@@ -287,19 +279,22 @@ def shutdown_host(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands)
 
 
-def power_off(update: Update, _: CallbackContext) -> None:
+def power(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    if poweroff_device:
-        message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands)
+    if psu_power_device:
+        if psu_power_device.device_state:
+            message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands)
+        else:
+            message_to_reply.reply_text('Power On printer?', reply_markup=confirm_keyboard('power_on_printer'), disable_notification=notifier.silent_commands)
     else:
         message_to_reply.reply_text("No power device in config!", disable_notification=notifier.silent_commands)
 
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    if cameraWrap.light_device:
-        cameraWrap.togle_light_device()
+    if light_power_device:
+        light_power_device.toggle_device()
     else:
         message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands)
 
@@ -324,7 +319,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         manage_printing('pause')
         query.delete_message()
     elif query.data == 'power_off_printer':
-        toggle_power_device(poweroff_device, False)
+        psu_power_device.switch_device(False)
+        query.delete_message()
+    elif query.data == 'power_on_printer':
+        psu_power_device.switch_device(True)
         query.delete_message()
     elif 'gmacro:' in query.data:
         klippy.execute_command(query.data.replace('gmacro:', ''))
@@ -473,7 +471,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
-    dispatcher.add_handler(CommandHandler("poweroff", power_off))
+    dispatcher.add_handler(CommandHandler("power", power))
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
@@ -548,7 +546,7 @@ def websocket_to_message(ws_loc, ws_message):
     if debug:
         logger.debug(ws_message)
 
-    global poweroff_device_on, timelapse_running
+    global timelapse_running
 
     if 'error' in json_message:
         return
@@ -579,8 +577,8 @@ def websocket_to_message(ws_loc, ws_message):
                 for dev in json_message['result']['devices']:
                     device_name = dev["device"]
                     device_state = True if dev["status"] == 'on' else False
-                    if poweroff_device == device_name:
-                        poweroff_device_on = device_state
+                    if psu_power_device.name == device_name:
+                        psu_power_device.device_state = device_state
                     if cameraWrap.light_device == device_name:
                         cameraWrap.light_state = device_state
                 return
@@ -627,10 +625,10 @@ def websocket_to_message(ws_loc, ws_message):
         if json_message["method"] == "notify_power_changed":
             device_name = json_message["params"][0]["device"]
             device_state = True if json_message["params"][0]["status"] == 'on' else False
-            if poweroff_device == device_name:
-                poweroff_device_on = device_state
-            if cameraWrap.light_device == device_name:
-                cameraWrap.light_state = device_state
+            if psu_power_device.name == device_name:
+                psu_power_device.device_state = device_state
+            if light_power_device.name == device_name:
+                light_power_device.device_state = device_state
         if json_message["method"] == "notify_status_update":
             if 'display_status' in json_message["params"][0]:
                 if 'message' in json_message["params"][0]['display_status']:
@@ -748,8 +746,8 @@ if __name__ == '__main__':
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
     camera_picture_quality = conf.get('camera', 'picture_quality', fallback='webp')
 
-    poweroff_device = conf.get('bot', 'power_device', fallback='')
-    light_device = conf.get('bot', 'light_device', fallback="")
+    poweroff_device_name = conf.get('bot', 'power_device', fallback='')
+    light_device_name = conf.get('bot', 'light_device', fallback="")
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
     eta_source = conf.get('bot', 'eta_source', fallback='slicer')
@@ -773,7 +771,9 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
 
     klippy = Klippy(host, disabled_macros, eta_source)
-    cameraWrap = Camera(host, klippy, cameraEnabled, cameraHost, camera_threads, light_device, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
+    light_power_device = PowerDevice(light_device_name, host)
+    psu_power_device = PowerDevice(poweroff_device_name, host)
+    cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token, socks_proxy)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands, silent_status)
