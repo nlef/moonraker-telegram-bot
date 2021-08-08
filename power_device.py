@@ -6,7 +6,13 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-class PowerDevice:
+class PowerDevice(object):
+    def __new__(cls, name: str, moonraker_host: str):
+        if name:
+            return super(PowerDevice, cls).__new__(cls)
+        else:
+            return None
+
     def __init__(self, name: str, moonraker_host: str):
         self.name = name
         self._moonraker_host = moonraker_host
@@ -41,9 +47,10 @@ class PowerDevice:
                 else:
                     logger.error(f'Power device switch failed: {res.reason}')
 
-    # def toggle_power_device(device: str, enable: bool):
-    #     ws.send(json.dumps({"jsonrpc": "2.0",
-    #                         "method": "machine.device_power.on" if enable else "machine.device_power.off",
-    #                         "id": myId,
-    #                         "params": {f"{device}": None}
-    #                         }))
+# Maybe use websocket?
+# def toggle_power_device(device: str, enable: bool):
+#     ws.send(json.dumps({"jsonrpc": "2.0",
+#                         "method": "machine.device_power.on" if enable else "machine.device_power.off",
+#                         "id": myId,
+#                         "params": {f"{device}": None}
+#                         }))
