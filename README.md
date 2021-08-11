@@ -77,8 +77,13 @@ Alternatively you can update by hand at your own risk, by doing a pull and runni
 Please understand, that entering commands into the console takes a certain amount of knowledge and is your own responsibility.
 
 
-When tweaking the bot, remember that you have to restart the service every time you change the config:
+When tweaking the bot, remember that you have to **restart the service every time you change the config**:
+You can either do so via ssh
 `sudo systemctl restart moonraker-telegram-bot`
+Or directly by typing
+`/restart`
+to the bot in telegram.
+
 
 Moonraker [history] component must be configured
 
