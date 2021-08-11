@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import timedelta
 
 from telegram import ChatAction
 from telegram.ext import Updater, CallbackContext
@@ -50,7 +51,7 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
-    def notify(self, progress: int = 0, position_z: int = 0):
+    def notify(self, progress: int = 0, position_z: int = 0, by_time: bool = False):
         def send_notification(context: CallbackContext):
             if self._cam_wrap.enabled:
                 (mess, chatId, notify_groups, silent) = context.job.context
@@ -76,10 +77,6 @@ class Notifier:
                 self._last_percent = progress
             if progress % self._percent == 0 and progress > self._last_percent:
                 notifymsg = f"Printed {progress}%"
-                if self._last_message:
-                    notifymsg += f"\n{self._last_message}"
-                if self._klippy.printing_duration > 0:
-                    notifymsg += f"\n{self._klippy.get_eta_message()}"
                 self._last_percent = progress
 
         if position_z != 0 and self._height != 0:
@@ -87,11 +84,16 @@ class Notifier:
                 self._last_height = position_z
             if position_z % self._height == 0 and position_z > self._last_height:
                 notifymsg = f"Printed {position_z}mm"
-                if self._last_message:
-                    notifymsg += f"\n{self._last_message}"
                 self._last_height = position_z
 
+        if by_time:
+            notifymsg = f"Printing for {timedelta(seconds=round(self._klippy.printing_duration))}"
+
         if notifymsg:
+            if self._last_message:
+                notifymsg += f"\n{self._last_message}"
+            notifymsg += f"\n{self._klippy.get_eta_message()}"
+
             self._last_notify_time = time.time()
             self._bot_updater.job_queue.run_once(send_notification, 0, context=(notifymsg, self._chatId, self.notify_groups, self.silent_progress))
 

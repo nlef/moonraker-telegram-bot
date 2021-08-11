@@ -34,7 +34,7 @@ import json
 from io import BytesIO
 import cv2
 import emoji
-import threading
+from apscheduler.schedulers.background import BackgroundScheduler
 
 logging.basicConfig(
     handlers=[
@@ -60,6 +60,10 @@ timelapse_last_height: float = 0.0
 
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
+scheduler = BackgroundScheduler({
+    'apscheduler.job_defaults.coalesce': 'false',
+    'apscheduler.job_defaults.max_instances': '1',
+}, daemon=True)
 cameraWrap: Camera
 notifier: Notifier
 ws: websocket.WebSocketApp
@@ -169,6 +173,7 @@ def take_lapse_photo(position_z: float = -1001):
     if 0.0 < position_z < timelapse_last_height - timelapse_height:
         timelapse_last_height = position_z
 
+    # Todo: maybe use APScheduller?
     if timelapse_height > 0.0 and round(position_z * 100) % round(timelapse_height * 100) == 0 and position_z > timelapse_last_height:
         executors_pool.submit(cameraWrap.take_lapse_photo)
         timelapse_last_height = position_z
@@ -537,16 +542,8 @@ def on_open(websock):
 
 
 def reshedule():
-    while True:
-        if not klippy.connected and ws.keep_running is True:
-            on_open(ws)
-        time.sleep(1)
-
-
-def timelapse_sheduler(interval: int):
-    while True:
-        take_lapse_photo()
-        time.sleep(interval)
+    if not klippy.connected and ws.keep_running is True:
+        on_open(ws)
 
 
 def websocket_to_message(ws_loc, ws_message):
@@ -731,8 +728,7 @@ if __name__ == '__main__':
     notify_height = conf.getint('progress_notification', 'height', fallback=0)
     notify_interval = conf.getint('progress_notification', 'time', fallback=0)
     notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-    notify_groups = [el.strip() for el in conf.get('progress_notification', 'groups').split(',')] if 'progress_notification' in conf and 'groups' in conf[
-        'progress_notification'] else list()
+    notify_groups = [el.strip() for el in conf.get('progress_notification', 'groups').split(',')] if 'progress_notification' in conf and 'groups' in conf['progress_notification'] else list()
     timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
     timelapse_enabled = 'timelapse' in conf
     timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
@@ -778,9 +774,9 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
 
-    klippy = Klippy(host, disabled_macros, eta_source)
     light_power_device = PowerDevice(light_device_name, host)
     psu_power_device = PowerDevice(poweroff_device_name, host)
+    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
     bot_updater = start_bot(token, socks_proxy)
@@ -793,10 +789,14 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    # TOdo: rewrite using ApScheduler
-    threading.Thread(target=reshedule, daemon=True, name='Connection_scheduler').start()
+    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reshedule')
+    # TOdo: start timelapse jobs on print start!
     if timelapse_interval_time > 0:
-        threading.Thread(target=timelapse_sheduler, args=(timelapse_interval_time,), daemon=True).start()
+        scheduler.add_job(take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
+    if notify_interval > 0:
+        scheduler.add_job(notifier.notify, 'interval', seconds=notify_interval, id='notifier_timer', kwargs={'by_time': True})
+
+    scheduler.start()
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
