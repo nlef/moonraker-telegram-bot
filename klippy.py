@@ -10,14 +10,18 @@ from urllib.request import urlopen
 from PIL import Image
 from io import BytesIO
 
+from power_device import PowerDevice
+
 logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str):
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
         self._eta_source: str = eta_source
+        self._light_devvice = light_device
+        self._psu_device = psu_device
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
@@ -69,21 +73,36 @@ class Klippy:
             return False
 
     def get_status(self) -> str:
-        response = requests.get(
-            f"http://{self._host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message&display_status=message")
-        resp = response.json()
-        print_stats = resp['result']['status']['print_stats']
-        webhook = resp['result']['status']['webhooks']
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status&extruder&heater_bed")
+        resp = response.json()['result']['status']
+        print_stats = resp['print_stats']
+        webhook = resp['webhooks']
         message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
-        if 'display_status' in resp['result']['status']:
-            if 'message' in resp['result']['status']['display_status']:
-                msg = resp['result']['status']['display_status']['message']
+        if 'display_status' in resp:
+            if 'message' in resp['display_status']:
+                msg = resp['display_status']['message']
                 if msg and msg is not None:
                     message += f"{msg}\n"
         if 'state_message' in webhook:
             message += f"State message: {webhook['state_message']}\n"
         message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
         # if print_stats['state'] in ('printing', 'paused', 'complete'):
+        message += f"Extruder temp.: {round(resp['extruder']['temperature'])}"
+
+        if resp['extruder']['target']:
+           message += f"\u2192 {round(resp['extruder']['target'])}\n"
+        else:
+           message += f"\n"
+
+ 
+
+        message += f"Bed temp.: {round(resp['heater_bed']['temperature'])}"
+        if resp['heater_bed']['target']:
+          message += f"\u2192 {round(resp['heater_bed']['target'])}\n"
+        else:
+          message += f"\n"
+
+
         if print_stats['state'] == 'printing':
             if not self.printing_filename:
                 self.printing_filename = print_stats['filename']
@@ -92,11 +111,10 @@ class Klippy:
             message += f"Printing paused\n"
         elif print_stats['state'] == 'complete':
             pass
-        # Todo: use powerdevice classes
-        # Todo: add powerOff device status
-        # if cameraWrap.light_device:
-        #     message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if cameraWrap.light_state else 'off'}"
-        # return message, printing_filename
+        if self._light_devvice:
+            message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if self._light_devvice.device_state else 'off'} \n"
+        if self._psu_device:
+            message += emoji.emojize(':electric_plug: PSU Status: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'} \n"
         return message
 
     def execute_command(self, command: str):
@@ -141,3 +159,5 @@ class Klippy:
             return message, bio
         else:
             return message, None
+
+
