@@ -583,10 +583,10 @@ def websocket_to_message(ws_loc, ws_message):
                 for dev in message_result['devices']:
                     device_name = dev["device"]
                     device_state = True if dev["status"] == 'on' else False
-                    if psu_power_device.name == device_name:
+                    if psu_power_device and psu_power_device.name == device_name:
                         psu_power_device.device_state = device_state
-                    if cameraWrap.light_device == device_name:
-                        cameraWrap.light_state = device_state
+                    if light_power_device and light_power_device.name == device_name:
+                        light_power_device.device_state = device_state
                 return
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{message_result}")
