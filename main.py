@@ -558,28 +558,29 @@ def websocket_to_message(ws_loc, ws_message):
 
     if 'id' in json_message:
         if 'id' in json_message and 'result' in json_message:
-            if 'status' in json_message['result']:
-                if 'print_stats' in json_message['result']['status'] and json_message['result']['status']['print_stats']['state'] == "printing":
+            message_result = json_message['result']
+            if 'status' in message_result:
+                if 'print_stats' in message_result['status'] and message_result['status']['print_stats']['state'] == "printing":
                     klippy.printing = True
-                    klippy.printing_filename = json_message['result']['status']['print_stats']['filename']
-                    klippy.printing_duration = json_message['result']['status']['print_stats']['print_duration']
-                if 'display_status' in json_message['result']['status']:
-                    notifier.message = json_message['result']['status']['display_status']['message']
-                    klippy.printing_progress = json_message['result']['status']['display_status']['progress']
-                if 'virtual_sdcard' in json_message['result']['status']:
-                    klippy.vsd_progress = json_message['result']['status']['virtual_sdcard']['progress']
+                    klippy.printing_filename = message_result['status']['print_stats']['filename']
+                    klippy.printing_duration = message_result['status']['print_stats']['print_duration']
+                if 'display_status' in message_result['status']:
+                    notifier.message = message_result['status']['display_status']['message']
+                    klippy.printing_progress = message_result['status']['display_status']['progress']
+                if 'virtual_sdcard' in message_result['status']:
+                    klippy.vsd_progress = message_result['status']['virtual_sdcard']['progress']
                 return
 
-            if 'state' in json_message['result']:
-                if json_message['result']['state'] == 'ready':
+            if 'state' in message_result:
+                if message_result['state'] == 'ready':
                     if ws_loc.keep_running:
                         klippy.connected = True
                         subscribe(ws_loc)
                 else:
                     klippy.connected = False
                 return
-            if 'devices' in json_message['result']:
-                for dev in json_message['result']['devices']:
+            if 'devices' in message_result:
+                for dev in message_result['devices']:
                     device_name = dev["device"]
                     device_state = True if dev["status"] == 'on' else False
                     if psu_power_device.name == device_name:
@@ -588,7 +589,7 @@ def websocket_to_message(ws_loc, ws_message):
                         cameraWrap.light_state = device_state
                 return
             if debug:
-                bot_updater.bot.send_message(chatId, text=f"{json_message['result']}")
+                bot_updater.bot.send_message(chatId, text=f"{message_result}")
         if 'id' in json_message and 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
 
@@ -599,53 +600,56 @@ def websocket_to_message(ws_loc, ws_message):
         #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
         #
     else:
-        if json_message["method"] == "notify_gcode_response":
+        message_params = json_message["params"]
+        message_method = json_message["method"]
+
+        if message_method == "notify_gcode_response":
             if timelapse_mode_manual:
-                if 'timelapse start' in json_message["params"]:
+                if 'timelapse start' in message_params:
                     if not klippy.printing_filename:
                         klippy.get_status()
                     cameraWrap.clean()
                     timelapse_running = True
 
-                if 'timelapse stop' in json_message["params"]:
+                if 'timelapse stop' in message_params:
                     timelapse_running = False
-                if 'timelapse pause' in json_message["params"]:
+                if 'timelapse pause' in message_params:
                     timelapse_running = False
-                if 'timelapse resume' in json_message["params"]:
+                if 'timelapse resume' in message_params:
                     timelapse_running = True
-                if 'timelapse create' in json_message["params"]:
+                if 'timelapse create' in message_params:
                     bot_updater.job_queue.run_once(send_timelapse, 1)
 
-            if 'timelapse photo' in json_message["params"]:
+            if 'timelapse photo' in message_params:
                 take_lapse_photo()
-            if json_message["params"][0].startswith('tgnotify'):
-                notifier.send_notification(json_message["params"][0][9:])
-            if json_message["params"][0].startswith('tgalarm'):
-                notifier.send_error(json_message["params"][0][8:])
-        if json_message["method"] in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
+            if message_params[0].startswith('tgnotify'):
+                notifier.send_notification(message_params[0][9:])
+            if message_params[0].startswith('tgalarm'):
+                notifier.send_error(message_params[0][8:])
+        if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy.connected = False
 
         # Todo: check for multiple device state change
-        if json_message["method"] == "notify_power_changed":
-            device_name = json_message["params"][0]["device"]
-            device_state = True if json_message["params"][0]["status"] == 'on' else False
-            if psu_power_device.name == device_name:
+        if message_method == "notify_power_changed":
+            device_name = message_params[0]["device"]
+            device_state = True if message_params[0]["status"] == 'on' else False
+            if psu_power_device and psu_power_device.name == device_name:
                 psu_power_device.device_state = device_state
-            if light_power_device.name == device_name:
+            if light_power_device and light_power_device.name == device_name:
                 light_power_device.device_state = device_state
-        if json_message["method"] == "notify_status_update":
-            if 'display_status' in json_message["params"][0]:
-                if 'message' in json_message["params"][0]['display_status']:
+        if message_method == "notify_status_update":
+            if 'display_status' in message_params[0]:
+                if 'message' in message_params[0]['display_status']:
                     notifier.message = json_message['params'][0]['display_status']['message']
-                if 'progress' in json_message["params"][0]['display_status']:
-                    notifier.notify(progress=int(json_message["params"][0]['display_status']['progress'] * 100))
-                    klippy.printing_progress = json_message["params"][0]['display_status']['progress']
-            if 'toolhead' in json_message["params"][0] and 'position' in json_message["params"][0]['toolhead']:
+                if 'progress' in message_params[0]['display_status']:
+                    notifier.notify(progress=int(message_params[0]['display_status']['progress'] * 100))
+                    klippy.printing_progress = message_params[0]['display_status']['progress']
+            if 'toolhead' in message_params[0] and 'position' in message_params[0]['toolhead']:
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
-            if 'gcode_move' in json_message["params"][0] and 'position' in json_message["params"][0]['gcode_move']:
-                position_z = json_message["params"][0]['gcode_move']['gcode_position'][2]
+            if 'gcode_move' in message_params[0] and 'position' in message_params[0]['gcode_move']:
+                position_z = message_params[0]['gcode_move']['gcode_position'][2]
                 notifier.notify(position_z=int(position_z))
                 take_lapse_photo(position_z)
             if 'virtual_sdcard' in json_message['params'][0] and 'progress' in json_message['params'][0]['virtual_sdcard']:
