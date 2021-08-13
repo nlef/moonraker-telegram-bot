@@ -600,10 +600,17 @@ def websocket_to_message(ws_loc, ws_message):
         #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
         #
     else:
-        message_params = json_message["params"]
-        message_method = json_message["method"]
+        message_method = json_message['method']
+        if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
+            logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
+            klippy.connected = False
 
-        if message_method == "notify_gcode_response":
+        if 'params' not in json_message:
+            return
+
+        message_params = json_message['params']
+
+        if message_method == 'notify_gcode_response':
             if timelapse_mode_manual:
                 if 'timelapse start' in message_params:
                     if not klippy.printing_filename:
@@ -626,22 +633,19 @@ def websocket_to_message(ws_loc, ws_message):
                 notifier.send_notification(message_params[0][9:])
             if message_params[0].startswith('tgalarm'):
                 notifier.send_error(message_params[0][8:])
-        if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
-            logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
-            klippy.connected = False
 
         # Todo: check for multiple device state change
-        if message_method == "notify_power_changed":
+        if message_method == 'notify_power_changed':
             device_name = message_params[0]["device"]
             device_state = True if message_params[0]["status"] == 'on' else False
             if psu_power_device and psu_power_device.name == device_name:
                 psu_power_device.device_state = device_state
             if light_power_device and light_power_device.name == device_name:
                 light_power_device.device_state = device_state
-        if message_method == "notify_status_update":
+        if message_method == 'notify_status_update':
             if 'display_status' in message_params[0]:
                 if 'message' in message_params[0]['display_status']:
-                    notifier.message = json_message['params'][0]['display_status']['message']
+                    notifier.message = message_params[0]['display_status']['message']
                 if 'progress' in message_params[0]['display_status']:
                     notifier.notify(progress=int(message_params[0]['display_status']['progress'] * 100))
                     klippy.printing_progress = message_params[0]['display_status']['progress']
@@ -652,21 +656,21 @@ def websocket_to_message(ws_loc, ws_message):
                 position_z = message_params[0]['gcode_move']['gcode_position'][2]
                 notifier.notify(position_z=int(position_z))
                 take_lapse_photo(position_z)
-            if 'virtual_sdcard' in json_message['params'][0] and 'progress' in json_message['params'][0]['virtual_sdcard']:
-                klippy.vsd_progress = json_message['params'][0]['virtual_sdcard']['progress']
-            if 'print_stats' in json_message['params'][0]:
+            if 'virtual_sdcard' in message_params[0] and 'progress' in message_params[0]['virtual_sdcard']:
+                klippy.vsd_progress = message_params[0]['virtual_sdcard']['progress']
+            if 'print_stats' in message_params[0]:
                 message = ""
                 state = ""
                 # Fixme:  maybe do not parse without state? history data may not be avaliable
                 # Message with filename will be sent before printing is started
-                if 'filename' in json_message['params'][0]['print_stats']:
-                    klippy.printing_filename = json_message['params'][0]['print_stats']['filename']
-                if 'state' in json_message['params'][0]['print_stats']:
-                    state = json_message['params'][0]['print_stats']['state']
+                if 'filename' in message_params[0]['print_stats']:
+                    klippy.printing_filename = message_params[0]['print_stats']['filename']
+                if 'state' in message_params[0]['print_stats']:
+                    state = message_params[0]['print_stats']['state']
                 # Fixme: reset notify percent & heigth on finish/cancel/start
-                if 'print_duration' in json_message['params'][0]['print_stats']:
-                    klippy.printing_duration = json_message['params'][0]['print_stats']['print_duration']
-                if state == "printing":
+                if 'print_duration' in message_params[0]['print_stats']:
+                    klippy.printing_duration = message_params[0]['print_stats']['print_duration']
+                if state == 'printing':
                     klippy.paused = False
                     if not timelapse_mode_manual:
                         timelapse_running = True
@@ -678,7 +682,7 @@ def websocket_to_message(ws_loc, ws_message):
                         if not timelapse_mode_manual:
                             cameraWrap.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
-                elif state == "paused":
+                elif state == 'paused':
                     klippy.paused = True
                     if not timelapse_mode_manual:
                         timelapse_running = False
@@ -693,17 +697,17 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.printing = False
                     if not timelapse_mode_manual:
                         timelapse_running = False
-                    notifier.send_error(f"Printer state change error: {json_message['params'][0]['print_stats']['state']} \n")
+                    notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
-                    message += f"Printer state change: {json_message['params'][0]['print_stats']['state']} \n"
+                    message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
 
                 if message:
                     notifier.send_notification(message)
 
 
 def parselog():
-    with open('telegram.log') as f:
+    with open('telegram.log.2') as f:
         lines = f.readlines()
 
     wslines = list(filter(lambda it: ' - {' in it, lines))
@@ -788,12 +792,6 @@ if __name__ == '__main__':
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
-    # debug reasons only
-    # parselog()
-
-    greeting_message()
-
-    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reshedule')
     # TOdo: start timelapse jobs on print start!
     if timelapse_interval_time > 0:
         scheduler.add_job(take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
@@ -801,6 +799,13 @@ if __name__ == '__main__':
         scheduler.add_job(notifier.notify, 'interval', seconds=notify_interval, id='notifier_timer', kwargs={'by_time': True})
 
     scheduler.start()
+
+    # debug reasons only
+    #parselog()
+
+    greeting_message()
+
+    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reshedule')
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
