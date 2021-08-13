@@ -546,6 +546,16 @@ def reshedule():
         on_open(ws)
 
 
+def pause_scheduled_jobs():
+    scheduler.pause_job('timelapse_timer')
+    scheduler.pause_job('notifier_timer')
+
+
+def resume_scheduled_jobs():
+    scheduler.resume_job('timelapse_timer')
+    scheduler.resume_job('notifier_timer')
+
+
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     if debug:
@@ -617,14 +627,19 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.get_status()
                     cameraWrap.clean()
                     timelapse_running = True
+                    scheduler.resume_job('timelapse_timer')
 
                 if 'timelapse stop' in message_params:
                     timelapse_running = False
+                    scheduler.pause_job('timelapse_timer')
                 if 'timelapse pause' in message_params:
                     timelapse_running = False
+                    scheduler.pause_job('timelapse_timer')
                 if 'timelapse resume' in message_params:
                     timelapse_running = True
+                    scheduler.resume_job('timelapse_timer')
                 if 'timelapse create' in message_params:
+                    scheduler.pause_job('timelapse_timer')
                     bot_updater.job_queue.run_once(send_timelapse, 1)
 
             if 'timelapse photo' in message_params:
@@ -674,6 +689,9 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.paused = False
                     if not timelapse_mode_manual:
                         timelapse_running = True
+                        resume_scheduled_jobs()
+                    else:
+                        scheduler.resume_job('notifier_timer')
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
@@ -689,17 +707,20 @@ def websocket_to_message(ws_loc, ws_message):
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
+                    pause_scheduled_jobs()
                     if not timelapse_mode_manual:
                         timelapse_running = False
                         bot_updater.job_queue.run_once(send_timelapse, 5)
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
+                    pause_scheduled_jobs()
                     if not timelapse_mode_manual:
                         timelapse_running = False
                     notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
+                    pause_scheduled_jobs()
                     message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
 
                 if message:
@@ -707,7 +728,7 @@ def websocket_to_message(ws_loc, ws_message):
 
 
 def parselog():
-    with open('telegram.log.2') as f:
+    with open('telegram.log') as f:
         lines = f.readlines()
 
     wslines = list(filter(lambda it: ' - {' in it, lines))
@@ -795,8 +816,10 @@ if __name__ == '__main__':
     # TOdo: start timelapse jobs on print start!
     if timelapse_interval_time > 0:
         scheduler.add_job(take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
+        scheduler.get_job('timelapse_timer').pause()
     if notify_interval > 0:
         scheduler.add_job(notifier.notify, 'interval', seconds=notify_interval, id='notifier_timer', kwargs={'by_time': True})
+        scheduler.get_job('notifier_timer').pause()
 
     scheduler.start()
 
