@@ -23,12 +23,12 @@ from camera import Camera
 from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
+from timelapse import Timelapse
 
 try:
     import thread
 except ImportError:
     import _thread as thread
-import time
 import json
 
 from io import BytesIO
@@ -53,11 +53,6 @@ chatId: int = 12341234
 debug: bool = False
 hidden_methods: list = list()
 
-timelapse_enabled: bool = False
-timelapse_mode_manual: bool = False
-timelapse_running: bool = False
-timelapse_last_height: float = 0.0
-
 bot_updater: Updater
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 scheduler = BackgroundScheduler({
@@ -65,6 +60,7 @@ scheduler = BackgroundScheduler({
     'apscheduler.job_defaults.max_instances': '1',
 }, daemon=True)
 cameraWrap: Camera
+timelapse: Timelapse
 notifier: Notifier
 ws: websocket.WebSocketApp
 klippy: Klippy
@@ -156,27 +152,26 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
+# Todo: refactor to Timelapse class
 # Todo: vase mode calcs
 def take_lapse_photo(position_z: float = -1001):
-    if not timelapse_enabled:
+    if not timelapse.enabled:
         logger.debug(f"lapse is disabled")
         return
     elif not klippy.printing_filename:
         logger.debug(f"lapse is inactive for file undefined")
         return
-    elif not timelapse_running:
+    elif not timelapse.running:
         logger.debug(f"lapse is not running at the moment")
         return
 
-    global timelapse_last_height
-
-    if 0.0 < position_z < timelapse_last_height - timelapse_height:
-        timelapse_last_height = position_z
+    if 0.0 < position_z < timelapse.last_height - timelapse.height:
+        timelapse.last_height = position_z
 
     # Todo: maybe use APScheduller?
-    if timelapse_height > 0.0 and round(position_z * 100) % round(timelapse_height * 100) == 0 and position_z > timelapse_last_height:
+    if timelapse.height > 0.0 and round(position_z * 100) % round(timelapse.height * 100) == 0 and position_z > timelapse.last_height:
         executors_pool.submit(cameraWrap.take_lapse_photo)
-        timelapse_last_height = position_z
+        timelapse.last_height = position_z
     elif position_z < -1000:
         executors_pool.submit(cameraWrap.take_lapse_photo)
 
@@ -193,8 +188,8 @@ def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: st
 
 
 def send_timelapse(context: CallbackContext):
-    if not timelapse_enabled or not klippy.printing_filename:
-        logger.debug(f"lapse is inactive for enabled {timelapse_enabled} or file undefined")
+    if not timelapse.enabled or not klippy.printing_filename:
+        logger.debug(f"lapse is inactive for enabled {timelapse.enabled} or file undefined")
     else:
         context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         (bio, width, height, video_path) = cameraWrap.create_timelapse()
@@ -385,7 +380,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
 
 
-def exec_gcode(update: Update, context: CallbackContext) -> None:
+def exec_gcode(update: Update, _: CallbackContext) -> None:
     # maybe use context.args
     message = update.message if update.message else update.effective_message
     if not message.text == '/gcode':
@@ -453,7 +448,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     sending_bio.close()
 
 
-def restart(update: Update, context: CallbackContext) -> None:
+def restart(update: Update, _: CallbackContext) -> None:
     ws.close()
     update.message.reply_text("Restarting bot")
     os._exit(1)
@@ -551,8 +546,6 @@ def websocket_to_message(ws_loc, ws_message):
     if debug:
         logger.debug(ws_message)
 
-    global timelapse_running
-
     if 'error' in json_message:
         return
 
@@ -611,22 +604,22 @@ def websocket_to_message(ws_loc, ws_message):
         message_params = json_message['params']
 
         if message_method == 'notify_gcode_response':
-            if timelapse_mode_manual:
+            if timelapse.manual_mode:
                 if 'timelapse start' in message_params:
                     if not klippy.printing_filename:
                         klippy.get_status()
                     cameraWrap.clean()
-                    timelapse_running = True
+                    timelapse.running = True
                     scheduler.resume_job('timelapse_timer')
 
                 if 'timelapse stop' in message_params:
-                    timelapse_running = False
+                    timelapse.running = False
                     scheduler.pause_job('timelapse_timer')
                 if 'timelapse pause' in message_params:
-                    timelapse_running = False
+                    timelapse.running = False
                     scheduler.pause_job('timelapse_timer')
                 if 'timelapse resume' in message_params:
-                    timelapse_running = True
+                    timelapse.running = True
                     scheduler.resume_job('timelapse_timer')
                 if 'timelapse create' in message_params:
                     scheduler.pause_job('timelapse_timer')
@@ -672,32 +665,32 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.printing_filename = message_params[0]['print_stats']['filename']
                 if 'state' in message_params[0]['print_stats']:
                     state = message_params[0]['print_stats']['state']
-                # Fixme: reset notify percent & heigth on finish/cancel/start
+                # Fixme: reset notify percent & height on finish/cancel/start
                 if 'print_duration' in message_params[0]['print_stats']:
                     klippy.printing_duration = message_params[0]['print_stats']['print_duration']
                 if state == 'printing':
                     klippy.paused = False
                     scheduler.resume_job('notifier_timer')
-                    if not timelapse_mode_manual:
-                        timelapse_running = True
+                    if not timelapse.manual_mode:
+                        timelapse.running = True
                         scheduler.resume_job('timelapse_timer')
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
                         if not klippy.printing_filename:
                             klippy.get_status()
-                        if not timelapse_mode_manual:
+                        if not timelapse.manual_mode:
                             cameraWrap.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
                 elif state == 'paused':
                     klippy.paused = True
-                    if not timelapse_mode_manual:
-                        timelapse_running = False
+                    if not timelapse.manual_mode:
+                        timelapse.running = False
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
-                    if not timelapse_mode_manual:
-                        timelapse_running = False
+                    if not timelapse.manual_mode:
+                        timelapse.running = False
                         scheduler.pause_job('timelapse_timer')
                         bot_updater.job_queue.run_once(send_timelapse, 5)
                     scheduler.pause_job('notifier_timer')
@@ -706,7 +699,7 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.printing = False
                     scheduler.pause_job('timelapse_timer')
                     scheduler.pause_job('notifier_timer')
-                    timelapse_running = False
+                    timelapse.running = False
                     notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
                 elif state:
                     klippy.printing = False
@@ -800,6 +793,7 @@ if __name__ == '__main__':
     klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
+    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height)
     bot_updater = start_bot(token, socks_proxy)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands, silent_status)
 
@@ -808,10 +802,10 @@ if __name__ == '__main__':
     # TOdo: start timelapse jobs on print start!
     if timelapse_interval_time > 0:
         scheduler.add_job(take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
-        scheduler.get_job('timelapse_timer').pause()
+        scheduler.pause_job('timelapse_timer')
     if notify_interval > 0:
         scheduler.add_job(notifier.notify, 'interval', seconds=notify_interval, id='notifier_timer', kwargs={'by_time': True})
-        scheduler.get_job('notifier_timer').pause()
+        scheduler.pause_job('notifier_timer')
 
     scheduler.start()
 
@@ -820,7 +814,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reshedule')
+    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
