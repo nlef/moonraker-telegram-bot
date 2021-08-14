@@ -54,7 +54,6 @@ debug: bool = False
 hidden_methods: list = list()
 
 bot_updater: Updater
-executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 scheduler = BackgroundScheduler({
     'apscheduler.job_defaults.coalesce': 'false',
     'apscheduler.job_defaults.max_instances': '1',
@@ -152,38 +151,13 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
-# Todo: refactor to Timelapse class
-# Todo: vase mode calcs
-def take_lapse_photo(position_z: float = -1001):
-    if not timelapse.enabled:
-        logger.debug(f"lapse is disabled")
-        return
-    elif not klippy.printing_filename:
-        logger.debug(f"lapse is inactive for file undefined")
-        return
-    elif not timelapse.running:
-        logger.debug(f"lapse is not running at the moment")
-        return
-
-    if 0.0 < position_z < timelapse.last_height - timelapse.height:
-        timelapse.last_height = position_z
-
-    # Todo: maybe use APScheduller?
-    if timelapse.height > 0.0 and round(position_z * 100) % round(timelapse.height * 100) == 0 and position_z > timelapse.last_height:
-        executors_pool.submit(cameraWrap.take_lapse_photo)
-        timelapse.last_height = position_z
-    elif position_z < -1000:
-        executors_pool.submit(cameraWrap.take_lapse_photo)
-
-
 # Todo: rename)
 def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
     if bio.getbuffer().nbytes > 52428800:
         bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
     else:
         bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-        bot.send_video(chatId, video=bio, width=width, height=height, caption=caption, timeout=120,
-                       disable_notification=notifier.silent_commands)
+        bot.send_video(chatId, video=bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
     bio.close()
 
 
@@ -219,8 +193,7 @@ def get_gif(update: Update, _: CallbackContext) -> None:
     (bio, width, height) = cameraWrap.take_gif()
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands,
-                                     caption=klippy.get_status())
+    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands, caption=klippy.get_status())
     bio.close()
 
 
@@ -626,7 +599,7 @@ def websocket_to_message(ws_loc, ws_message):
                     bot_updater.job_queue.run_once(send_timelapse, 1)
 
             if 'timelapse photo' in message_params:
-                take_lapse_photo()
+                timelapse.take_lapse_photo()
             if message_params[0].startswith('tgnotify'):
                 notifier.send_notification(message_params[0][9:])
             if message_params[0].startswith('tgalarm'):
@@ -653,7 +626,7 @@ def websocket_to_message(ws_loc, ws_message):
             if 'gcode_move' in message_params[0] and 'position' in message_params[0]['gcode_move']:
                 position_z = message_params[0]['gcode_move']['gcode_position'][2]
                 notifier.notify(position_z=int(position_z))
-                take_lapse_photo(position_z)
+                timelapse.take_lapse_photo(position_z)
             if 'virtual_sdcard' in message_params[0] and 'progress' in message_params[0]['virtual_sdcard']:
                 klippy.vsd_progress = message_params[0]['virtual_sdcard']['progress']
             if 'print_stats' in message_params[0]:
@@ -793,15 +766,14 @@ if __name__ == '__main__':
     klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
-    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height)
+    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap)
     bot_updater = start_bot(token, socks_proxy)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands, silent_status)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
-    # TOdo: start timelapse jobs on print start!
     if timelapse_interval_time > 0:
-        scheduler.add_job(take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
+        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse_interval_time, id='timelapse_timer')
         scheduler.pause_job('timelapse_timer')
     if notify_interval > 0:
         scheduler.add_job(notifier.notify, 'interval', seconds=notify_interval, id='notifier_timer', kwargs={'by_time': True})
@@ -810,7 +782,7 @@ if __name__ == '__main__':
     scheduler.start()
 
     # debug reasons only
-    # parselog()
+    parselog()
 
     greeting_message()
 
