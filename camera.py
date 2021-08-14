@@ -148,9 +148,10 @@ class Camera:
                 elif self._flipVertically:
                     image = cv2.flip(image, 0)
                 # Fixme: segfault!
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(cv2.UMat.get(image))
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(cv2.UMat.get(image_rgb))
                 image = None  # do not remove! memory cleanups!
+                image_rgb = None  # do not remove! memory cleanups!
 
             cap.release()
             cv2.destroyAllWindows()
@@ -311,7 +312,6 @@ class Camera:
         if Path(video_filepath).is_file():
             os.remove(video_filepath)
 
-        # Todo: check light & timer locks?
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
@@ -330,7 +330,8 @@ class Camera:
         bio.name = f'{printing_filename}.mp4'
         with open(video_filepath, 'rb') as fh:
             bio.write(fh.read())
-            if self._ready_dir:
+            # Fixme: move to method with error handling!
+            if self._ready_dir and os.path.isdir(self._ready_dir):
                 with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
                     cpf.write(bio.getbuffer())
         bio.seek(0)

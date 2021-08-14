@@ -782,7 +782,7 @@ if __name__ == '__main__':
     scheduler.start()
 
     # debug reasons only
-    parselog()
+    # parselog()
 
     greeting_message()
 
