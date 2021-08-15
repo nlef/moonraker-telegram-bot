@@ -643,12 +643,12 @@ def websocket_to_message(ws_loc, ws_message):
                     klippy.printing_duration = message_params[0]['print_stats']['print_duration']
                 if state == 'printing':
                     klippy.paused = False
-                    scheduler.resume_job('notifier_timer')
                     if not timelapse.manual_mode:
                         timelapse.running = True
                         scheduler.resume_job('timelapse_timer')
                     if not klippy.printing:
                         klippy.printing = True
+                        scheduler.resume_job('notifier_timer')
                         notifier.reset_notifications()
                         if not klippy.printing_filename:
                             klippy.get_status()
@@ -766,7 +766,7 @@ if __name__ == '__main__':
     klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
-    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap)
+    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, debug)
     bot_updater = start_bot(token, socks_proxy)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands, silent_status)
 

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class Timelapse:
-    def __init__(self, enabled: bool, manual: bool, height: float, klippy: Klippy, camera: Camera):
+    def __init__(self, enabled: bool, manual: bool, height: float, klippy: Klippy, camera: Camera, debug_logging: bool = False, ):
         self._enabled: bool = enabled
         self._mode_manual: bool = manual
         self._running: bool = False
@@ -18,6 +18,8 @@ class Timelapse:
         self._camera = camera
 
         self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
 
     @property
     def enabled(self):
