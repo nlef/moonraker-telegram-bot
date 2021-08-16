@@ -21,14 +21,15 @@ def send_message(context: CallbackContext):
 
 
 class Notifier:
-    def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0,
+    def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0, interval_between: int = 0,
                  notify_groups: list = None, debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._percent: int = percent
         self._height: int = height
-        self._interval: int = interval
+        self.interval: int = interval
+        self._interval_between: int = interval_between
         self.notify_groups: list = notify_groups if notify_groups else list()
 
         self.silent_progress = silent_progress
@@ -68,7 +69,7 @@ class Notifier:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0 and not by_time):
             return
 
-        if self._interval > 0 and time.time() < self._last_notify_time + self._interval:
+        if self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between:
             return
 
         notifymsg = ''
