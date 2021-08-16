@@ -662,11 +662,11 @@ def websocket_to_message(ws_loc, ws_message):
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
+                    scheduler.pause_job('notifier_timer')
                     if not timelapse.manual_mode:
                         timelapse.running = False
                         scheduler.pause_job('timelapse_timer')
                         bot_updater.job_queue.run_once(send_timelapse, 5)
-                    scheduler.pause_job('notifier_timer')
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
@@ -674,12 +674,15 @@ def websocket_to_message(ws_loc, ws_message):
                     scheduler.pause_job('notifier_timer')
                     timelapse.running = False
                     notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
-                elif state:
+                elif state == 'standby':
                     klippy.printing = False
                     # Todo: check for malapropos timer disables!
                     scheduler.pause_job('timelapse_timer')
                     scheduler.pause_job('notifier_timer')
+                    timelapse.running = False
                     message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
+                elif state:
+                    logger.error(f"Unknown state: {state}")
 
                 if message:
                     notifier.send_notification(message)
@@ -756,6 +759,7 @@ if __name__ == '__main__':
     rotatingHandler = RotatingFileHandler(os.path.join(f'{log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3)
     rotatingHandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(rotatingHandler)
+    logging.getLogger('apscheduler').addHandler(rotatingHandler)
 
     if debug:
         faulthandler.enable()
