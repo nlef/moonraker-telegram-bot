@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice):
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None,
+                 debug_logging: bool = False):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
         self._eta_source: str = eta_source
@@ -31,6 +32,11 @@ class Klippy:
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
+
+        if logging_handler:
+            logger.addHandler(logging_handler)
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
 
     @property
     def macros(self):

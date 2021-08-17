@@ -4,6 +4,7 @@ import faulthandler
 import hashlib
 import itertools
 import logging
+import time
 import urllib
 from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
@@ -617,6 +618,7 @@ def websocket_to_message(ws_loc, ws_message):
 
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
+
             if message_params[0].startswith('tgnotify'):
                 notifier.send_notification(message_params[0][9:])
             if message_params[0].startswith('tgalarm'):
@@ -717,6 +719,7 @@ def parselog():
 
     for mes in tt:
         websocket_to_message(ws, mes)
+        time.sleep(0.3)
     print('lalal')
 
 
@@ -763,6 +766,7 @@ if __name__ == '__main__':
     poweroff_device_name = conf.get('bot', 'power_device', fallback='')
     light_device_name = conf.get('bot', 'light_device', fallback="")
     debug = conf.getboolean('bot', 'debug', fallback=False)
+    log_parser = conf.getboolean('bot', 'log_parser', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
     eta_source = conf.get('bot', 'eta_source', fallback='slicer')
 
@@ -789,8 +793,8 @@ if __name__ == '__main__':
     psu_power_device = PowerDevice(poweroff_device_name, host)
     klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
-                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, debug, camera_picture_quality)
-    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, timelapse_interval_time, debug)
+                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, rotatingHandler, debug, camera_picture_quality)
+    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, timelapse_interval_time, rotatingHandler, debug)
     bot_updater = start_bot(token, socks_proxy)
     notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_interval, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
                         silent_status)
@@ -800,7 +804,8 @@ if __name__ == '__main__':
     scheduler.start()
 
     # debug reasons only
-    # parselog()
+    if log_parser:
+        parselog()
 
     greeting_message()
 
