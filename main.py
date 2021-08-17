@@ -613,9 +613,10 @@ def websocket_to_message(ws_loc, ws_message):
                     if timelapse.interval > 0:
                         scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
                 if 'timelapse create' in message_params:
-                    scheduler.remove_job('timelapse_timer')  # Todo: check if useless
                     bot_updater.job_queue.run_once(send_timelapse, 1)
-
+                    if scheduler.get_job('timelapse_timer'):
+                        scheduler.remove_job('timelapse_timer')  # Todo: check if useless
+                    
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
 
