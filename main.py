@@ -606,10 +606,11 @@ def websocket_to_message(ws_loc, ws_message):
                     scheduler.remove_job('timelapse_timer')
                 if 'timelapse pause' in message_params:
                     timelapse.running = False
-                    scheduler.pause_job('timelapse_timer')
+                    scheduler.remove_job('timelapse_timer')
                 if 'timelapse resume' in message_params:
                     timelapse.running = True
-                    scheduler.resume_job('timelapse_timer')
+                    if timelapse.interval > 0:
+                        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
                 if 'timelapse create' in message_params:
                     scheduler.remove_job('timelapse_timer')  # Todo: check if useless
                     bot_updater.job_queue.run_once(send_timelapse, 1)
@@ -668,16 +669,16 @@ def websocket_to_message(ws_loc, ws_message):
                             klippy.get_status()
                         if not timelapse.manual_mode:
                             cameraWrap.clean()
-                            if timelapse.interval > 0:
-                                scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
                     if not timelapse.manual_mode:
                         timelapse.running = True
-                        # scheduler.resume_job('timelapse_timer')
+                        if timelapse.interval > 0:
+                            scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
                     bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
                 elif state == 'paused':
                     klippy.paused = True
                     if not timelapse.manual_mode:
                         timelapse.running = False
+                        scheduler.remove_job('timelapse_timer')
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
