@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-
     def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None,
                  debug_logging: bool = False):
         self._host = moonraker_host
@@ -95,23 +94,6 @@ class Klippy:
             message += f"State message: {webhook['state_message']}\n"
         message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
         # if print_stats['state'] in ('printing', 'paused', 'complete'):
-        message += f"Extruder temp.: {round(resp['extruder']['temperature'])}"
-
-        if resp['extruder']['target']:
-           message += f"\u2192 {round(resp['extruder']['target'])}\n"
-        else:
-           message += f"\n"
-
- 
-
-        message += f"Bed temp.: {round(resp['heater_bed']['temperature'])}"
-        if resp['heater_bed']['target']:
-          message += f"\u2192 {round(resp['heater_bed']['target'])}\n"
-        else:
-          message += f"\n"
-
-
-
         if print_stats['state'] == 'printing':
             if not self.printing_filename:
                 self.printing_filename = print_stats['filename']
@@ -120,10 +102,16 @@ class Klippy:
             message += f"Printing paused\n"
         elif print_stats['state'] == 'complete':
             pass
+
+        message += f"Extruder temp.: {round(resp['extruder']['temperature'])}"
+        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(resp['extruder']['target'])}\n" if resp['extruder']['target'] else "\n"
+        message += f"Bed temp.: {round(resp['heater_bed']['temperature'])}"
+        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(resp['heater_bed']['target'])}\n" if resp['heater_bed']['target'] else "\n"
+
         if self._light_devvice:
-            message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if self._light_devvice.device_state else 'off'} \n"
+            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_devvice.device_state else 'off'}\n"
         if self._psu_device:
-            message += emoji.emojize(':electric_plug: PSU Status: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'} \n"
+            message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
     def execute_command(self, command: str):
@@ -168,5 +156,3 @@ class Klippy:
             return message, bio
         else:
             return message, None
-
-
