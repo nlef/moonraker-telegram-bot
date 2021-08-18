@@ -511,7 +511,7 @@ def on_open(websock):
 
 
 def reshedule():
-    if not klippy.connected and ws.keep_running is True:
+    if not klippy.connected and ws.keep_running:
         on_open(ws)
 
 
@@ -554,12 +554,22 @@ def websocket_to_message(ws_loc, ws_message):
                 return
 
             if 'state' in message_result:
-                if message_result['state'] == 'ready':
+                klippy_state = message_result['state']
+                if klippy_state == 'ready':
                     if ws_loc.keep_running:
                         klippy.connected = True
                         subscribe(ws_loc)
-                else:
+                        if scheduler.get_job('ws_reschedule'):
+                            scheduler.remove_job('ws_reschedule')
+                elif klippy_state in ["error", "shutdown", "startup"]:
                     klippy.connected = False
+                    if not scheduler.get_job('ws_reschedule'):
+                        scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+                else:
+                    logger.error(f"UnKnown klippy state: {klippy_state}")
+                    klippy.connected = False
+                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+
                 return
             if 'devices' in message_result:
                 for dev in message_result['devices']:
@@ -586,6 +596,8 @@ def websocket_to_message(ws_loc, ws_message):
         if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             klippy.connected = False
+            if not scheduler.get_job('ws_reschedule'):
+                scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
 
         if 'params' not in json_message:
             return
@@ -616,7 +628,7 @@ def websocket_to_message(ws_loc, ws_message):
                     bot_updater.job_queue.run_once(send_timelapse, 1)
                     if scheduler.get_job('timelapse_timer'):
                         scheduler.remove_job('timelapse_timer')  # Todo: check if useless
-                    
+
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
 
