@@ -10,12 +10,12 @@ CURRENT_USER=${USER}
 
 stop_sevice() {
   serviceName="moonraker-telegram-bot"
-  if sudo systemctl --all --type service | grep -q "$serviceName"; then
+  if sudo systemctl --all --type service | grep "$serviceName" | grep -q running; then
     ## stop existing instance
     echo "Stopping moonraker-telegram-bot instance ..."
     sudo systemctl stop moonraker-telegram-bot
   else
-    echo "$serviceName service does not exist."
+    echo "$serviceName service does not exist or not running."
   fi
 }
 

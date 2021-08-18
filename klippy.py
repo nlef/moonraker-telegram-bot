@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice):
+
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None,
+                 debug_logging: bool = False):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
         self._eta_source: str = eta_source
@@ -32,6 +34,11 @@ class Klippy:
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
 
+        if logging_handler:
+            logger.addHandler(logging_handler)
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
+
     @property
     def macros(self):
         return self._get_marco_list()
@@ -42,7 +49,7 @@ class Klippy:
 
     @property
     def printing_filename_with_time(self):
-        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"  # Todo: maybe add seconds?
+        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     @printing_filename.setter
     def printing_filename(self, new_value: str):
@@ -52,6 +59,7 @@ class Klippy:
             self.file_print_start_time = 0.0
             return
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
+        # Todo: add response status check!
         resp = response.json()['result']
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
@@ -101,6 +109,7 @@ class Klippy:
           message += f"\u2192 {round(resp['heater_bed']['target'])}\n"
         else:
           message += f"\n"
+
 
 
         if print_stats['state'] == 'printing':

@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import timedelta
 
 from telegram import ChatAction
 from telegram.ext import Updater, CallbackContext
@@ -20,14 +21,15 @@ def send_message(context: CallbackContext):
 
 
 class Notifier:
-    def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0,
+    def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0, interval_between: int = 0,
                  notify_groups: list = None, debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._percent: int = percent
         self._height: int = height
-        self._interval: int = interval
+        self.interval: int = interval
+        self._interval_between: int = interval_between
         self.notify_groups: list = notify_groups if notify_groups else list()
 
         self.silent_progress = silent_progress
@@ -50,7 +52,7 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
-    def notify(self, progress: int = 0, position_z: int = 0):
+    def notify(self, progress: int = 0, position_z: int = 0, by_time: bool = False):
         def send_notification(context: CallbackContext):
             if self._cam_wrap.enabled:
                 (mess, chatId, notify_groups, silent) = context.job.context
@@ -64,10 +66,10 @@ class Notifier:
             else:
                 send_message(context)
 
-        if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 + self._percent == 0):
+        if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0 and not by_time):
             return
 
-        if self._interval > 0 and time.time() < self._last_notify_time + self._interval:
+        if self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between:
             return
 
         notifymsg = ''
@@ -76,10 +78,6 @@ class Notifier:
                 self._last_percent = progress
             if progress % self._percent == 0 and progress > self._last_percent:
                 notifymsg = f"Printed {progress}%"
-                if self._last_message:
-                    notifymsg += f"\n{self._last_message}"
-                if self._klippy.printing_duration > 0:
-                    notifymsg += f"\n{self._klippy.get_eta_message()}"
                 self._last_percent = progress
 
         if position_z != 0 and self._height != 0:
@@ -87,11 +85,16 @@ class Notifier:
                 self._last_height = position_z
             if position_z % self._height == 0 and position_z > self._last_height:
                 notifymsg = f"Printed {position_z}mm"
-                if self._last_message:
-                    notifymsg += f"\n{self._last_message}"
                 self._last_height = position_z
 
+        if by_time:
+            notifymsg = f"Printing for {timedelta(seconds=round(self._klippy.printing_duration))}"
+
         if notifymsg:
+            if self._last_message:
+                notifymsg += f"\n{self._last_message}"
+            notifymsg += f"\n{self._klippy.get_eta_message()}"
+
             self._last_notify_time = time.time()
             self._bot_updater.job_queue.run_once(send_notification, 0, context=(notifymsg, self._chatId, self.notify_groups, self.silent_progress))
 
