@@ -515,6 +515,26 @@ def reshedule():
         on_open(ws)
 
 
+def add_timelapse_timer():
+    if timelapse.interval > 0:
+        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
+
+
+def remove_timelapse_timer():
+    if scheduler.get_job('timelapse_timer'):
+        scheduler.remove_job('timelapse_timer')
+
+
+def add_notifier_timer():
+    if notifier.interval > 0:
+        scheduler.add_job(notifier.notify, 'interval', seconds=notifier.interval, id='notifier_timer', kwargs={'by_time': True})
+
+
+def remove_notifier_timer():
+    if scheduler.get_job('notifier_timer'):
+        scheduler.remove_job('notifier_timer')
+
+
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     if debug:
@@ -534,14 +554,12 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.printing_filename = print_stats['filename']
                         klippy.printing_duration = print_stats['print_duration']
                         klippy.filament_used = print_stats['filament_used']
+                        # Todo: maybe get print start time and set start interval for job?
+                        add_notifier_timer()
                         if not timelapse.manual_mode:
                             timelapse.running = True
-                            if timelapse.interval > 0:
-                                scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
-                        # TOdo: manual timelapse start check?
-                        if notifier.interval > 0:
-                            # Todo: maybe get print start time and set start interval for job?
-                            scheduler.add_job(notifier.notify, 'interval', seconds=notifier.interval, id='notifier_timer', kwargs={'by_time': True})
+                            # TOdo: manual timelapse start check?
+                            add_timelapse_timer()
                     if print_stats['state'] == "printing":
                         klippy.paused = False
                     if print_stats['state'] == "paused":
@@ -612,23 +630,20 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.get_status()
                     cameraWrap.clean()
                     timelapse.running = True
-                    if timelapse.interval > 0:
-                        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
+                    add_timelapse_timer()
 
                 if 'timelapse stop' in message_params:
                     timelapse.running = False
-                    scheduler.remove_job('timelapse_timer')
+                    remove_timelapse_timer()
                 if 'timelapse pause' in message_params:
                     timelapse.running = False
-                    scheduler.remove_job('timelapse_timer')
+                    remove_timelapse_timer()
                 if 'timelapse resume' in message_params:
                     timelapse.running = True
-                    if timelapse.interval > 0:
-                        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
+                    add_timelapse_timer()
                 if 'timelapse create' in message_params:
                     bot_updater.job_queue.run_once(send_timelapse, 1)
-                    if scheduler.get_job('timelapse_timer'):
-                        scheduler.remove_job('timelapse_timer')  # Todo: check if useless
+                    remove_timelapse_timer()
 
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
@@ -681,8 +696,7 @@ def websocket_to_message(ws_loc, ws_message):
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
-                        if notifier.interval > 0:
-                            scheduler.add_job(notifier.notify, 'interval', seconds=notifier.interval, id='notifier_timer', kwargs={'by_time': True})
+                        add_notifier_timer()
                         if not klippy.printing_filename:
                             klippy.get_status()
                         if not timelapse.manual_mode:
@@ -691,33 +705,32 @@ def websocket_to_message(ws_loc, ws_message):
 
                     if not timelapse.manual_mode:
                         timelapse.running = True
-                        if timelapse.interval > 0:
-                            scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
+                        add_timelapse_timer()
                 elif state == 'paused':
                     klippy.paused = True
                     if not timelapse.manual_mode:
                         timelapse.running = False
-                        scheduler.remove_job('timelapse_timer')
+                        remove_timelapse_timer()
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
-                    scheduler.remove_job('notifier_timer')
+                    remove_notifier_timer()
                     if not timelapse.manual_mode:
                         timelapse.running = False
-                        scheduler.remove_job('timelapse_timer')
+                        remove_timelapse_timer()
                         bot_updater.job_queue.run_once(send_timelapse, 5)
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
-                    scheduler.remove_job('timelapse_timer')
-                    scheduler.remove_job('notifier_timer')
+                    remove_timelapse_timer()
+                    remove_notifier_timer()
                     timelapse.running = False
                     notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
                 elif state == 'standby':
                     klippy.printing = False
-                    scheduler.remove_job('notifier_timer')
+                    remove_notifier_timer()
                     # Fixme: check manual mode
-                    scheduler.remove_job('timelapse_timer')
+                    remove_timelapse_timer()
                     timelapse.running = False
                     message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
                 elif state:
