@@ -489,7 +489,7 @@ def subscribe(websock):
                     'method': 'printer.objects.subscribe',
                     'params': {
                         'objects': {
-                            'print_stats': ['filename', 'state', 'print_duration'],
+                            'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
                             'display_status': ['progress', 'message'],
                             'toolhead': ['position'],
                             'gcode_move': ['position', 'gcode_position'],
@@ -533,6 +533,7 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.printing = True
                         klippy.printing_filename = print_stats['filename']
                         klippy.printing_duration = print_stats['print_duration']
+                        klippy.filament_used = print_stats['filament_used']
                         if not timelapse.manual_mode:
                             timelapse.running = True
                             if timelapse.interval > 0:
@@ -668,6 +669,8 @@ def websocket_to_message(ws_loc, ws_message):
                 # Message with filename will be sent before printing is started
                 if 'filename' in message_params[0]['print_stats']:
                     klippy.printing_filename = message_params[0]['print_stats']['filename']
+                if 'filament_used' in message_params[0]['print_stats']:
+                    klippy.filament_used = message_params[0]['print_stats']['filament_used']
                 if 'state' in message_params[0]['print_stats']:
                     state = message_params[0]['print_stats']['state']
                 # Fixme: reset notify percent & height on finish/cancel/start
@@ -684,11 +687,12 @@ def websocket_to_message(ws_loc, ws_message):
                             klippy.get_status()
                         if not timelapse.manual_mode:
                             cameraWrap.clean()
+                        bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
+
                     if not timelapse.manual_mode:
                         timelapse.running = True
                         if timelapse.interval > 0:
                             scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
-                    bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
                 elif state == 'paused':
                     klippy.paused = True
                     if not timelapse.manual_mode:
