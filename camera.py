@@ -143,24 +143,18 @@ class Camera:
                 logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
-                # image_umt = cv2.UMat(image)
-                # if self._flipVertically and self._flipHorizontally:
-                #     image_umt = cv2.flip(image_umt, -1)
-                # elif self._flipHorizontally:
-                #     image_umt = cv2.flip(image_umt, 1)
-                # elif self._flipVertically:
-                #     image_umt = cv2.flip(image_umt, 0)
-                # # Fixme: segfault!
-                # image_rgb = cv2.cvtColor(image_umt, cv2.COLOR_BGR2RGB)
-                # img = Image.fromarray(cv2.UMat.get(image_rgb))
-                # 
-                # image_rgb = None  # do not remove! memory cleanups!
-                img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-                if self._flipVertically:
-                    img = img.transpose(Image.FLIP_TOP_BOTTOM)
-                if self._flipHorizontally:
-                    img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                image = cv2.UMat(image)
+                if self._flipVertically and self._flipHorizontally:
+                    image = cv2.flip(image, -1)
+                elif self._flipHorizontally:
+                    image = cv2.flip(image, 1)
+                elif self._flipVertically:
+                    image = cv2.flip(image, 0)
+                # Fixme: segfault!
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(cv2.UMat.get(image_rgb))
                 image = None  # do not remove! memory cleanups!
+                image_rgb = None  # do not remove! memory cleanups!
 
             cap.release()
             cv2.destroyAllWindows()

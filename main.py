@@ -56,6 +56,10 @@ hidden_methods: list = list()
 
 bot_updater: Updater
 scheduler = BackgroundScheduler({
+    'apscheduler.executors.default': {
+        'class': 'apscheduler.executors.pool:ThreadPoolExecutor',
+        'max_workers': '10'
+    },
     'apscheduler.job_defaults.coalesce': 'false',
     'apscheduler.job_defaults.max_instances': '1',
 }, daemon=True)
@@ -535,6 +539,10 @@ def remove_notifier_timer():
         scheduler.remove_job('notifier_timer')
 
 
+def sched_notification(progress: int = 0, position_z: int = 0):
+    scheduler.add_job(notifier.notify, kwargs={'progress': progress, 'position_z': position_z}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+
+
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     if debug:
@@ -666,14 +674,16 @@ def websocket_to_message(ws_loc, ws_message):
                 if 'message' in message_params[0]['display_status']:
                     notifier.message = message_params[0]['display_status']['message']
                 if 'progress' in message_params[0]['display_status']:
-                    notifier.notify(progress=int(message_params[0]['display_status']['progress'] * 100))
+                    # notifier.notify(progress=int(message_params[0]['display_status']['progress'] * 100))
+                    sched_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
                     klippy.printing_progress = message_params[0]['display_status']['progress']
             if 'toolhead' in message_params[0] and 'position' in message_params[0]['toolhead']:
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in message_params[0] and 'position' in message_params[0]['gcode_move']:
                 position_z = message_params[0]['gcode_move']['gcode_position'][2]
-                notifier.notify(position_z=int(position_z))
+                # notifier.notify(position_z=int(position_z))
+                sched_notification(position_z=int(position_z))
                 timelapse.take_lapse_photo(position_z)
             if 'virtual_sdcard' in message_params[0] and 'progress' in message_params[0]['virtual_sdcard']:
                 klippy.vsd_progress = message_params[0]['virtual_sdcard']['progress']
@@ -749,7 +759,7 @@ def parselog():
 
     for mes in tt:
         websocket_to_message(ws, mes)
-        time.sleep(0.3)
+        # time.sleep(0.1)
     print('lalal')
 
 

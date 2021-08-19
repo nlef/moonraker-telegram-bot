@@ -20,6 +20,19 @@ def send_message(context: CallbackContext):
         context.bot.send_message(group, text=mess, disable_notification=silent)
 
 
+def send_notification(context: CallbackContext):
+    (mess, pht, chatId, notify_groups, silent) = context.job.context
+    if pht:
+        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+        context.bot.send_photo(chatId, photo=pht, caption=mess, disable_notification=silent)
+        for group_ in notify_groups:
+            context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+            context.bot.send_photo(group_, photo=pht, caption=mess, disable_notification=silent)
+        pht.close()
+    else:
+        send_message(context)
+
+
 class Notifier:
     def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, percent: int = 5, height: int = 5, interval: int = 0, interval_between: int = 0,
                  notify_groups: list = None, debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
@@ -53,18 +66,6 @@ class Notifier:
         self._last_message = new
 
     def notify(self, progress: int = 0, position_z: int = 0, by_time: bool = False):
-        def send_notification(context: CallbackContext):
-            if self._cam_wrap.enabled:
-                (mess, chatId, notify_groups, silent) = context.job.context
-                photo = self._cam_wrap.take_photo()
-                context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-                context.bot.send_photo(chatId, photo=photo, caption=mess, disable_notification=silent)
-                for group_ in notify_groups:
-                    context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    context.bot.send_photo(group_, photo=photo, caption=mess, disable_notification=silent)
-                photo.close()
-            else:
-                send_message(context)
 
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0 and not by_time):
             return
@@ -96,7 +97,8 @@ class Notifier:
             notifymsg += f"\n{self._klippy.get_eta_message()}"
 
             self._last_notify_time = time.time()
-            self._bot_updater.job_queue.run_once(send_notification, 0, context=(notifymsg, self._chatId, self.notify_groups, self.silent_progress))
+            photo = self._cam_wrap.take_photo() if self._cam_wrap.enabled else None
+            self._bot_updater.job_queue.run_once(send_notification, 0, context=(notifymsg, photo, self._chatId, self.notify_groups, self.silent_progress))
 
     def send_error(self, message: str):
         self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, False))
