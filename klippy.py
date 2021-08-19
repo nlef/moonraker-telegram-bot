@@ -32,6 +32,7 @@ class Klippy:
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
+        self.filament_used: float = 0.0
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -139,9 +140,8 @@ class Klippy:
         resp = response.json()['result']
         self.file_estimated_time = resp['estimated_time']
 
-        filemanet_lenght = round(resp['filament_total'] / 1000, 2)
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        message += f"Filament: {round(filemanet_lenght * self.printing_progress, 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
+        message += f"Filament: {round(self.filament_used, 2)}m / {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g\n"
         message += self.get_eta_message()
 
         if 'thumbnails' in resp:
