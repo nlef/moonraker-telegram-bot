@@ -122,7 +122,7 @@ def status(update: Update, _: CallbackContext) -> None:
 def create_keyboard():
     custom_keyboard = [
         '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/gif', '/emergency', '/macros', '/shutdown'
+        '/photo', '/video', '/emergency', '/macros', '/shutdown'
     ]
     if psu_power_device:
         custom_keyboard.append('/power')
@@ -325,11 +325,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
 
 def get_gcode_files(update: Update, _: CallbackContext) -> None:
     def create_file_button(element) -> InlineKeyboardButton:
-        if 'path' in element:
-            filename = element['path']
-        else:
-            filename = element['filename']
-
+        filename = element['path'] if 'path' in element else element['filename']
         return InlineKeyboardButton(filename, callback_data=hashlib.md5(filename.encode()).hexdigest() + '.gcode')
 
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)

@@ -94,20 +94,20 @@ class Notifier:
             if progress < self._last_percent - self._percent:
                 self._last_percent = progress
             if progress % self._percent == 0 and progress > self._last_percent:
-                notifymsg = f"Printed {progress}%"
+                notifymsg = f"Printed {progress}%\n"
                 self._last_percent = progress
 
         if position_z != 0 and self._height != 0:
             if position_z < self._last_height - self._height:
                 self._last_height = position_z
             if position_z % self._height == 0 and position_z > self._last_height:
-                notifymsg = f"Printed {position_z}mm"
+                notifymsg = f"Printed {position_z}mm\n"
                 self._last_height = position_z
 
         if notifymsg:
             if self._last_message:
-                notifymsg += f"\n{self._last_message}"
-            notifymsg += f"\n{self._klippy.get_eta_message()}"
+                notifymsg += f"{self._last_message}\n"
+            notifymsg += f"{self._klippy.get_eta_message()}"
 
             self._last_notify_time = time.time()
             self._sched.add_job(self.notify, kwargs={'message': notifymsg}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
@@ -117,10 +117,10 @@ class Notifier:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between):
             return
 
-        notifymsg = f"Printing for {timedelta(seconds=round(self._klippy.printing_duration))}"
+        notifymsg = f"Printing for {timedelta(seconds=round(self._klippy.printing_duration))}\n"
         if self._last_message:
-            notifymsg += f"\n{self._last_message}"
-        notifymsg += f"\n{self._klippy.get_eta_message()}"
+            notifymsg += f"{self._last_message}\n"
+        notifymsg += f"{self._klippy.get_eta_message()}"
         self.notify(notifymsg)
 
     def add_notifier_timer(self):

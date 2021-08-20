@@ -60,6 +60,9 @@ class Timelapse:
         elif not self._running:
             logger.debug(f"lapse is not running at the moment")
             return
+        elif not self._mode_manual and self._klippy.printing_duration <= 0.0:
+            logger.debug(f"lapse must not run with auto mode and zero print duration")
+            return
 
         if 0.0 < position_z < self._last_height - self._height:
             self._last_height = position_z
