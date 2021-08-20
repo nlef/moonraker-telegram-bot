@@ -18,7 +18,7 @@ from power_device import PowerDevice
 logger = logging.getLogger(__name__)
 
 
-def cam_light_toogle(func):
+def cam_light_toggle(func):
     def wrapper(self, *args, **kwargs):
         self.use_light()
 
@@ -132,7 +132,7 @@ class Camera:
         with self._light_request_lock:
             self._light_requests -= 1
 
-    @cam_light_toogle
+    @cam_light_toggle
     def take_photo(self) -> BytesIO:
         with self._camera_lock:
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
@@ -172,7 +172,7 @@ class Camera:
         bio.seek(0)
         return bio
 
-    @cam_light_toogle
+    @cam_light_toggle
     def take_video(self):
         def process_video_frame(frame_loc):
             frame_loc_ = cv2.UMat(frame_loc)
@@ -227,60 +227,6 @@ class Camera:
 
         return bio, width, height
 
-    @cam_light_toogle
-    def take_gif(self):
-        def process_frame(frame) -> Image:
-            frame = cv2.UMat(frame)
-            if self._flipVertically and self._flipHorizontally:
-                frame = cv2.flip(frame, -1)
-            elif self._flipHorizontally:
-                frame = cv2.flip(frame, 1)
-            elif self._flipVertically:
-                frame = cv2.flip(frame, 0)
-            if self._reduceGif > 0:
-                frame = cv2.resize(frame, (int(width / self._reduceGif), int(height / self._reduceGif)))
-
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            return Image.fromarray(cv2.UMat.get(frame))
-
-        gif = []
-        fps = 0
-        with self._camera_lock:
-            cv2.setNumThreads(self._threads)
-            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
-            success, image = cap.read()
-
-            if not success:
-                logger.debug("failed to get camera frame for gif")
-
-            height, width, channels = image.shape
-            fps_cam = cap.get(cv2.CAP_PROP_FPS)
-            gif.append(process_frame(image))
-
-            t_end = time.time() + self._gifDuration
-            # TOdo: calc frame count
-            while success and time.time() < t_end:
-                prev_frame_time = time.time()
-                success, image_inner = cap.read()
-                new_frame_time = time.time()
-                gif.append(process_frame(image_inner))
-                fps = 1 / (new_frame_time - prev_frame_time)
-
-            cap.release()
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
-
-        logger.debug(f"Measured gif fps is {fps}, while camera fps {fps_cam}")
-        if fps <= 0:
-            fps = 1
-        bio = BytesIO()
-        bio.name = 'image.gif'
-        gif[0].save(bio, format='GIF', save_all=True, optimize=True, append_images=gif[1:], duration=int(1000 / int(fps)), loop=0)
-        bio.seek(0)
-
-        return bio, width, height
-
     def take_lapse_photo(self) -> None:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
@@ -303,7 +249,7 @@ class Camera:
             time.sleep(1)
 
         if not Path(f'{lapse_dir}/lapse.lock').is_file():
-            os.mknod(f'{lapse_dir}/lapse.lock')
+            os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!
 
         filename = glob.glob(f'{lapse_dir}/*.{self._img_extension}')[0]
         img = cv2.imread(filename)

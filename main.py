@@ -6,7 +6,6 @@ import itertools
 import logging
 import time
 import urllib
-from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
 import os
 import sys
@@ -80,7 +79,6 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/cancel - cancel printing\n'
                               '/files - list last 5 files( you can start printing one from menu)\n'
                               '/photo - capture & send me a photo\n'
-                              '/gif - let\'s make some gif from printer cam\n'
                               '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
                               '/light - toggle light\n'
@@ -185,20 +183,6 @@ def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
     bio = cameraWrap.take_photo()
     message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands)
-    bio.close()
-
-
-def get_gif(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
-    if not cameraEnabled:
-        message_to_reply.reply_text("camera is disabled")
-        return
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-
-    (bio, width, height) = cameraWrap.take_gif()
-
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-    message_to_reply.reply_animation(animation=bio, width=width, height=height, timeout=60, disable_notification=notifier.silent_commands, caption=klippy.get_status())
     bio.close()
 
 
@@ -451,7 +435,6 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
     dispatcher.add_handler(CommandHandler("photo", get_photo, run_async=True))
-    dispatcher.add_handler(CommandHandler("gif", get_gif, run_async=True))
     dispatcher.add_handler(CommandHandler("video", get_video, run_async=True))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
@@ -519,30 +502,6 @@ def reshedule():
         on_open(ws)
 
 
-def add_timelapse_timer():
-    if timelapse.interval > 0:
-        scheduler.add_job(timelapse.take_lapse_photo, 'interval', seconds=timelapse.interval, id='timelapse_timer')
-
-
-def remove_timelapse_timer():
-    if scheduler.get_job('timelapse_timer'):
-        scheduler.remove_job('timelapse_timer')
-
-
-def add_notifier_timer():
-    if notifier.interval > 0:
-        scheduler.add_job(notifier.notify, 'interval', seconds=notifier.interval, id='notifier_timer', kwargs={'by_time': True})
-
-
-def remove_notifier_timer():
-    if scheduler.get_job('notifier_timer'):
-        scheduler.remove_job('notifier_timer')
-
-
-def sched_notification(progress: int = 0, position_z: int = 0):
-    scheduler.add_job(notifier.notify, kwargs={'progress': progress, 'position_z': position_z}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
-
-
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     if debug:
@@ -563,11 +522,10 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.printing_duration = print_stats['print_duration']
                         klippy.filament_used = print_stats['filament_used']
                         # Todo: maybe get print start time and set start interval for job?
-                        add_notifier_timer()
+                        notifier.add_notifier_timer()
                         if not timelapse.manual_mode:
                             timelapse.running = True
                             # TOdo: manual timelapse start check?
-                            add_timelapse_timer()
                     if print_stats['state'] == "printing":
                         klippy.paused = False
                     if print_stats['state'] == "paused":
@@ -609,6 +567,7 @@ def websocket_to_message(ws_loc, ws_message):
                 return
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{message_result}")
+
         if 'id' in json_message and 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
 
@@ -636,22 +595,17 @@ def websocket_to_message(ws_loc, ws_message):
                 if 'timelapse start' in message_params:
                     if not klippy.printing_filename:
                         klippy.get_status()
-                    cameraWrap.clean()
+                    timelapse.clean()
                     timelapse.running = True
-                    add_timelapse_timer()
 
                 if 'timelapse stop' in message_params:
                     timelapse.running = False
-                    remove_timelapse_timer()
                 if 'timelapse pause' in message_params:
                     timelapse.running = False
-                    remove_timelapse_timer()
                 if 'timelapse resume' in message_params:
                     timelapse.running = True
-                    add_timelapse_timer()
                 if 'timelapse create' in message_params:
                     bot_updater.job_queue.run_once(send_timelapse, 1)
-                    remove_timelapse_timer()
 
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
@@ -674,16 +628,14 @@ def websocket_to_message(ws_loc, ws_message):
                 if 'message' in message_params[0]['display_status']:
                     notifier.message = message_params[0]['display_status']['message']
                 if 'progress' in message_params[0]['display_status']:
-                    # notifier.notify(progress=int(message_params[0]['display_status']['progress'] * 100))
-                    sched_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
+                    notifier.schedule_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
                     klippy.printing_progress = message_params[0]['display_status']['progress']
             if 'toolhead' in message_params[0] and 'position' in message_params[0]['toolhead']:
                 # position_z = json_message["params"][0]['toolhead']['position'][2]
                 pass
             if 'gcode_move' in message_params[0] and 'position' in message_params[0]['gcode_move']:
                 position_z = message_params[0]['gcode_move']['gcode_position'][2]
-                # notifier.notify(position_z=int(position_z))
-                sched_notification(position_z=int(position_z))
+                notifier.schedule_notification(position_z=int(position_z))
                 timelapse.take_lapse_photo(position_z)
             if 'virtual_sdcard' in message_params[0] and 'progress' in message_params[0]['virtual_sdcard']:
                 klippy.vsd_progress = message_params[0]['virtual_sdcard']['progress']
@@ -706,42 +658,38 @@ def websocket_to_message(ws_loc, ws_message):
                     if not klippy.printing:
                         klippy.printing = True
                         notifier.reset_notifications()
-                        add_notifier_timer()
+                        notifier.add_notifier_timer()
                         if not klippy.printing_filename:
                             klippy.get_status()
                         if not timelapse.manual_mode:
-                            cameraWrap.clean()
+                            timelapse.clean()
                         bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
 
                     if not timelapse.manual_mode:
                         timelapse.running = True
-                        add_timelapse_timer()
                 elif state == 'paused':
                     klippy.paused = True
                     if not timelapse.manual_mode:
                         timelapse.running = False
-                        remove_timelapse_timer()
                 # Todo: cleanup timelapse dir on cancel print!
                 elif state == 'complete':
                     klippy.printing = False
-                    remove_notifier_timer()
+                    notifier.remove_notifier_timer()
                     if not timelapse.manual_mode:
                         timelapse.running = False
-                        remove_timelapse_timer()
                         bot_updater.job_queue.run_once(send_timelapse, 5)
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
-                    remove_timelapse_timer()
-                    remove_notifier_timer()
                     timelapse.running = False
+                    notifier.remove_notifier_timer()
                     notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
                 elif state == 'standby':
                     klippy.printing = False
-                    remove_notifier_timer()
+                    notifier.remove_notifier_timer()
                     # Fixme: check manual mode
-                    remove_timelapse_timer()
                     timelapse.running = False
+
                     message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
                 elif state:
                     logger.error(f"Unknown state: {state}")
@@ -759,7 +707,7 @@ def parselog():
 
     for mes in tt:
         websocket_to_message(ws, mes)
-        # time.sleep(0.1)
+        time.sleep(0.1)
     print('lalal')
 
 
@@ -834,10 +782,10 @@ if __name__ == '__main__':
     klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, rotatingHandler, debug, camera_picture_quality)
-    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, timelapse_interval_time, rotatingHandler, debug)
+    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, scheduler, timelapse_interval_time, rotatingHandler, debug)
     bot_updater = start_bot(token, socks_proxy)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, notify_percent, notify_height, notify_interval, notify_delay_interval, notify_groups, debug, silent_progress, silent_commands,
-                        silent_status)
+    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, scheduler, notify_percent, notify_height, notify_interval, notify_delay_interval, notify_groups, debug, silent_progress,
+                        silent_commands, silent_status)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
