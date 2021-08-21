@@ -154,14 +154,13 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
-# Todo: rename)
-def send_video(bot, bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
-    if bio.getbuffer().nbytes > 52428800:
+def send__video(bot, video_bio: BytesIO, thumb_bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
+    if video_bio.getbuffer().nbytes > 52428800:
         bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
     else:
-        bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_VIDEO)
-        bot.send_video(chatId, video=bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
-    bio.close()
+        bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
+    video_bio.close()
+    thumb_bio.close()
 
 
 def send_timelapse(context: CallbackContext):
@@ -169,9 +168,9 @@ def send_timelapse(context: CallbackContext):
         logger.debug(f"lapse is inactive for enabled {timelapse.enabled} or file undefined")
     else:
         context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (bio, width, height, video_path) = cameraWrap.create_timelapse()
-        send_video(context.bot, bio, width, height, f'time-lapse of {klippy.printing_filename}',
-                   f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        (video_bio, thumb_bio, width, height, video_path) = cameraWrap.create_timelapse()
+        send__video(context.bot, thumb_bio, video_bio, width, height, f'time-lapse of {klippy.printing_filename}',
+                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
 
 def get_photo(update: Update, _: CallbackContext) -> None:
@@ -192,8 +191,8 @@ def get_video(update: Update, _: CallbackContext) -> None:
         message_to_reply.reply_text("camera is disabled")
     else:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (bio, width, height) = cameraWrap.take_video()
-        send_video(message_to_reply.bot, bio, width, height, err_mess='Telegram has a 50mb restriction...')
+        (video_bio, thumb_bio, width, height) = cameraWrap.take_video()
+        send__video(message_to_reply.bot, video_bio, thumb_bio, width, height, err_mess='Telegram has a 50mb restriction...')
 
 
 def manage_printing(command: str) -> None:
@@ -312,9 +311,9 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
-        send_video(context.bot, bio, width, height, f'time-lapse of {lapse_name}',
-                   f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        (thumb_bio, video_bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
+        send__video(context.bot, thumb_bio, video_bio, width, height, f'time-lapse of {lapse_name}',
+                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
         query.delete_message()
         check_unfinished_lapses()

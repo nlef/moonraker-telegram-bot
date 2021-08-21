@@ -132,6 +132,20 @@ class Camera:
         with self._light_request_lock:
             self._light_requests -= 1
 
+    def _convert_image(self, img):
+
+        bio = BytesIO()
+        bio.name = f'status.{self._img_extension}'
+        # Todo: some quality params?
+        if self._img_extension in ['jpg', 'jpeg']:
+            img.save(bio, 'JPEG', quality=80, subsampling=0)
+        elif self._img_extension == 'png':
+            img.save(bio, 'PNG')
+        elif self._img_extension == 'webp':
+            img.save(bio, 'WebP', quality=0, lossless=True)
+        bio.seek(0)
+        return bio
+
     @cam_light_toggle
     def take_photo(self) -> BytesIO:
         with self._camera_lock:
@@ -153,23 +167,13 @@ class Camera:
                 # Fixme: segfault!
                 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv2.UMat.get(image_rgb))
-                image = None  # do not remove! memory cleanups!
                 image_rgb = None  # do not remove! memory cleanups!
+                image = None  # do not remove! memory cleanups!
 
             cap.release()
             cv2.destroyAllWindows()
-            # cv2.waitKey(1)
 
-        bio = BytesIO()
-        bio.name = f'status.{self._img_extension}'
-        # Todo: some quality params?
-        if self._img_extension in ['jpg', 'jpeg']:
-            img.save(bio, 'JPEG', quality=80, subsampling=0)
-        elif self._img_extension == 'png':
-            img.save(bio, 'PNG')
-        elif self._img_extension == 'webp':
-            img.save(bio, 'WebP', quality=0, lossless=True)
-        bio.seek(0)
+        bio = self._convert_image(img)
         return bio
 
     @cam_light_toggle
@@ -217,15 +221,16 @@ class Camera:
             cv2.destroyAllWindows()
             cv2.waitKey(1)
 
-        bio = BytesIO()
-        bio.name = 'video.mp4'
+        thumb_bio = self.take_photo()
+        video_bio = BytesIO()
+        video_bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
-            bio.write(fh.read())
+            video_bio.write(fh.read())
 
         os.remove(filepath)
-        bio.seek(0)
+        video_bio.seek(0)
 
-        return bio, width, height
+        return video_bio, thumb_bio, width, height
 
     def take_lapse_photo(self) -> None:
         # Todo: check for space available?
@@ -251,10 +256,15 @@ class Camera:
         if not Path(f'{lapse_dir}/lapse.lock').is_file():
             os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!
 
-        filename = glob.glob(f'{lapse_dir}/*.{self._img_extension}')[0]
+        # Todo: check for nonempty photos!
+        photos = glob.glob(f'{lapse_dir}/*.{self._img_extension}')
+        photos.sort(key=os.path.getmtime)
+
+        filename = photos[-1]
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
+        thumb_bio = self._convert_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
         img = None  # do not remove! memory cleanups!
 
         video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
@@ -265,9 +275,6 @@ class Camera:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
 
-            # Todo: check for nonempty photos!
-            photos = glob.glob(f'{lapse_dir}/*.{self._img_extension}')
-            photos.sort(key=os.path.getmtime)
             for filename in photos:
                 out.write(cv2.imread(filename))
 
@@ -275,15 +282,15 @@ class Camera:
             cv2.destroyAllWindows()
             cv2.waitKey(1)
 
-        bio = BytesIO()
-        bio.name = f'{printing_filename}.mp4'
+        video_bio = BytesIO()
+        video_bio.name = f'{printing_filename}.mp4'
         with open(video_filepath, 'rb') as fh:
-            bio.write(fh.read())
+            video_bio.write(fh.read())
             # Fixme: move to method with error handling!
             if self._ready_dir and os.path.isdir(self._ready_dir):
                 with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                    cpf.write(bio.getbuffer())
-        bio.seek(0)
+                    cpf.write(video_bio.getbuffer())
+        video_bio.seek(0)
 
         os.remove(f'{lapse_dir}/lapse.lock')
 
@@ -292,7 +299,7 @@ class Camera:
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
-        return bio, width, height, video_filepath
+        return video_bio, thumb_bio, width, height, video_filepath
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename:
