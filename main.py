@@ -169,7 +169,7 @@ def send_timelapse(context: CallbackContext):
     else:
         context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         (video_bio, thumb_bio, width, height, video_path) = cameraWrap.create_timelapse()
-        send__video(context.bot, thumb_bio, video_bio, width, height, f'time-lapse of {klippy.printing_filename}',
+        send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {klippy.printing_filename}',
                     f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
 
@@ -311,8 +311,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (thumb_bio, video_bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
-        send__video(context.bot, thumb_bio, video_bio, width, height, f'time-lapse of {lapse_name}',
+        (video_bio, thumb_bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
+        send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {lapse_name}',
                     f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
         query.delete_message()

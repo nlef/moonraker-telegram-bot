@@ -132,17 +132,12 @@ class Camera:
         with self._light_request_lock:
             self._light_requests -= 1
 
-    def _convert_image(self, img):
-
+    @staticmethod
+    def _create_thumb(imgg):
+        img = Image.fromarray(cv2.cvtColor(imgg, cv2.COLOR_BGR2RGB))
         bio = BytesIO()
-        bio.name = f'status.{self._img_extension}'
-        # Todo: some quality params?
-        if self._img_extension in ['jpg', 'jpeg']:
-            img.save(bio, 'JPEG', quality=80, subsampling=0)
-        elif self._img_extension == 'png':
-            img.save(bio, 'PNG')
-        elif self._img_extension == 'webp':
-            img.save(bio, 'WebP', quality=0, lossless=True)
+        bio.name = 'thumb.jpeg'
+        img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
         bio.seek(0)
         return bio
 
@@ -173,7 +168,17 @@ class Camera:
             cap.release()
             cv2.destroyAllWindows()
 
-        bio = self._convert_image(img)
+        bio = BytesIO()
+        bio.name = f'status.{self._img_extension}'
+        # Todo: some quality params?
+        if self._img_extension in ['jpg', 'jpeg']:
+            img.save(bio, 'JPEG', quality=80, subsampling=0)
+        elif self._img_extension == 'png':
+            img.save(bio, 'PNG')
+        elif self._img_extension == 'webp':
+            img.save(bio, 'WebP', quality=0, lossless=True)
+        bio.seek(0)
+
         return bio
 
     @cam_light_toggle
@@ -198,6 +203,7 @@ class Camera:
 
             # height, width, channels = frame.shape
             height, width, channels = frame.shape
+            thumb_bio = self._create_thumb(process_video_frame(frame))
             frame = None  # do not remove! memory cleanups!
             fps_cam = cap.get(cv2.CAP_PROP_FPS)
             fps = 10
@@ -221,7 +227,6 @@ class Camera:
             cv2.destroyAllWindows()
             cv2.waitKey(1)
 
-        thumb_bio = self.take_photo()
         video_bio = BytesIO()
         video_bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
@@ -249,7 +254,6 @@ class Camera:
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
     def _create_timelapse(self, lapse_dir: str, printing_filename: str):
-
         while self.light_need_off:
             time.sleep(1)
 
@@ -264,7 +268,7 @@ class Camera:
         img = cv2.imread(filename)
         height, width, layers = img.shape
         size = (width, height)
-        thumb_bio = self._convert_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+        thumb_bio = self._create_thumb(img)
         img = None  # do not remove! memory cleanups!
 
         video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
