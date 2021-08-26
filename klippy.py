@@ -152,6 +152,7 @@ class Klippy:
             bio.name = f'{self.printing_filename}.webp'
             img.save(bio, 'WebP', quality=0, lossless=True)
             bio.seek(0)
+            img.close()
 
             return message, bio
         else:

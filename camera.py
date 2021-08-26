@@ -139,6 +139,7 @@ class Camera:
         bio.name = 'thumb.jpeg'
         img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
         bio.seek(0)
+        img.close()
         return bio
 
     @cam_light_toggle
@@ -178,6 +179,7 @@ class Camera:
         elif self._img_extension == 'webp':
             img.save(bio, 'WebP', quality=0, lossless=True)
         bio.seek(0)
+        img.close()
 
         return bio
 

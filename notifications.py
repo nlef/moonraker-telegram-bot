@@ -77,6 +77,9 @@ class Notifier:
     def send_notification(self, message: str):
         self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, self.silent_status))
 
+    def send_notification_with_photo(self, message: str):
+        self._sched.add_job(self.notify, kwargs={'message': message}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+
     def reset_notifications(self) -> None:
         self._last_percent = 0
         self._last_height = 0

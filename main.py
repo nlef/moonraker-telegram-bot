@@ -605,9 +605,11 @@ def websocket_to_message(ws_loc, ws_message):
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
 
-            if message_params[0].startswith('tgnotify'):
+            if message_params[0].startswith('tgnotify '):
                 notifier.send_notification(message_params[0][9:])
-            if message_params[0].startswith('tgalarm'):
+            if message_params[0].startswith('tgnotify_photo '):
+                notifier.send_notification_with_photo(message_params[0][15:])
+            if message_params[0].startswith('tgalarm '):
                 notifier.send_error(message_params[0][8:])
 
         # Todo: check for multiple device state change
