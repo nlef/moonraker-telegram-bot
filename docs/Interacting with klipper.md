@@ -20,5 +20,6 @@ Following commands are available:
 You can use RESPOND-type commands to send custom messages to the bot. You have two options:
 - `tgnotify` Sends a message with an alert configured by 'silent_status'. Intended usage is to send custom status updates to the bot, as "heating done".
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgnotify MSG=my_message` or `RESPOND PREFIX=tgnotify MSG="my message with spaces"` if you need spaces.
+- `tgnotify_photo` 
 - `tgalarm` Sends a message with an alert. You get a "red" notification with sound or vibration.
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.

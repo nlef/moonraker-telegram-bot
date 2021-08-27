@@ -26,7 +26,7 @@ cleanup_leagacy() {
 
 install_packages() {
   PKGLIST="python3-cryptography python3-gevent python3-opencv x264 libx264-dev libwebp-dev"
-  sudo apt-get update
+  sudo apt-get update --allow-releaseinfo-change
   sudo apt-get install --yes ${PKGLIST}
 }
 
@@ -49,7 +49,7 @@ create_service() {
     mv "${KLIPPER_CONF_DIR}"/application.conf "${KLIPPER_CONF_DIR}"/telegram.conf
   fi
 
-  cp -n "${MOONRAKER_BOT_DIR}"/telegram.conf "${KLIPPER_CONF_DIR}"/telegram.conf
+  cp -n "${MOONRAKER_BOT_DIR}"/docs/telegram_sample.conf "${KLIPPER_CONF_DIR}"/telegram.conf
   cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
 
   ### create systemd service file

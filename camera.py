@@ -84,6 +84,7 @@ class Camera:
         self.light_timer_event = threading.Event()
         self.light_timer_event.set()
 
+        self._hw_accel: bool = False
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
@@ -93,6 +94,13 @@ class Camera:
 
         self._light_requests: int = 0
         self._light_request_lock = threading.Lock()
+
+        if self._flipVertically and self._flipHorizontally:
+            self._flip = -1
+        elif self._flipHorizontally:
+            self._flip = 1
+        elif self._flipVertically:
+            self._flip = 0
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -133,13 +141,14 @@ class Camera:
             self._light_requests -= 1
 
     @staticmethod
-    def _create_thumb(imgg):
-        img = Image.fromarray(cv2.cvtColor(imgg, cv2.COLOR_BGR2RGB))
+    def _create_thumb(image):
+        img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         bio = BytesIO()
         bio.name = 'thumb.jpeg'
         img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
         bio.seek(0)
         img.close()
+        del img
         return bio
 
     @cam_light_toggle
@@ -153,21 +162,23 @@ class Camera:
                 logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
-                image = cv2.UMat(image)
-                if self._flipVertically and self._flipHorizontally:
-                    image = cv2.flip(image, -1)
-                elif self._flipHorizontally:
-                    image = cv2.flip(image, 1)
-                elif self._flipVertically:
-                    image = cv2.flip(image, 0)
-                # Fixme: segfault!
-                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(cv2.UMat.get(image_rgb))
-                image_rgb = None  # do not remove! memory cleanups!
-                image = None  # do not remove! memory cleanups!
+                if self._flipVertically or self._flipHorizontally:
+                    if self._hw_accel:
+                        image_um = cv2.UMat(image)
+                        image_um = cv2.flip(image_um, self._flip)
+                        image = cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB))
+                        del image_um
+                    else:
+                        image = cv2.flip(image, self._flip)
+                        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                else:  # Todo: add hw accel?
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+                img = Image.fromarray(image)
 
             cap.release()
             cv2.destroyAllWindows()
+            del image, cap
 
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
@@ -180,20 +191,21 @@ class Camera:
             img.save(bio, 'WebP', quality=0, lossless=True)
         bio.seek(0)
         img.close()
-
+        del img
         return bio
 
     @cam_light_toggle
     def take_video(self):
-        def process_video_frame(frame_loc):
-            frame_loc_ = cv2.UMat(frame_loc)
-            if self._flipVertically and self._flipHorizontally:
-                frame_loc_ = cv2.flip(frame_loc_, -1)
-            elif self._flipHorizontally:
-                frame_loc_ = cv2.flip(frame_loc_, 1)
-            elif self._flipVertically:
-                frame_loc_ = cv2.flip(frame_loc_, 0)
-            return cv2.UMat.get(frame_loc_)
+        def process_video_frame(frame_local):
+            if self._flipVertically or self._flipHorizontally:
+                if self._hw_accel:
+                    frame_loc_ = cv2.UMat(frame_local)
+                    frame_loc_ = cv2.flip(frame_loc_, self._flip)
+                    frame_local = cv2.UMat.get(frame_loc_)
+                    del frame_loc_
+                else:
+                    frame_local = cv2.flip(frame_local, self._flip)
+            return frame_local
 
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
@@ -203,10 +215,9 @@ class Camera:
                 logger.debug("failed to get camera frame for video")
                 # Todo: get picture from imgs?
 
-            # height, width, channels = frame.shape
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(process_video_frame(frame))
-            frame = None  # do not remove! memory cleanups!
+            del frame, channels
             fps_cam = cap.get(cv2.CAP_PROP_FPS)
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
@@ -214,12 +225,9 @@ class Camera:
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
-                success, frame_inner = cap.read()
-                res = process_video_frame(frame_inner)
-                out.write(res)
-                # do not remove! memory cleanups!
-                res = None
-                frame_inner = None
+                success, frame_loc = cap.read()
+                out.write(process_video_frame(frame_loc))
+                del frame_loc
                 fps = 1 / (time.time() - prev_frame_time)
 
             logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
@@ -227,7 +235,7 @@ class Camera:
             out.release()
             cap.release()
             cv2.destroyAllWindows()
-            cv2.waitKey(1)
+            del out, cap
 
         video_bio = BytesIO()
         video_bio.name = 'video.mp4'
@@ -269,9 +277,7 @@ class Camera:
         filename = photos[-1]
         img = cv2.imread(filename)
         height, width, layers = img.shape
-        size = (width, height)
         thumb_bio = self._create_thumb(img)
-        img = None  # do not remove! memory cleanups!
 
         video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
         if Path(video_filepath).is_file():
@@ -279,14 +285,16 @@ class Camera:
 
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=size)
+            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=(width, height))
 
             for filename in photos:
                 out.write(cv2.imread(filename))
 
             out.release()
             cv2.destroyAllWindows()
-            cv2.waitKey(1)
+            del out
+
+        del photos, img, layers
 
         video_bio = BytesIO()
         video_bio.name = f'{printing_filename}.mp4'

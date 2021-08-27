@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import faulthandler
+import gc
 import hashlib
 import itertools
 import logging
@@ -35,6 +36,7 @@ from io import BytesIO
 import cv2
 import emoji
 from apscheduler.schedulers.background import BackgroundScheduler
+from guppy import hpy
 
 logging.basicConfig(
     handlers=[
@@ -411,6 +413,24 @@ def restart(update: Update, _: CallbackContext) -> None:
     os._exit(1)
 
 
+def gc_collect(update: Update, _: CallbackContext) -> None:
+    gc.collect()
+
+
+def log_heap(update: Update, _: CallbackContext) -> None:
+    heapy = hpy()
+    heap = heapy.heap()
+    logger.debug(heap)
+    logger.debug(heap[0])
+    logger.debug(heap[0].byid)
+    logger.debug(heap[0].byrcs)
+    logger.debug(heap[0].get_rp())
+    logger.debug(heap[1])
+    logger.debug(heap[1].byid)
+    logger.debug(heap[1].byrcs)
+    logger.debug(heap[1].get_rp())
+
+
 def bot_error_handler(_: object, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
@@ -439,6 +459,8 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
     dispatcher.add_handler(CommandHandler("restart", restart))
+    dispatcher.add_handler(CommandHandler("gc", gc_collect))
+    dispatcher.add_handler(CommandHandler("heap", log_heap))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
@@ -704,7 +726,7 @@ def parselog():
 
     for mes in tt:
         websocket_to_message(ws, mes)
-        time.sleep(0.1)
+        time.sleep(0.01)
     print('lalal')
 
 
