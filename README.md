@@ -50,7 +50,7 @@ cd moonraker-telegram-bot
 When the process is done, run the install script:
 
 ```
-./install.sh
+./scripts/install.sh
 ```
 
 You will get asked, where to place the configuration file to. It is recommended to place it in the same catalog, where klipper configs are located, for ease of access and backup.
@@ -69,8 +69,8 @@ type: git_repo
 path: ~/moonraker-telegram-bot
 origin: https://github.com/nlef/moonraker-telegram-bot.git
 env: ~/moonraker-telegram-bot-env/bin/python
-requirements: requirements.txt
-install_script: install.sh
+requirements: /scripts/requirements.txt
+install_script: /scripts/install.sh
 ```
 
 Alternatively you can update by hand at your own risk, by doing a pull and running the install.sh again.

@@ -34,7 +34,7 @@ create_virtualenv() {
   mkdir -p "${HOME}"/space
   virtualenv -p /usr/bin/python3 --system-site-packages "${MOONRAKER_BOT_ENV}"
   export TMPDIR=${HOME}/space
-  "${MOONRAKER_BOT_ENV}"/bin/pip install -r "${MOONRAKER_BOT_DIR}"/requirements.txt
+  "${MOONRAKER_BOT_ENV}"/bin/pip install -r "${MOONRAKER_BOT_DIR}"/scripts/requirements.txt
 }
 
 create_service() {
@@ -65,7 +65,7 @@ WantedBy=multi-user.target
 [Service]
 Type=simple
 User=${CURRENT_USER}
-ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/main.py -c ${KLIPPER_CONF_DIR}/telegram.conf
+ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/bot/main.py -c ${KLIPPER_CONF_DIR}/telegram.conf
 Restart=always
 RestartSec=5
 EOF
