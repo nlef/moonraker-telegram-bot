@@ -88,7 +88,7 @@ class Camera:
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
-            self._img_extension: str = 'png'
+            self._img_extension: str = 'webp'
         else:
             self._img_extension: str = picture_quality
 
@@ -185,10 +185,10 @@ class Camera:
         # Todo: some quality params?
         if self._img_extension in ['jpg', 'jpeg']:
             img.save(bio, 'JPEG', quality=80, subsampling=0)
-        elif self._img_extension == 'png':
-            img.save(bio, 'PNG')
         elif self._img_extension == 'webp':
             img.save(bio, 'WebP', quality=0, lossless=True)
+        elif self._img_extension == 'png':
+            img.save(bio, 'PNG')
         bio.seek(0)
         img.close()
         del img
