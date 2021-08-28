@@ -772,6 +772,7 @@ if __name__ == '__main__':
 
     poweroff_device_name = conf.get('bot', 'power_device', fallback='')
     light_device_name = conf.get('bot', 'light_device', fallback="")
+    sensors = [el.strip() for el in conf.get('bot', 'sensors').split(',')] if 'bot' in conf and 'sensors' in conf['bot'] else ['extruder', 'heater_bed']
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_parser = conf.getboolean('bot', 'log_parser', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
@@ -798,7 +799,7 @@ if __name__ == '__main__':
 
     light_power_device = PowerDevice(light_device_name, host)
     psu_power_device = PowerDevice(poweroff_device_name, host)
-    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device)
+    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device, sensors)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, rotatingHandler, debug, camera_picture_quality)
     timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, scheduler, timelapse_interval_time, rotatingHandler, debug)

@@ -162,16 +162,16 @@ class Camera:
                 logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
             else:
-                if self._flipVertically or self._flipHorizontally:
-                    if self._hw_accel:
-                        image_um = cv2.UMat(image)
+                # Fixme: rewrite with local variables for each step in C like style
+                if self._hw_accel:
+                    image_um = cv2.UMat(image)
+                    if self._flipVertically or self._flipHorizontally:
                         image_um = cv2.flip(image_um, self._flip)
-                        image = cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB))
-                        del image_um
-                    else:
+                    image = cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB))
+                    del image_um
+                else:
+                    if self._flipVertically or self._flipHorizontally:
                         image = cv2.flip(image, self._flip)
-                        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                else:  # Todo: add hw accel?
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
                 img = Image.fromarray(image)
@@ -182,7 +182,6 @@ class Camera:
 
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
-        # Todo: some quality params?
         if self._img_extension in ['jpg', 'jpeg']:
             img.save(bio, 'JPEG', quality=80, subsampling=0)
         elif self._img_extension == 'webp':

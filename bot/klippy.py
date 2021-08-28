@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None,
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, sensors: list, logging_handler: logging.Handler = None,
                  debug_logging: bool = False):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
@@ -33,6 +33,7 @@ class Klippy:
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
         self.filament_used: float = 0.0
+        self._sensors_list: list = sensors
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -80,8 +81,17 @@ class Klippy:
         except Exception:
             return False
 
+    @staticmethod
+    def sensor_message(sensor: str, response) -> str:
+        if sensor not in response or not response[sensor]:
+            return ''
+
+        message = f"Extruder temp.: {round(response[sensor]['temperature'])}"
+        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sensor]['target'])}\n" if response[sensor]['target'] else "\n"
+        return message
+
     def get_status(self) -> str:
-        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status&extruder&heater_bed")
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status&{'&'.join(self._sensors_list)}")
         resp = response.json()['result']['status']
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
@@ -104,10 +114,8 @@ class Klippy:
         elif print_stats['state'] == 'complete':
             pass
 
-        message += f"Extruder temp.: {round(resp['extruder']['temperature'])}"
-        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(resp['extruder']['target'])}\n" if resp['extruder']['target'] else "\n"
-        message += f"Bed temp.: {round(resp['heater_bed']['temperature'])}"
-        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(resp['heater_bed']['target'])}\n" if resp['heater_bed']['target'] else "\n"
+        for sens in self._sensors_list:
+            message += self.sensor_message(sens, resp)
 
         if self._light_devvice:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_devvice.device_state else 'off'}\n"
