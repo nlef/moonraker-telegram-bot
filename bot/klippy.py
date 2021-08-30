@@ -34,11 +34,22 @@ class Klippy:
         self.vsd_progress: float = 0.0
         self.filament_used: float = 0.0
         self._sensors_list: list = sensors
+        self._sensors_query = self._prepare_sensors_query()
 
         if logging_handler:
             logger.addHandler(logging_handler)
         if debug_logging:
             logger.setLevel(logging.DEBUG)
+
+    # Todo: chack chamber & other heaters!
+    def _prepare_sensors_query(self):
+        query = ''
+        for sens in self._sensors_list:
+            if sens in ['extruder', 'heater_bed']:
+                query += f"&{sens}"
+            else:
+                query += f"&temperature_sensor {sens}"
+        return query
 
     @property
     def macros(self):
@@ -83,15 +94,16 @@ class Klippy:
 
     @staticmethod
     def sensor_message(sensor: str, response) -> str:
-        if sensor not in response or not response[sensor]:
+        sens_key = sensor if sensor in ['extruder', 'heater_bed'] else f"temperature_sensor {sensor}"
+        if sens_key not in response or not response[sens_key]:
             return ''
 
-        message = f"Extruder temp.: {round(response[sensor]['temperature'])}"
-        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sensor]['target'])}\n" if response[sensor]['target'] else "\n"
+        message = f"{sensor.title()} temp.: {round(response[sens_key]['temperature'])}"
+        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}\n" if 'target' in response[sens_key] else "\n"
         return message
 
     def get_status(self) -> str:
-        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status&{'&'.join(self._sensors_list)}")
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status{self._sensors_query}")
         resp = response.json()['result']['status']
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
