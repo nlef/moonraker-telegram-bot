@@ -157,7 +157,9 @@ class Camera:
         with self._camera_lock:
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
             # logger.debug(f"VideoCapture backend: {cap.getBackendName()}")
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             success, image = cap.read()
+            cap.release()
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -177,7 +179,6 @@ class Camera:
 
                 img = Image.fromarray(image)
 
-            cap.release()
             cv2.destroyAllWindows()
             del image, cap
 
@@ -210,6 +211,7 @@ class Camera:
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             success, frame = cap.read()
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -231,9 +233,9 @@ class Camera:
                 fps = 1 / (time.time() - prev_frame_time)
 
             logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
+            cap.release()
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
-            cap.release()
             cv2.destroyAllWindows()
             del out, cap
 
