@@ -1,5 +1,6 @@
 # Todo: class for printer states!
 import logging
+import re
 import time
 
 import emoji
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, sensors: list, logging_handler: logging.Handler = None,
-                 debug_logging: bool = False):
+    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, sensors: list, heaters: list,
+                 logging_handler: logging.Handler = None, debug_logging: bool = False):
         self._host = moonraker_host
         self._disabled_macros = disabled_macros
         self._eta_source: str = eta_source
@@ -34,22 +35,26 @@ class Klippy:
         self.vsd_progress: float = 0.0
         self.filament_used: float = 0.0
         self._sensors_list: list = sensors
-        self._sensors_query = self._prepare_sensors_query()
+        self._heates_list: list = heaters
+        self._sensors_dict: dict = self._prepare_sens_dict()
+        self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
 
         if logging_handler:
             logger.addHandler(logging_handler)
         if debug_logging:
             logger.setLevel(logging.DEBUG)
 
-    # Todo: chack chamber & other heaters!
-    def _prepare_sensors_query(self):
-        query = ''
-        for sens in self._sensors_list:
-            if sens in ['extruder', 'heater_bed']:
-                query += f"&{sens}"
+    def _prepare_sens_dict(self):
+        sens_dict = {}
+        for heat in self._heates_list:
+            if heat in ['extruder', 'heater_bed']:
+                sens_dict[heat] = heat
             else:
-                query += f"&temperature_sensor {sens}"
-        return query
+                sens_dict[heat] = f"heater_generic {heat}"
+
+        for sens in self._sensors_list:
+            sens_dict[sens] = f"temperature_sensor {sens}"
+        return sens_dict
 
     @property
     def macros(self):
@@ -92,14 +97,16 @@ class Klippy:
         except Exception:
             return False
 
-    @staticmethod
-    def sensor_message(sensor: str, response) -> str:
-        sens_key = sensor if sensor in ['extruder', 'heater_bed'] else f"temperature_sensor {sensor}"
+    def sensor_message(self, sensor: str, response) -> str:
+        sens_key = self._sensors_dict[sensor]
         if sens_key not in response or not response[sens_key]:
             return ''
-
-        message = f"{sensor.title()} temp.: {round(response[sens_key]['temperature'])}"
-        message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}\n" if 'target' in response[sens_key] else "\n"
+        sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
+        message = f"{sens_name.title()}: {round(response[sens_key]['temperature'])}"
+        if 'target' in response[sens_key]:
+            message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}"
+            message += emoji.emojize(' :fire: ', use_aliases=True) if response[sens_key]['power'] > 0.0 else emoji.emojize(' :snowflake: ', use_aliases=True)
+        message += '\n'
         return message
 
     def get_status(self) -> str:
@@ -126,6 +133,8 @@ class Klippy:
         elif print_stats['state'] == 'complete':
             pass
 
+        for heat in self._heates_list:
+            message += self.sensor_message(heat, resp)
         for sens in self._sensors_list:
             message += self.sensor_message(sens, resp)
 

@@ -38,7 +38,8 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #eta_source: slicer
 #   Values avaliable: slicer, file
 #   Default value is slicer.
-#sensors: 'extruder', 'heater_bed'
+#sensors: mcu
+#heaters: extruder, heater_bed
 ```
 
 ## [camera]

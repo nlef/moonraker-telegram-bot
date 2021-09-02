@@ -8,4 +8,3 @@ PySocks==1.7.1
 opencv-python~=3.4.8.29
 numpy~=1.20.1
 memory_profiler
-guppy3~=3.1.1

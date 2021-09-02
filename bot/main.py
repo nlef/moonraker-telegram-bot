@@ -36,7 +36,6 @@ from io import BytesIO
 import cv2
 import emoji
 from apscheduler.schedulers.background import BackgroundScheduler
-from guppy import hpy
 
 logging.basicConfig(
     handlers=[
@@ -413,24 +412,6 @@ def restart(update: Update, _: CallbackContext) -> None:
     os._exit(1)
 
 
-def gc_collect(update: Update, _: CallbackContext) -> None:
-    gc.collect()
-
-
-def log_heap(update: Update, _: CallbackContext) -> None:
-    heapy = hpy()
-    heap = heapy.heap()
-    logger.debug(heap)
-    logger.debug(heap[0])
-    logger.debug(heap[0].byid)
-    logger.debug(heap[0].byrcs)
-    logger.debug(heap[0].get_rp())
-    logger.debug(heap[1])
-    logger.debug(heap[1].byid)
-    logger.debug(heap[1].byrcs)
-    logger.debug(heap[1].get_rp())
-
-
 def bot_error_handler(_: object, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
@@ -459,8 +440,6 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
     dispatcher.add_handler(CommandHandler("restart", restart))
-    dispatcher.add_handler(CommandHandler("gc", gc_collect))
-    dispatcher.add_handler(CommandHandler("heap", log_heap))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
@@ -772,7 +751,8 @@ if __name__ == '__main__':
 
     poweroff_device_name = conf.get('bot', 'power_device', fallback='')
     light_device_name = conf.get('bot', 'light_device', fallback="")
-    sensors = [el.strip() for el in conf.get('bot', 'sensors').split(',')] if 'bot' in conf and 'sensors' in conf['bot'] else ['extruder', 'heater_bed']
+    sensors = [el.strip() for el in conf.get('bot', 'sensors').split(',')] if 'bot' in conf and 'sensors' in conf['bot'] else []
+    heaters = [el.strip() for el in conf.get('bot', 'heaters').split(',')] if 'bot' in conf and 'heaters' in conf['bot'] else ['extruder', 'heater_bed']
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_parser = conf.getboolean('bot', 'log_parser', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
@@ -799,7 +779,7 @@ if __name__ == '__main__':
 
     light_power_device = PowerDevice(light_device_name, host)
     psu_power_device = PowerDevice(poweroff_device_name, host)
-    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device, sensors)
+    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device, sensors, heaters)
     cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
                         reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, rotatingHandler, debug, camera_picture_quality)
     timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, scheduler, timelapse_interval_time, rotatingHandler, debug)

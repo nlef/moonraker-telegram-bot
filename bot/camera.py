@@ -107,6 +107,7 @@ class Camera:
         if debug_logging:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
+            os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug('OpenCL is available')
@@ -155,7 +156,7 @@ class Camera:
     def take_photo(self) -> BytesIO:
         with self._camera_lock:
             cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
-
+            # logger.debug(f"VideoCapture backend: {cap.getBackendName()}")
             success, image = cap.read()
 
             if not success:
