@@ -297,9 +297,9 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(text=f"Start printing file:{filename}", reply_markup=reply_markup)
+        query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
-        filename = query.message.text.split(':')[-1].replace('?', '').replace(' ', '')
+        filename = query.message.text.split(':')[-1].replace('?', '').strip()
         response = requests.post(f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
         if not response.ok:
             query.edit_message_text(text=f"Failed start printing file {filename}")
