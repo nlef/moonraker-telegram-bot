@@ -63,21 +63,24 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
-    def notify(self, message: str):
+    def notify(self, message: str, silent: bool):
         if self._cam_wrap.enabled:
             photo = self._cam_wrap.take_photo()
-            self._bot_updater.job_queue.run_once(send_message_with_photo, 0, context=(message, photo, self._chatId, self.notify_groups, self.silent_progress))
+            self._bot_updater.job_queue.run_once(send_message_with_photo, 0, context=(message, photo, self._chatId, self.notify_groups, silent))
         else:
-            self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, self.silent_progress))
+            self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, silent))
 
     def send_error(self, message: str):
         self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, False))
+
+    def send_error_with_photo(self, message: str):
+        self._sched.add_job(self.notify, kwargs={'message': message, 'silent': False}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_notification(self, message: str):
         self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, self.silent_status))
 
     def send_notification_with_photo(self, message: str):
-        self._sched.add_job(self.notify, kwargs={'message': message}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self.notify, kwargs={'message': message, 'silent': self.silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def reset_notifications(self) -> None:
         self._last_percent = 0
@@ -112,7 +115,7 @@ class Notifier:
             notifymsg += f"{self._klippy.get_eta_message()}"
 
             self._last_notify_time = time.time()
-            self._sched.add_job(self.notify, kwargs={'message': notifymsg}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+            self._sched.add_job(self.notify, kwargs={'message': notifymsg, 'silent': self.silent_progress}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def notify_by_time(self):
         # Fixme: do we need last notify time check???
@@ -123,7 +126,7 @@ class Notifier:
         if self._last_message:
             notifymsg += f"{self._last_message}\n"
         notifymsg += f"{self._klippy.get_eta_message()}"
-        self.notify(notifymsg)
+        self.notify(notifymsg, self.silent_progress)
 
     def add_notifier_timer(self):
         if self.interval > 0:

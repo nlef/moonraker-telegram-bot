@@ -23,3 +23,4 @@ An example command, to be sent from gcode or from a macro would be `RESPOND PREF
 - `tgnotify_photo` 
 - `tgalarm` Sends a message with an alert. You get a "red" notification with sound or vibration.
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.
+- `tgalarm_photo`

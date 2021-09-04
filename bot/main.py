@@ -602,6 +602,8 @@ def websocket_to_message(ws_loc, ws_message):
                 notifier.send_notification_with_photo(message_params[0][15:])
             if message_params[0].startswith('tgalarm '):
                 notifier.send_error(message_params[0][8:])
+            if message_params[0].startswith('tgalarm_photo '):
+                notifier.send_error_with_photo(message_params[0][14:])
 
         # Todo: check for multiple device state change
         if message_method == 'notify_power_changed':
@@ -737,7 +739,7 @@ if __name__ == '__main__':
     video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
     camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
     camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
-    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='webp')
+    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='high')
 
     poweroff_device_name = conf.get('bot', 'power_device', fallback='')
     light_device_name = conf.get('bot', 'light_device', fallback="")
