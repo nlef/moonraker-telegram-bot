@@ -1,3 +1,4 @@
+import configparser
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -10,17 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 class Timelapse:
-    def __init__(self, enabled: bool, manual: bool, height: float, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, interval: int, logging_handler: logging.Handler = None,
-                 debug_logging: bool = False):
-        self._enabled: bool = enabled
-        self._mode_manual: bool = manual
-        self._running: bool = False
-        self._height: float = height
-        self._last_height: float = 0.0
+    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, logging_handler: logging.Handler = None, debug_logging: bool = False):
+        self._enabled: bool = 'timelapse' in config
+        self._mode_manual: bool = config.getboolean('timelapse', 'manual_mode', fallback=False)
+        self._height: float = config.getfloat('timelapse', 'height', fallback=0.0)
+        self._interval: int = config.getint('timelapse', 'time', fallback=0)
+
         self._klippy = klippy
         self._camera = camera
         self._sched = scheduler
-        self.interval: int = interval
+
+        self._running: bool = False
+        self._last_height: float = 0.0
 
         self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
 
@@ -77,8 +79,8 @@ class Timelapse:
         self._camera.clean()
 
     def _add_timelapse_timer(self):
-        if self.interval > 0:
-            self._sched.add_job(self.take_lapse_photo, 'interval', seconds=self.interval, id='timelapse_timer')
+        if self._interval > 0:
+            self._sched.add_job(self.take_lapse_photo, 'interval', seconds=self._interval, id='timelapse_timer')
 
     def _remove_timelapse_timer(self):
         if self._sched.get_job('timelapse_timer'):

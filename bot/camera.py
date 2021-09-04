@@ -1,3 +1,4 @@
+import configparser
 import logging
 import os
 import pathlib
@@ -55,29 +56,25 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(self, klippy: Klippy, camera_enabled: bool, camera_host: str, light_device: PowerDevice, threads: int = 0, light_timeout: int = 0, flip_vertically: bool = False,
-                 flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "",
-                 copy_finished_timelapse_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, logging_handler: logging.Handler = None, debug_logging: bool = False,
-                 picture_quality: str = 'low'):
+    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, imgs_path: str = "", logging_handler: logging.Handler = None, debug_logging: bool = False):
+        camera_host = config.get('camera', 'host', fallback=f"http://{klippy.moonraker_host}:8080/?action=stream")  # Todo: remove default host?
         self._host = int(camera_host) if str.isdigit(camera_host) else camera_host
-        self.enabled: bool = camera_enabled
-        self._threads: int = threads
-        self._flipVertically: bool = flip_vertically
-        self._flipHorizontally: bool = flip_horizontally
-        self._fourcc: str = fourcc
-        self._gifDuration: int = gif_duration
-        self._reduceGif: int = reduce_gif
-        self._videoDuration: int = video_duration
-        self._imgs: str = imgs
+        self.enabled: bool = 'camera' in config
+        self._threads: int = config.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
+        self._flipVertically: bool = config.getboolean('camera', 'flipVertically', fallback=False)
+        self._flipHorizontally: bool = config.getboolean('camera', 'flipHorizontally', fallback=False)
+        self._fourcc: str = config.get('camera', 'fourcc', fallback='x264')
+        self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
+        self._imgs_path: str = imgs_path
         self._klippy: Klippy = klippy
-        self._base_dir: str = timelapse_base_dir  # Fixme: relative path failed! ~/timelapse
-        self._ready_dir: str = copy_finished_timelapse_dir  # Fixme: relative path failed! ~/timelapse
-        self._cleanup: bool = timelapse_cleanup
-        self._fps: int = timelapse_fps
+        self._base_dir: str = config.get('timelapse', 'basedir', fallback='/tmp/timelapse')  # Fixme: relative path failed! ~/timelapse
+        self._ready_dir: str = config.get('timelapse', 'copy_finished_timelapse_dir', fallback='')  # Fixme: relative path failed! ~/timelapse
+        self._cleanup: bool = config.getboolean('timelapse', 'cleanup', fallback=True)
+        self._fps: int = config.getint('timelapse', 'target_fps', fallback=15)
         self._light_need_off: bool = False
         self._light_need_off_lock = threading.Lock()
 
-        self.light_timeout: int = light_timeout
+        self.light_timeout: int = config.getint('camera', 'light_control_timeout', fallback=0)
         self.light_device: PowerDevice = light_device
         self._camera_lock = threading.Lock()
         self.light_lock = threading.Lock()
@@ -85,6 +82,7 @@ class Camera:
         self.light_timer_event.set()
 
         self._hw_accel: bool = False
+        picture_quality = config.get('camera', 'picture_quality', fallback='high')
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
         elif picture_quality == 'high':
@@ -147,7 +145,6 @@ class Camera:
         with BytesIO() as bio:
             bio.name = 'thumb.jpeg'
             img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
-            bio.seek(0)
             res = bio.getvalue()
         img.close()
         del img
@@ -163,7 +160,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open(random.choice(glob.glob(f'{self._imgs}/imgs/*')))
+                img = Image.open(random.choice(glob.glob(f'{self._imgs_path}/imgs/*')))
             else:
                 # Fixme: rewrite with local variables for each step in C like style
                 if self._hw_accel:
@@ -245,7 +242,6 @@ class Camera:
             with open(filepath, 'rb') as fh:
                 video_bio.write(fh.read())
             os.remove(filepath)
-            video_bio.seek(0)
             vid = video_bio.getvalue()
 
         return vid, thumb_bio, width, height
@@ -298,14 +294,14 @@ class Camera:
 
         del photos, img, layers
 
+        # Todo: some error handling?
         with BytesIO() as video_bio:
             video_bio.name = f'{printing_filename}.mp4'
             with open(video_filepath, 'rb') as fh:
                 video_bio.write(fh.read())
-                # Fixme: move to method with error handling!
-                if self._ready_dir and os.path.isdir(self._ready_dir):
-                    with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                        cpf.write(video_bio.getvalue())
+            if self._ready_dir and os.path.isdir(self._ready_dir):
+                with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
+                    cpf.write(video_bio.getvalue())
             vid = video_bio.getvalue()
 
         os.remove(f'{lapse_dir}/lapse.lock')

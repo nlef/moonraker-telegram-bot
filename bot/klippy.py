@@ -1,4 +1,5 @@
 # Todo: class for printer states!
+import configparser
 import logging
 import re
 import time
@@ -17,13 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str, light_device: PowerDevice, psu_device: PowerDevice, sensors: list, heaters: list,
-                 logging_handler: logging.Handler = None, debug_logging: bool = False):
-        self._host = moonraker_host
-        self._disabled_macros = disabled_macros
-        self._eta_source: str = eta_source
-        self._light_devvice = light_device
+    def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug_logging: bool = False):
+        self._host = config.get('bot', 'server', fallback='localhost')
+        self._disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
+        self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
+        self._light_device = light_device
         self._psu_device = psu_device
+        self._sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
+        self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else ['extruder', 'heater_bed']
+        self._sensors_dict: dict = self._prepare_sens_dict()
+        self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
+
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
@@ -34,10 +39,6 @@ class Klippy:
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
         self.filament_used: float = 0.0
-        self._sensors_list: list = sensors
-        self._heates_list: list = heaters
-        self._sensors_dict: dict = self._prepare_sens_dict()
-        self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -68,6 +69,10 @@ class Klippy:
     def printing_filename_with_time(self):
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
+    @property
+    def moonraker_host(self):
+        return self._host
+
     @printing_filename.setter
     def printing_filename(self, new_value: str):
         if not new_value:
@@ -92,13 +97,13 @@ class Klippy:
 
     def check_connection(self) -> bool:
         try:
-            response = requests.get(f"http://{self._host}/printer/info")
+            response = requests.get(f"http://{self._host}/printer/info", timeout=2)
             return True if response.ok else False
         except Exception:
             return False
 
-    def sensor_message(self, sensor: str, response) -> str:
-        sens_key = self._sensors_dict[sensor]
+    @staticmethod
+    def sensor_message(sensor: str, sens_key: str, response) -> str:
         if sens_key not in response or not response[sens_key]:
             return ''
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
@@ -115,14 +120,16 @@ class Klippy:
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
         message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
+
         if 'display_status' in resp and 'message' in resp['display_status']:
             msg = resp['display_status']['message']
             if msg and msg is not None:
                 message += f"{msg}\n"
         if 'state_message' in webhook:
             message += f"State message: {webhook['state_message']}\n"
+
         message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
-        # if print_stats['state'] in ('printing', 'paused', 'complete'):
+
         if print_stats['state'] == 'printing':
             if not self.printing_filename:
                 self.printing_filename = print_stats['filename']
@@ -132,15 +139,14 @@ class Klippy:
         elif print_stats['state'] == 'complete':
             pass
 
-        for heat in self._heates_list:
-            message += self.sensor_message(heat, resp)
-        for sens in self._sensors_list:
-            message += self.sensor_message(sens, resp)
+        for sens, s_key in self._sensors_dict.items():
+            message += self.sensor_message(sens, s_key, resp)
 
-        if self._light_devvice:
-            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_devvice.device_state else 'off'}\n"
+        if self._light_device:
+            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
         if self._psu_device:
             message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+
         return message
 
     def execute_command(self, command: str):
@@ -154,7 +160,6 @@ class Klippy:
             eta = int(self.file_estimated_time - self.printing_duration)
         else:  # eta by file
             eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
-        # eta_vsd = int(resp['estimated_time'] * (1 - klippy.vsd_progress))
         if eta < 0:
             eta = 0
         return timedelta(seconds=eta)
@@ -163,7 +168,7 @@ class Klippy:
         eta = self.get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
-    def get_file_info(self, message: str = '') -> (str, BytesIO):
+    def get_file_info(self, message: str = '') -> (str, bytes):
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
         resp = response.json()['result']
         self.file_estimated_time = resp['estimated_time']
@@ -176,12 +181,13 @@ class Klippy:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")).convert('RGB')
 
-            bio = BytesIO()
-            bio.name = f'{self.printing_filename}.webp'
-            img.save(bio, 'WebP', quality=0, lossless=True)
-            bio.seek(0)
+            with BytesIO() as bio:
+                bio.name = f'{self.printing_filename}.webp'
+                img.save(bio, 'WebP', quality=0, lossless=True)
+                res = bio.getvalue()
+
             img.close()
 
-            return message, bio
+            return message, res
         else:
             return message, None

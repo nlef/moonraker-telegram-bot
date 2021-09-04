@@ -104,7 +104,6 @@ def send_file_info(bot, silent: bool, message: str = ''):
     message, bio = klippy.get_file_info(message)
     if bio is not None:
         bot.send_photo(chatId, photo=bio, caption=message, disable_notification=silent)
-        bio.close()
     else:
         bot.send_message(chatId, message, disable_notification=silent)
 
@@ -711,51 +710,17 @@ if __name__ == '__main__':
     klipper_config_path = system_args.configfile[:system_args.configfile.rfind('/')]
     conf = configparser.ConfigParser()
     conf.read(system_args.configfile)
+
     host = conf.get('bot', 'server', fallback='localhost')
     socks_proxy = conf.get('bot', 'socks_proxy', fallback='')
     token = conf.get('bot', 'bot_token')
     chatId = conf.getint('bot', 'chat_id')
-    notify_percent = conf.getint('progress_notification', 'percent', fallback=0)
-    notify_height = conf.getint('progress_notification', 'height', fallback=0)
-    notify_interval = conf.getint('progress_notification', 'time', fallback=0)
-    notify_delay_interval = conf.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-    notify_groups = [el.strip() for el in conf.get('progress_notification', 'groups').split(',')] if 'progress_notification' in conf and 'groups' in conf['progress_notification'] else list()
-    timelapse_height = conf.getfloat('timelapse', 'height', fallback=0.0)
-    timelapse_enabled = 'timelapse' in conf
-    timelapse_basedir = conf.get('timelapse', 'basedir', fallback='/tmp/timelapse')
-    copy_finished_timelapse_dir = conf.get('timelapse', 'copy_finished_timelapse_dir', fallback='')
-    timelapse_cleanup = conf.getboolean('timelapse', 'cleanup', fallback=True)
-    timelapse_interval_time = conf.getint('timelapse', 'time', fallback=0)
-    timelapse_fps = conf.getint('timelapse', 'target_fps', fallback=15)
-    timelapse_mode_manual = conf.getboolean('timelapse', 'manual_mode', fallback=False)
 
-    cameraEnabled = 'camera' in conf
-    flipHorisontally = conf.getboolean('camera', 'flipHorizontally', fallback=False)
-    flipVertically = conf.getboolean('camera', 'flipVertically', fallback=False)
-    gifDuration = conf.getint('camera', 'gifDuration', fallback=5)
-    videoDuration = conf.getint('camera', 'videoDuration', fallback=5)
-    reduceGif = conf.getint('camera', 'reduceGif', fallback=2)
-    cameraHost = conf.get('camera', 'host', fallback=f"http://{host}:8080/?action=stream")
-    video_fourcc = conf.get('camera', 'fourcc', fallback='x264')
-    camera_threads = conf.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
-    camera_light_timeout = conf.getint('camera', 'light_control_timeout', fallback=0)
-    camera_picture_quality = conf.get('camera', 'picture_quality', fallback='high')
-
-    poweroff_device_name = conf.get('bot', 'power_device', fallback='')
-    light_device_name = conf.get('bot', 'light_device', fallback="")
-    sensors = [el.strip() for el in conf.get('bot', 'sensors').split(',')] if 'bot' in conf and 'sensors' in conf['bot'] else []
-    heaters = [el.strip() for el in conf.get('bot', 'heaters').split(',')] if 'bot' in conf and 'heaters' in conf['bot'] else ['extruder', 'heater_bed']
     debug = conf.getboolean('bot', 'debug', fallback=False)
     log_parser = conf.getboolean('bot', 'log_parser', fallback=False)
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
-    eta_source = conf.get('bot', 'eta_source', fallback='slicer')
 
     hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
-    disabled_macros = [el.strip() for el in conf.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in conf and 'disabled_macros' in conf['telegram_ui'] else list()
-
-    silent_progress = conf.getboolean('telegram_ui', 'silent_progress', fallback=True)
-    silent_commands = conf.getboolean('telegram_ui', 'silent_commands', fallback=True)
-    silent_status = conf.getboolean('telegram_ui', 'silent_status', fallback=True)
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)
@@ -769,15 +734,16 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
         logging.getLogger('apscheduler').addHandler(rotatingHandler)
 
+    poweroff_device_name = conf.get('bot', 'power_device', fallback='')
+    light_device_name = conf.get('bot', 'light_device', fallback="")
     light_power_device = PowerDevice(light_device_name, host)
     psu_power_device = PowerDevice(poweroff_device_name, host)
-    klippy = Klippy(host, disabled_macros, eta_source, light_power_device, psu_power_device, sensors, heaters)
-    cameraWrap = Camera(klippy, cameraEnabled, cameraHost, light_power_device, camera_threads, camera_light_timeout, flipVertically, flipHorisontally, video_fourcc, gifDuration,
-                        reduceGif, videoDuration, klipper_config_path, timelapse_basedir, copy_finished_timelapse_dir, timelapse_cleanup, timelapse_fps, rotatingHandler, debug, camera_picture_quality)
-    timelapse = Timelapse(timelapse_enabled, timelapse_mode_manual, timelapse_height, klippy, cameraWrap, scheduler, timelapse_interval_time, rotatingHandler, debug)
+
+    klippy = Klippy(conf, light_power_device, psu_power_device, rotatingHandler, debug)
+    cameraWrap = Camera(conf, klippy, light_power_device, klipper_config_path, rotatingHandler, debug)
+    timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, rotatingHandler, debug)
     bot_updater = start_bot(token, socks_proxy)
-    notifier = Notifier(bot_updater, chatId, klippy, cameraWrap, scheduler, notify_percent, notify_height, notify_interval, notify_delay_interval, notify_groups, debug, silent_progress,
-                        silent_commands, silent_status)
+    notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 

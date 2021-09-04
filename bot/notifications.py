@@ -1,3 +1,4 @@
+import configparser
 import logging
 import time
 from datetime import timedelta
@@ -31,27 +32,32 @@ def send_message_with_photo(context: CallbackContext):
 
 
 class Notifier:
-    def __init__(self, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler, percent: int = 5, height: int = 5, interval: int = 0,
-                 interval_between: int = 0, notify_groups: list = None, debug_logging: bool = False, silent_progress: bool = False, silent_commands: bool = False, silent_status: bool = False, ):
+    def __init__(self, config: configparser.ConfigParser, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler,  logging_handler: logging.Handler = None,
+                 debug_logging: bool = False):
         self._bot_updater: Updater = bot_updater
         self._chatId: int = chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._sched = scheduler
-        self._percent: int = percent
-        self._height: int = height
-        self.interval: int = interval
-        self._interval_between: int = interval_between
-        self.notify_groups: list = notify_groups if notify_groups else list()
+        self._klippy: Klippy = klippy
 
-        self.silent_progress = silent_progress
-        self.silent_commands = silent_commands
-        self.silent_status = silent_status
+        self._percent: int = config.getint('progress_notification', 'percent', fallback=0)
+        self._height: int = config.getint('progress_notification', 'height', fallback=0)
+        self.interval: int = config.getint('progress_notification', 'time', fallback=0)
+        self._interval_between: int = config.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
+        self.notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config[
+            'progress_notification'] else list()
+
+        self.silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
+        self.silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=True)
+        self.silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=True)
 
         self._last_height: int = 0
         self._last_percent: int = 0
         self._last_message: str = ''
         self._last_notify_time: int = 0
-        self._klippy: Klippy = klippy
+
+        if logging_handler:
+            logger.addHandler(logging_handler)
         if debug_logging:
             logger.setLevel(logging.DEBUG)
 
