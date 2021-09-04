@@ -1,7 +1,6 @@
 import argparse
 import configparser
 import faulthandler
-import gc
 import hashlib
 import itertools
 import logging
@@ -155,13 +154,11 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
-def send__video(bot, video_bio: BytesIO, thumb_bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
-    if video_bio.getbuffer().nbytes > 52428800:
+def send__video(bot, video_bio: bytes, thumb_bio: bytes, width, height, caption: str = '', err_mess: str = ''):
+    if len(video_bio) > 52428800:
         bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
     else:
         bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
-    video_bio.close()
-    thumb_bio.close()
 
 
 def send_timelapse(context: CallbackContext):
@@ -176,19 +173,18 @@ def send_timelapse(context: CallbackContext):
 
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    if not cameraEnabled:
+    if not cameraWrap.enabled:
         message_to_reply.reply_text("camera is disabled")
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
     bio = cameraWrap.take_photo()
     message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands)
-    bio.close()
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    if not cameraEnabled:
+    if not cameraWrap.enabled:
         message_to_reply.reply_text("camera is disabled")
     else:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
@@ -567,12 +563,6 @@ def websocket_to_message(ws_loc, ws_message):
         if 'id' in json_message and 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
 
-        # if json_message["method"] == "notify_gcode_response":
-        #     val = ws_message["params"][0]
-        #     # Todo: add global state for mcu disconnects!
-        #     if 'Lost communication with MCU' not in ws_message["params"][0]:
-        #         botUpdater.dispatcher.bot.send_message(chatId, ws_message["params"])
-        #
     else:
         message_method = json_message['method']
         if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:

@@ -13,22 +13,21 @@ logger = logging.getLogger(__name__)
 
 
 def send_message(context: CallbackContext):
-    (mess, chatId, notify_groups, silent) = context.job.context
-    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    context.bot.send_message(chatId, text=mess, disable_notification=silent)
+    (mess, chat_id, notify_groups, silent) = context.job.context
+    context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+    context.bot.send_message(chat_id, text=mess, disable_notification=silent)
     for group in notify_groups:
         context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
         context.bot.send_message(group, text=mess, disable_notification=silent)
 
 
 def send_message_with_photo(context: CallbackContext):
-    (mess, pht, chatId, notify_groups, silent) = context.job.context
-    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-    context.bot.send_photo(chatId, photo=pht, caption=mess, disable_notification=silent)
+    (mess, pht, chat_id, notify_groups, silent) = context.job.context
+    context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+    context.bot.send_photo(chat_id, photo=pht, caption=mess, disable_notification=silent)
     for group_ in notify_groups:
         context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
         context.bot.send_photo(group_, photo=pht, caption=mess, disable_notification=silent)
-    pht.close()
 
 
 class Notifier:

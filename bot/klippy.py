@@ -115,11 +115,10 @@ class Klippy:
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
         message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
-        if 'display_status' in resp:
-            if 'message' in resp['display_status']:
-                msg = resp['display_status']['message']
-                if msg and msg is not None:
-                    message += f"{msg}\n"
+        if 'display_status' in resp and 'message' in resp['display_status']:
+            msg = resp['display_status']['message']
+            if msg and msg is not None:
+                message += f"{msg}\n"
         if 'state_message' in webhook:
             message += f"State message: {webhook['state_message']}\n"
         message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"

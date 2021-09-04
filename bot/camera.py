@@ -59,7 +59,7 @@ class Camera:
                  flip_horizontally: bool = False, fourcc: str = 'x264', gif_duration: int = 5, reduce_gif: int = 2, video_duration: int = 10, imgs: str = "", timelapse_base_dir: str = "",
                  copy_finished_timelapse_dir: str = "", timelapse_cleanup: bool = False, timelapse_fps: int = 10, logging_handler: logging.Handler = None, debug_logging: bool = False,
                  picture_quality: str = 'low'):
-        self._host: str = camera_host
+        self._host = int(camera_host) if str.isdigit(camera_host) else camera_host
         self.enabled: bool = camera_enabled
         self._threads: int = threads
         self._flipVertically: bool = flip_vertically
@@ -144,19 +144,19 @@ class Camera:
     @staticmethod
     def _create_thumb(image):
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        bio = BytesIO()
-        bio.name = 'thumb.jpeg'
-        img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
-        bio.seek(0)
+        with BytesIO() as bio:
+            bio.name = 'thumb.jpeg'
+            img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
+            bio.seek(0)
+            res = bio.getvalue()
         img.close()
         del img
-        return bio
+        return res
 
     @cam_light_toggle
-    def take_photo(self) -> BytesIO:
+    def take_photo(self) -> bytes:
         with self._camera_lock:
-            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
-            # logger.debug(f"VideoCapture backend: {cap.getBackendName()}")
+            cap = cv2.VideoCapture(self._host)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             success, image = cap.read()
             cap.release()
@@ -182,21 +182,22 @@ class Camera:
             cv2.destroyAllWindows()
             del image, cap
 
-        bio = BytesIO()
-        bio.name = f'status.{self._img_extension}'
-        if self._img_extension in ['jpg', 'jpeg']:
-            img.save(bio, 'JPEG', quality=80, subsampling=0)
-        elif self._img_extension == 'webp':
-            img.save(bio, 'WebP', quality=0, lossless=True)
-        elif self._img_extension == 'png':
-            img.save(bio, 'PNG')
-        bio.seek(0)
+        with BytesIO() as bio:
+            bio.name = f'status.{self._img_extension}'
+            if self._img_extension in ['jpg', 'jpeg']:
+                img.save(bio, 'JPEG', quality=80, subsampling=0)
+            elif self._img_extension == 'webp':
+                img.save(bio, 'WebP', quality=0, lossless=True)
+            elif self._img_extension == 'png':
+                img.save(bio, 'PNG')
+            res = bio.getvalue()
+
         img.close()
         del img
-        return bio
+        return res
 
     @cam_light_toggle
-    def take_video(self):
+    def take_video(self) -> (bytes, bytes, int, int):
         def process_video_frame(frame_local):
             if self._flipVertically or self._flipHorizontally:
                 if self._hw_accel:
@@ -210,7 +211,7 @@ class Camera:
 
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
-            cap = cv2.VideoCapture(int(self._host)) if str.isdigit(self._host) else cv2.VideoCapture(self._host)
+            cap = cv2.VideoCapture(self._host)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             success, frame = cap.read()
             if not success:
@@ -239,15 +240,15 @@ class Camera:
             cv2.destroyAllWindows()
             del out, cap
 
-        video_bio = BytesIO()
-        video_bio.name = 'video.mp4'
-        with open(filepath, 'rb') as fh:
-            video_bio.write(fh.read())
+        with BytesIO() as video_bio:
+            video_bio.name = 'video.mp4'
+            with open(filepath, 'rb') as fh:
+                video_bio.write(fh.read())
+            os.remove(filepath)
+            video_bio.seek(0)
+            vid = video_bio.getvalue()
 
-        os.remove(filepath)
-        video_bio.seek(0)
-
-        return video_bio, thumb_bio, width, height
+        return vid, thumb_bio, width, height
 
     def take_lapse_photo(self) -> None:
         # Todo: check for space available?
@@ -256,16 +257,15 @@ class Camera:
         photo = self.take_photo()
         filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
         with open(filename, "wb") as outfile:
-            outfile.write(photo.getbuffer())
-        photo.close()
+            outfile.write(photo)
 
-    def create_timelapse(self):
+    def create_timelapse(self) -> (bytes, bytes, int, int, str):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time)
 
-    def create_timelapse_for_file(self, filename: str):
+    def create_timelapse_for_file(self, filename: str) -> (bytes, bytes, int, int, str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str):
+    def _create_timelapse(self, lapse_dir: str, printing_filename: str) -> (bytes, bytes, int, int, str):
         while self.light_need_off:
             time.sleep(1)
 
@@ -298,15 +298,15 @@ class Camera:
 
         del photos, img, layers
 
-        video_bio = BytesIO()
-        video_bio.name = f'{printing_filename}.mp4'
-        with open(video_filepath, 'rb') as fh:
-            video_bio.write(fh.read())
-            # Fixme: move to method with error handling!
-            if self._ready_dir and os.path.isdir(self._ready_dir):
-                with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                    cpf.write(video_bio.getbuffer())
-        video_bio.seek(0)
+        with BytesIO() as video_bio:
+            video_bio.name = f'{printing_filename}.mp4'
+            with open(video_filepath, 'rb') as fh:
+                video_bio.write(fh.read())
+                # Fixme: move to method with error handling!
+                if self._ready_dir and os.path.isdir(self._ready_dir):
+                    with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
+                        cpf.write(video_bio.getvalue())
+            vid = video_bio.getvalue()
 
         os.remove(f'{lapse_dir}/lapse.lock')
 
@@ -315,13 +315,12 @@ class Camera:
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
-        return video_bio, thumb_bio, width, height, video_filepath
+        return vid, thumb_bio, width, height, video_filepath
 
     def clean(self) -> None:
-        if self._cleanup and self._klippy.printing_filename:
-            if os.path.isdir(self.lapse_dir):
-                for filename in glob.glob(f'{self.lapse_dir}/*'):
-                    os.remove(filename)
+        if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
+            for filename in glob.glob(f'{self.lapse_dir}/*'):
+                os.remove(filename)
 
     def detect_unfinished_lapses(self) -> List[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
