@@ -324,10 +324,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
         return InlineKeyboardButton(filename, callback_data=hashlib.md5(filename.encode()).hexdigest() + '.gcode')
 
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    response = requests.get(f"http://{host}/server/files/list?root=gcodes")
-    resp = response.json()
-    files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
-    files_keys = list(map(list, zip(map(create_file_button, files))))
+    files_keys = list(map(list, zip(map(create_file_button, klippy.get_gcode_files()))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)

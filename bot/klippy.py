@@ -106,11 +106,14 @@ class Klippy:
     def sensor_message(sensor: str, sens_key: str, response) -> str:
         if sens_key not in response or not response[sens_key]:
             return ''
+        
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
         message = f"{sens_name.title()}: {round(response[sens_key]['temperature'])}"
         if 'target' in response[sens_key]:
-            message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}"
-            message += emoji.emojize(' :fire: ', use_aliases=True) if response[sens_key]['power'] > 0.0 else emoji.emojize(' :snowflake: ', use_aliases=True)
+            if response[sens_key]['target'] > 0.0:
+                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}"
+            if response[sens_key]['power'] > 0.0:
+                message += emoji.emojize(' :fire: ', use_aliases=True)
         message += '\n'
         return message
 
@@ -174,7 +177,7 @@ class Klippy:
         self.file_estimated_time = resp['estimated_time']
 
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        message += f"Filament: {round(self.filament_used, 2)}m / {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g\n"
+        message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g\n"
         message += self.get_eta_message()
 
         if 'thumbnails' in resp:
@@ -191,3 +194,9 @@ class Klippy:
             return message, res
         else:
             return message, None
+
+    def get_gcode_files(self):
+        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes")
+        resp = response.json()
+        files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
+        return files
