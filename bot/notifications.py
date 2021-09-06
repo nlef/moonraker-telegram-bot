@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction
-from telegram.ext import Updater, CallbackContext
+from telegram.ext import Updater
 
 from camera import Camera
 from klippy import Klippy
@@ -13,43 +13,25 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
-def send_message(context: CallbackContext):
-    (mess, chat_id, notify_groups, silent) = context.job.context
-    context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-    context.bot.send_message(chat_id, text=mess, disable_notification=silent)
-    for group in notify_groups:
-        context.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-        context.bot.send_message(group, text=mess, disable_notification=silent)
-
-
-def send_message_with_photo(context: CallbackContext):
-    (mess, pht, chat_id, notify_groups, silent) = context.job.context
-    context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-    context.bot.send_photo(chat_id, photo=pht, caption=mess, disable_notification=silent)
-    for group_ in notify_groups:
-        context.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-        context.bot.send_photo(group_, photo=pht, caption=mess, disable_notification=silent)
-
-
 class Notifier:
-    def __init__(self, config: configparser.ConfigParser, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler,  logging_handler: logging.Handler = None,
+    def __init__(self, config: configparser.ConfigParser, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler, logging_handler: logging.Handler = None,
                  debug_logging: bool = False):
         self._bot_updater: Updater = bot_updater
-        self._chatId: int = chat_id
+        self._chat_id: int = chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._sched = scheduler
         self._klippy: Klippy = klippy
 
         self._percent: int = config.getint('progress_notification', 'percent', fallback=0)
         self._height: int = config.getint('progress_notification', 'height', fallback=0)
-        self.interval: int = config.getint('progress_notification', 'time', fallback=0)
+        self._interval: int = config.getint('progress_notification', 'time', fallback=0)
         self._interval_between: int = config.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
-        self.notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config[
+        self._notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config[
             'progress_notification'] else list()
 
-        self.silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
-        self.silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=True)
-        self.silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=True)
+        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
+        self._silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=True)
+        self._silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=True)
 
         self._last_height: int = 0
         self._last_percent: int = 0
@@ -62,6 +44,14 @@ class Notifier:
             logger.setLevel(logging.DEBUG)
 
     @property
+    def silent_commands(self):
+        return self._silent_commands
+
+    @property
+    def silent_status(self):
+        return self._silent_status
+
+    @property
     def message(self):
         return self._last_message
 
@@ -69,24 +59,36 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
-    def notify(self, message: str, silent: bool):
+    def _send_message(self, message: str, silent: bool):
+        self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
+        self._bot_updater.bot.send_message(self._chat_id, text=message, disable_notification=silent)
+        for group in self._notify_groups:
+            self._bot_updater.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+            self._bot_updater.bot.send_message(group, text=message, disable_notification=silent)
+
+    def _notify(self, message: str, silent: bool):
         if self._cam_wrap.enabled:
             photo = self._cam_wrap.take_photo()
-            self._bot_updater.job_queue.run_once(send_message_with_photo, 0, context=(message, photo, self._chatId, self.notify_groups, silent))
+            self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
+            self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
+            for group_ in self._notify_groups:
+                self._bot_updater.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+                self._bot_updater.bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
+
         else:
-            self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, silent))
+            self._send_message(message, silent)
 
     def send_error(self, message: str):
-        self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, False))
+        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': False}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_error_with_photo(self, message: str):
-        self._sched.add_job(self.notify, kwargs={'message': message, 'silent': False}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._notify, kwargs={'message': message, 'silent': False}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_notification(self, message: str):
-        self._bot_updater.job_queue.run_once(send_message, 0, context=(message, self._chatId, self.notify_groups, self.silent_status))
+        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': self._silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_notification_with_photo(self, message: str):
-        self._sched.add_job(self.notify, kwargs={'message': message, 'silent': self.silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._notify, kwargs={'message': message, 'silent': self._silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def reset_notifications(self) -> None:
         self._last_percent = 0
@@ -121,10 +123,9 @@ class Notifier:
             notifymsg += f"{self._klippy.get_eta_message()}"
 
             self._last_notify_time = time.time()
-            self._sched.add_job(self.notify, kwargs={'message': notifymsg, 'silent': self.silent_progress}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+            self._sched.add_job(self._notify, kwargs={'message': notifymsg, 'silent': self._silent_progress}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
-    def notify_by_time(self):
-        # Fixme: do we need last notify time check???
+    def _notify_by_time(self):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between):
             return
 
@@ -132,11 +133,11 @@ class Notifier:
         if self._last_message:
             notifymsg += f"{self._last_message}\n"
         notifymsg += f"{self._klippy.get_eta_message()}"
-        self.notify(notifymsg, self.silent_progress)
+        self._notify(notifymsg, self._silent_progress)
 
     def add_notifier_timer(self):
-        if self.interval > 0:
-            self._sched.add_job(self.notify_by_time, 'interval', seconds=self.interval, id='notifier_timer')
+        if self._interval > 0:
+            self._sched.add_job(self._notify_by_time, 'interval', seconds=self._interval, id='notifier_timer')
 
     def remove_notifier_timer(self):
         if self._sched.get_job('notifier_timer'):

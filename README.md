@@ -69,8 +69,8 @@ type: git_repo
 path: ~/moonraker-telegram-bot
 origin: https://github.com/nlef/moonraker-telegram-bot.git
 env: ~/moonraker-telegram-bot-env/bin/python
-requirements: /scripts/requirements.txt
-install_script: /scripts/install.sh
+requirements: scripts/requirements.txt
+install_script: scripts/install.sh
 ```
 
 Alternatively you can update by hand at your own risk, by doing a pull and running the install.sh again.

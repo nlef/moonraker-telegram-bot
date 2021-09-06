@@ -106,7 +106,7 @@ class Klippy:
     def sensor_message(sensor: str, sens_key: str, response) -> str:
         if sens_key not in response or not response[sens_key]:
             return ''
-        
+
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
         message = f"{sens_name.title()}: {round(response[sens_key]['temperature'])}"
         if 'target' in response[sens_key]:

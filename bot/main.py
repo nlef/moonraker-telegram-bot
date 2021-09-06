@@ -422,8 +422,8 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
-    dispatcher.add_handler(CommandHandler("photo", get_photo, run_async=True))
-    dispatcher.add_handler(CommandHandler("video", get_video, run_async=True))
+    dispatcher.add_handler(CommandHandler("photo", get_photo))
+    dispatcher.add_handler(CommandHandler("video", get_video))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
     dispatcher.add_handler(CommandHandler("cancel", cancel_printing))
@@ -587,7 +587,7 @@ def websocket_to_message(ws_loc, ws_message):
                 if 'timelapse resume' in message_params:
                     timelapse.running = True
                 if 'timelapse create' in message_params:
-                    bot_updater.job_queue.run_once(send_timelapse, 1)
+                    timelapse.send_timelapse()
 
             if 'timelapse photo' in message_params:
                 timelapse.take_lapse_photo()
@@ -663,7 +663,7 @@ def websocket_to_message(ws_loc, ws_message):
                     notifier.remove_notifier_timer()
                     if not timelapse.manual_mode:
                         timelapse.running = False
-                        bot_updater.job_queue.run_once(send_timelapse, 5)
+                        timelapse.send_timelapse()
                     message += f"Finished printing {klippy.printing_filename} \n"
                 elif state == 'error':
                     klippy.printing = False
@@ -738,8 +738,8 @@ if __name__ == '__main__':
 
     klippy = Klippy(conf, light_power_device, psu_power_device, rotatingHandler, debug)
     cameraWrap = Camera(conf, klippy, light_power_device, klipper_config_path, rotatingHandler, debug)
-    timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, rotatingHandler, debug)
     bot_updater = start_bot(token, socks_proxy)
+    timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, bot_updater, chatId, rotatingHandler, debug)
     notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)

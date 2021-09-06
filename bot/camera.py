@@ -48,7 +48,7 @@ def cam_light_toggle(func):
                 logger.debug(f"light requests count: {self.light_requests}")
 
         if self.light_need_off and self.light_requests == 0:
-            threading.Timer(.5, delayed_light_off).start()
+            threading.Timer(1.5, delayed_light_off).start()
 
         return result
 
@@ -82,6 +82,7 @@ class Camera:
         self.light_timer_event.set()
 
         self._hw_accel: bool = False
+
         picture_quality = config.get('camera', 'picture_quality', fallback='high')
         if picture_quality == 'low':
             self._img_extension: str = 'jpeg'
@@ -111,6 +112,10 @@ class Camera:
             logger.debug('OpenCL is available')
             cv2.ocl.setUseOpenCL(True)
             logger.debug(f'OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}')
+
+        cv2.setNumThreads(self._threads)
+        self.cam_cam = cv2.VideoCapture()
+        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     @property
     def light_need_off(self) -> bool:
@@ -153,31 +158,28 @@ class Camera:
     @cam_light_toggle
     def take_photo(self) -> bytes:
         with self._camera_lock:
-            cap = cv2.VideoCapture(self._host)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            success, image = cap.read()
-            cap.release()
+            self.cam_cam.open(self._host)
+            self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            success, image = self.cam_cam.read()
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
                 img = Image.open(random.choice(glob.glob(f'{self._imgs_path}/imgs/*')))
             else:
-                # Fixme: rewrite with local variables for each step in C like style
                 if self._hw_accel:
                     image_um = cv2.UMat(image)
                     if self._flipVertically or self._flipHorizontally:
                         image_um = cv2.flip(image_um, self._flip)
-                    image = cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB))
+                    img = Image.fromarray(cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB)))
+                    image_um = None
                     del image_um
                 else:
                     if self._flipVertically or self._flipHorizontally:
                         image = cv2.flip(image, self._flip)
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
-                img = Image.fromarray(image)
-
-            cv2.destroyAllWindows()
-            del image, cap
+            image = None
+            del image, success
 
         with BytesIO() as bio:
             bio.name = f'status.{self._img_extension}'
@@ -207,10 +209,11 @@ class Camera:
             return frame_local
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)
-            cap = cv2.VideoCapture(self._host)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            success, frame = cap.read()
+            cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
+            self.cam_cam.open(self._host)
+            self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            success, frame = self.cam_cam.read()
+
             if not success:
                 logger.debug("failed to get camera frame for video")
                 # Todo: get picture from imgs?
@@ -218,24 +221,22 @@ class Camera:
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(process_video_frame(frame))
             del frame, channels
-            fps_cam = cap.get(cv2.CAP_PROP_FPS)
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS)
             fps = 10
             filepath = os.path.join('/tmp/', 'video.mp4')
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
             t_end = time.time() + self._videoDuration
             while success and time.time() < t_end:
                 prev_frame_time = time.time()
-                success, frame_loc = cap.read()
+                success, frame_loc = self.cam_cam.read()
                 out.write(process_video_frame(frame_loc))
+                frame_loc = None
                 del frame_loc
                 fps = 1 / (time.time() - prev_frame_time)
 
             logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
-            cap.release()
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
-            cv2.destroyAllWindows()
-            del out, cap
 
         with BytesIO() as video_bio:
             video_bio.name = 'video.mp4'
@@ -282,7 +283,7 @@ class Camera:
             os.remove(video_filepath)
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)
+            cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=(width, height))
 
             for filename in photos:
