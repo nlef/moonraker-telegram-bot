@@ -113,3 +113,8 @@ class Timelapse:
 
     def send_timelapse(self):
         self._sched.add_job(self._send_lapse, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=False)
+
+    def stop_all(self):
+        self._remove_timelapse_timer()
+        self._running = False
+        self._last_height = 0.0

@@ -200,3 +200,7 @@ class Klippy:
         resp = response.json()
         files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
         return files
+
+    def stop_all(self):
+        # FixMe: implemet!
+        pass

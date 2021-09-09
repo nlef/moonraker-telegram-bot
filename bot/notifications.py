@@ -94,6 +94,8 @@ class Notifier:
         self._last_percent = 0
         self._last_height = 0
         self._klippy.printing_duration = 0
+        self._last_message = ''
+        self._last_notify_time = 0
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
@@ -142,3 +144,7 @@ class Notifier:
     def remove_notifier_timer(self):
         if self._sched.get_job('notifier_timer'):
             self._sched.remove_job('notifier_timer')
+
+    def stop_all(self):
+        self.reset_notifications()
+        self.remove_notifier_timer()
