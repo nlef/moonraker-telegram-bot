@@ -135,6 +135,7 @@ class Notifier:
         if self._last_message:
             notifymsg += f"{self._last_message}\n"
         notifymsg += f"{self._klippy.get_eta_message()}"
+        self._last_notify_time = time.time()
         self._notify(notifymsg, self._silent_progress)
 
     def add_notifier_timer(self):
