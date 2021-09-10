@@ -115,7 +115,7 @@ def status(update: Update, _: CallbackContext) -> None:
     message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands)
     if klippy.printing_filename:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-        send_file_info(message_to_reply.bot, notifier.silent_commands)
+        send_file_info(message_to_reply.bot, notifier.silent_commands, f"Printing: {klippy.printing_filename} \n")
 
 
 def create_keyboard():
