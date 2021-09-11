@@ -171,7 +171,7 @@ class Klippy:
         eta = self.get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
-    def get_file_info(self, message: str = '') -> (str, bytes):
+    def get_file_info(self, message: str = '') -> (str, BytesIO):
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
         resp = response.json()['result']
         self.file_estimated_time = resp['estimated_time']
@@ -184,14 +184,14 @@ class Klippy:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")).convert('RGB')
 
-            with BytesIO() as bio:
-                bio.name = f'{self.printing_filename}.webp'
-                img.save(bio, 'WebP', quality=0, lossless=True)
-                res = bio.getvalue()
+            bio = BytesIO
+            bio.name = f'{self.printing_filename}.webp'
+            img.save(bio, 'WebP', quality=0, lossless=True)
+            bio.seek(0)
 
             img.close()
 
-            return message, res
+            return message, bio
         else:
             return message, None
 

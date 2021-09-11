@@ -110,6 +110,8 @@ class Timelapse:
             else:
                 self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {self._klippy.printing_filename}', timeout=120,
                                                  disable_notification=self._silent_progress)
+            video_bio.close()
+            thumb_bio.close()
 
     def send_timelapse(self):
         self._sched.add_job(self._send_lapse, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=False)

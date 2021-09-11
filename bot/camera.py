@@ -145,18 +145,18 @@ class Camera:
             self._light_requests -= 1
 
     @staticmethod
-    def _create_thumb(image):
+    def _create_thumb(image) -> BytesIO:
         img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        with BytesIO() as bio:
-            bio.name = 'thumb.jpeg'
-            img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
-            res = bio.getvalue()
+        bio = BytesIO()
+        bio.name = 'thumb.jpeg'
+        img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
+        bio.seek(0)
         img.close()
         del img
-        return res
+        return bio
 
     @cam_light_toggle
-    def take_photo(self) -> bytes:
+    def take_photo(self) -> BytesIO:
         with self._camera_lock:
             self.cam_cam.open(self._host)
             self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -181,22 +181,24 @@ class Camera:
             image = None
             del image, success
 
-        with BytesIO() as bio:
-            bio.name = f'status.{self._img_extension}'
-            if self._img_extension in ['jpg', 'jpeg']:
-                img.save(bio, 'JPEG', quality=80, subsampling=0)
-            elif self._img_extension == 'webp':
-                img.save(bio, 'WebP', quality=0, lossless=True)
-            elif self._img_extension == 'png':
-                img.save(bio, 'PNG')
-            res = bio.getvalue()
+        # with  as bio:
+
+        bio = BytesIO()
+        bio.name = f'status.{self._img_extension}'
+        if self._img_extension in ['jpg', 'jpeg']:
+            img.save(bio, 'JPEG', quality=80, subsampling=0)
+        elif self._img_extension == 'webp':
+            img.save(bio, 'WebP', quality=0, lossless=True)
+        elif self._img_extension == 'png':
+            img.save(bio, 'PNG')
+        bio.seek(0)
 
         img.close()
         del img
-        return res
+        return bio
 
     @cam_light_toggle
-    def take_video(self) -> (bytes, bytes, int, int):
+    def take_video(self) -> (BytesIO, BytesIO, int, int):
         def process_video_frame(frame_local):
             if self._flipVertically or self._flipHorizontally:
                 if self._hw_accel:
@@ -238,14 +240,13 @@ class Camera:
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
 
-        with BytesIO() as video_bio:
-            video_bio.name = 'video.mp4'
-            with open(filepath, 'rb') as fh:
-                video_bio.write(fh.read())
-            os.remove(filepath)
-            vid = video_bio.getvalue()
-
-        return vid, thumb_bio, width, height
+        video_bio = BytesIO()
+        video_bio.name = 'video.mp4'
+        with open(filepath, 'rb') as fh:
+            video_bio.write(fh.read())
+        os.remove(filepath)
+        video_bio.seek(0)
+        return video_bio, thumb_bio, width, height
 
     def take_lapse_photo(self) -> None:
         # Todo: check for space available?
@@ -254,15 +255,16 @@ class Camera:
         photo = self.take_photo()
         filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
         with open(filename, "wb") as outfile:
-            outfile.write(photo)
+            outfile.write(photo.getvalue())
+        photo.close()
 
-    def create_timelapse(self) -> (bytes, bytes, int, int, str):
+    def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time)
 
-    def create_timelapse_for_file(self, filename: str) -> (bytes, bytes, int, int, str):
+    def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str) -> (bytes, bytes, int, int, str):
+    def _create_timelapse(self, lapse_dir: str, printing_filename: str) -> (BytesIO, BytesIO, int, int, str):
         while self.light_need_off:
             time.sleep(1)
 
@@ -296,15 +298,15 @@ class Camera:
         del photos, img, layers
 
         # Todo: some error handling?
-        with BytesIO() as video_bio:
-            video_bio.name = f'{printing_filename}.mp4'
-            with open(video_filepath, 'rb') as fh:
-                video_bio.write(fh.read())
-            if self._ready_dir and os.path.isdir(self._ready_dir):
-                with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                    cpf.write(video_bio.getvalue())
-            vid = video_bio.getvalue()
 
+        video_bio = BytesIO()
+        video_bio.name = f'{printing_filename}.mp4'
+        with open(video_filepath, 'rb') as fh:
+            video_bio.write(fh.read())
+        if self._ready_dir and os.path.isdir(self._ready_dir):
+            with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
+                cpf.write(video_bio.getvalue())
+        video_bio.seek(0)
         os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
@@ -312,7 +314,7 @@ class Camera:
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
-        return vid, thumb_bio, width, height, video_filepath
+        return video_bio, thumb_bio, width, height, video_filepath
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
