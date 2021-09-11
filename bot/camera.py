@@ -181,8 +181,6 @@ class Camera:
             image = None
             del image, success
 
-        # with  as bio:
-
         bio = BytesIO()
         bio.name = f'status.{self._img_extension}'
         if self._img_extension in ['jpg', 'jpeg']:
@@ -307,6 +305,7 @@ class Camera:
             with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
                 cpf.write(video_bio.getvalue())
         video_bio.seek(0)
+
         os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
