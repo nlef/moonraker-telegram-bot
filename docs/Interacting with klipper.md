@@ -1,7 +1,7 @@
 This document is a reference for available interactions between klipper and moonraker-telegram-bot. 
 
-The interaction is done via "M118"/RESPOND extended commands.
-You will need to enable the corresponding [section](https://github.com/KevinOConnor/klipper/blob/master/docs/Config_Reference.md#respond) in your printer.cfg file. 
+**The interaction is done via "M118"/RESPOND extended commands.**
+**You will need to enable the corresponding [section](https://github.com/KevinOConnor/klipper/blob/master/docs/Config_Reference.md#respond) in your printer.cfg file.** 
 
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
@@ -16,11 +16,14 @@ Following commands are available:
 - `timelapse resume` Resumes the capturing, if it was paused.
 - `timelapse create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
 
-## Manual timelapse modes
-You can use RESPOND-type commands to send custom messages to the bot. You have two options:
-- `tgnotify` Sends a message with an alert configured by 'silent_status'. Intended usage is to send custom status updates to the bot, as "heating done".
-An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgnotify MSG=my_message` or `RESPOND PREFIX=tgnotify MSG="my message with spaces"` if you need spaces.
-- `tgnotify_photo` 
+## Custom notifications 
+You can use RESPOND-type commands to send custom messages to the bot. 
+- `tgnotify` Sends a message with an alert configured by 'silent_status'. 
+Intended usage is to send custom status updates to the bot, as "heating done". An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgnotify MSG=my_message` or `RESPOND PREFIX=tgnotify MSG="my message with spaces"` if you need spaces.
+- `tgnotify_photo`  Captures a picture, sends a message with an alert configured by 'silent_status'.
+Works exactly the same as the simple notify command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.
+
 - `tgalarm` Sends a message with an alert. You get a "red" notification with sound or vibration.
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.
-- `tgalarm_photo`
+- `tgalarm_photo` Captures a picture, sends a message with an alert. You get a "red" notification with sound or vibration.
+Works exactly the same as the simple alarm command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.

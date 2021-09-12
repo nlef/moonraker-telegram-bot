@@ -35,6 +35,7 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/poweroff	- turn off a specified moonraker power device
 	/light		- toggle a specified moonraker power device
 	/emergency	- run an emergency stop
+	/shutdown	- Shut down the host system
 ```
 
 ## Installation, configuration and updating
@@ -59,6 +60,7 @@ You can check on all the parameters and what they do in the [config_sample](docs
 Before you can start using the bot you will have to create and configure a telegram bot.
 The process is straightforward and is explained in the 'config_sample' in more detail. 
 
+Moonraker [history] component must be configured.
 
 To update the bot, we recommend simply using the moonraker update manager. This is explained in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager/).
 Here is the section needed:
@@ -80,12 +82,7 @@ Please understand, that entering commands into the console takes a certain amoun
 When tweaking the bot, remember that you have to **restart the service every time you change the config**:
 You can either do so via ssh
 `sudo systemctl restart moonraker-telegram-bot`
-Or directly by typing
-`/restart`
-to the bot in telegram.
 
-
-Moonraker [history] component must be configured
 
 ## Issues and bug reports
 
