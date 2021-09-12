@@ -104,7 +104,7 @@ class Timelapse:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (video_bio, thumb_bio, width, height, video_path) = self._camera.create_timelapse()
 
-            if len(video_bio) > 52428800:
+            if video_bio.getbuffer().nbytes > 52428800:
                 self._bot_updater.bot.send_message(self._chat_id, text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}',
                                                    disable_notification=self._silent_progress)
             else:
