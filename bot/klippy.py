@@ -25,7 +25,7 @@ class Klippy:
         self._light_device = light_device
         self._psu_device = psu_device
         self._sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
-        self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else ['extruder', 'heater_bed']
+        self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
         self._sensors_dict: dict = self._prepare_sens_dict()
         self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
 
