@@ -1,0 +1,10 @@
+tzlocal==2.1
+python-telegram-bot==13.7
+websocket-client==1.2.1
+Pillow==8.3.2
+emoji==1.4.2
+requests==2.26.0
+PySocks==1.7.1
+opencv-python~=3.4.8.29
+numpy~=1.20.1
+memory_profiler

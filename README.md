@@ -35,6 +35,7 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/poweroff	- turn off a specified moonraker power device
 	/light		- toggle a specified moonraker power device
 	/emergency	- run an emergency stop
+	/shutdown	- Shut down the host system
 ```
 
 ## Installation, configuration and updating
@@ -50,7 +51,7 @@ cd moonraker-telegram-bot
 When the process is done, run the install script:
 
 ```
-./install.sh
+./scripts/install.sh
 ```
 
 You will get asked, where to place the configuration file to. It is recommended to place it in the same catalog, where klipper configs are located, for ease of access and backup.
@@ -59,6 +60,7 @@ You can check on all the parameters and what they do in the [config_sample](docs
 Before you can start using the bot you will have to create and configure a telegram bot.
 The process is straightforward and is explained in the 'config_sample' in more detail. 
 
+Moonraker [history] component must be configured.
 
 To update the bot, we recommend simply using the moonraker update manager. This is explained in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager/).
 Here is the section needed:
@@ -69,18 +71,18 @@ type: git_repo
 path: ~/moonraker-telegram-bot
 origin: https://github.com/nlef/moonraker-telegram-bot.git
 env: ~/moonraker-telegram-bot-env/bin/python
-requirements: requirements.txt
-install_script: install.sh
+requirements: scripts/requirements.txt
+install_script: scripts/install.sh
 ```
 
 Alternatively you can update by hand at your own risk, by doing a pull and running the install.sh again.
 Please understand, that entering commands into the console takes a certain amount of knowledge and is your own responsibility.
 
 
-When tweaking the bot, remember that you have to restart the service every time you change the config:
+When tweaking the bot, remember that you have to **restart the service every time you change the config**:
+You can either do so via ssh
 `sudo systemctl restart moonraker-telegram-bot`
 
-Moonraker [history] component must be configured
 
 ## Issues and bug reports
 

@@ -1,5 +1,7 @@
 # Todo: class for printer states!
+import configparser
 import logging
+import re
 import time
 
 import emoji
@@ -10,14 +12,23 @@ from urllib.request import urlopen
 from PIL import Image
 from io import BytesIO
 
+from power_device import PowerDevice
+
 logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, moonraker_host: str, disabled_macros: list, eta_source: str):
-        self._host = moonraker_host
-        self._disabled_macros = disabled_macros
-        self._eta_source: str = eta_source
+    def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug_logging: bool = False):
+        self._host = config.get('bot', 'server', fallback='localhost')
+        self._disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
+        self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
+        self._light_device = light_device
+        self._psu_device = psu_device
+        self._sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
+        self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
+        self._sensors_dict: dict = self._prepare_sens_dict()
+        self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
+
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
@@ -27,6 +38,24 @@ class Klippy:
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
+        self.filament_used: float = 0.0
+
+        if logging_handler:
+            logger.addHandler(logging_handler)
+        if debug_logging:
+            logger.setLevel(logging.DEBUG)
+
+    def _prepare_sens_dict(self):
+        sens_dict = {}
+        for heat in self._heates_list:
+            if heat in ['extruder', 'heater_bed']:
+                sens_dict[heat] = heat
+            else:
+                sens_dict[heat] = f"heater_generic {heat}"
+
+        for sens in self._sensors_list:
+            sens_dict[sens] = f"temperature_sensor {sens}"
+        return sens_dict
 
     @property
     def macros(self):
@@ -38,7 +67,11 @@ class Klippy:
 
     @property
     def printing_filename_with_time(self):
-        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"  # Todo: maybe add seconds?
+        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
+
+    @property
+    def moonraker_host(self):
+        return self._host
 
     @printing_filename.setter
     def printing_filename(self, new_value: str):
@@ -48,6 +81,7 @@ class Klippy:
             self.file_print_start_time = 0.0
             return
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
+        # Todo: add response status check!
         resp = response.json()['result']
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
@@ -63,27 +97,42 @@ class Klippy:
 
     def check_connection(self) -> bool:
         try:
-            response = requests.get(f"http://{self._host}/printer/info")
+            response = requests.get(f"http://{self._host}/printer/info", timeout=2)
             return True if response.ok else False
         except Exception:
             return False
 
+    @staticmethod
+    def sensor_message(sensor: str, sens_key: str, response) -> str:
+        if sens_key not in response or not response[sens_key]:
+            return ''
+
+        sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
+        message = f"{sens_name.title()}: {round(response[sens_key]['temperature'])}"
+        if 'target' in response[sens_key]:
+            if response[sens_key]['target'] > 0.0:
+                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}"
+            if response[sens_key]['power'] > 0.0:
+                message += emoji.emojize(' :fire: ', use_aliases=True)
+        message += '\n'
+        return message
+
     def get_status(self) -> str:
-        response = requests.get(
-            f"http://{self._host}/printer/objects/query?webhooks&print_stats=filename,total_duration,print_duration,filament_used,state,message&display_status=message")
-        resp = response.json()
-        print_stats = resp['result']['status']['print_stats']
-        webhook = resp['result']['status']['webhooks']
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status{self._sensors_query}")
+        resp = response.json()['result']['status']
+        print_stats = resp['print_stats']
+        webhook = resp['webhooks']
         message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
-        if 'display_status' in resp['result']['status']:
-            if 'message' in resp['result']['status']['display_status']:
-                msg = resp['result']['status']['display_status']['message']
-                if msg and msg is not None:
-                    message += f"{msg}\n"
+
+        if 'display_status' in resp and 'message' in resp['display_status']:
+            msg = resp['display_status']['message']
+            if msg and msg is not None:
+                message += f"{msg}\n"
         if 'state_message' in webhook:
             message += f"State message: {webhook['state_message']}\n"
+
         message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
-        # if print_stats['state'] in ('printing', 'paused', 'complete'):
+
         if print_stats['state'] == 'printing':
             if not self.printing_filename:
                 self.printing_filename = print_stats['filename']
@@ -92,10 +141,15 @@ class Klippy:
             message += f"Printing paused\n"
         elif print_stats['state'] == 'complete':
             pass
-        # Todo: use powerdevice classes
-        # if cameraWrap.light_device:
-        #     message += emoji.emojize(':flashlight: Light Status: ', use_aliases=True) + f"{'on' if cameraWrap.light_state else 'off'}"
-        # return message, printing_filename
+
+        for sens, s_key in self._sensors_dict.items():
+            message += self.sensor_message(sens, s_key, resp)
+
+        if self._light_device:
+            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
+        if self._psu_device:
+            message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+
         return message
 
     def execute_command(self, command: str):
@@ -109,7 +163,6 @@ class Klippy:
             eta = int(self.file_estimated_time - self.printing_duration)
         else:  # eta by file
             eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
-        # eta_vsd = int(resp['estimated_time'] * (1 - klippy.vsd_progress))
         if eta < 0:
             eta = 0
         return timedelta(seconds=eta)
@@ -123,9 +176,8 @@ class Klippy:
         resp = response.json()['result']
         self.file_estimated_time = resp['estimated_time']
 
-        filemanet_lenght = round(resp['filament_total'] / 1000, 2)
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        message += f"Filament: {round(filemanet_lenght * self.printing_progress, 2)}m / {filemanet_lenght}m, weight: {resp['filament_weight_total']}g\n"
+        message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g\n"
         message += self.get_eta_message()
 
         if 'thumbnails' in resp:
@@ -137,6 +189,18 @@ class Klippy:
             img.save(bio, 'WebP', quality=0, lossless=True)
             bio.seek(0)
 
+            img.close()
+
             return message, bio
         else:
             return message, None
+
+    def get_gcode_files(self):
+        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes")
+        resp = response.json()
+        files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
+        return files
+
+    def stop_all(self):
+        # FixMe: implemet!
+        pass
