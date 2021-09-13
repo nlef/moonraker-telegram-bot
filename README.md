@@ -13,7 +13,7 @@ As always with solutions like these, we kindly remind you not to print unattende
 - Configurable timelapsing 
 - Configurable keyboard for easy control without command typing in the bot
 - Power device control for PSU/MCU control via moonraker
-- Sampling of photos/videos/gifs on request at any time
+- Sampling of photos/videos on request at any time
 - Pause, Cancel, Resume with a double confirmation 
 - Emergency stop with a double confirmation
 
@@ -31,7 +31,6 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/files		- get the last 5 .gcode files, and the option to print them
 	/photo 		- capture a picture from the webstream/webcam
 	/video 		- capture a video from the webstream/webcam
-	/gif 		- capture a gif from the webstream/webcam
 	/poweroff	- turn off a specified moonraker power device
 	/light		- toggle a specified moonraker power device
 	/emergency	- run an emergency stop
