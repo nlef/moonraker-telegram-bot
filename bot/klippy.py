@@ -184,7 +184,7 @@ class Klippy:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")).convert('RGB')
 
-            bio = BytesIO
+            bio = BytesIO()
             bio.name = f'{self.printing_filename}.webp'
             img.save(bio, 'WebP', quality=0, lossless=True)
             bio.seek(0)
