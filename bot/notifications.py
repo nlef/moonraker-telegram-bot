@@ -72,9 +72,10 @@ class Notifier:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
             self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
             for group_ in self._notify_groups:
+                photo.seek(0)
                 self._bot_updater.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
                 self._bot_updater.bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
-
+            photo.close()
         else:
             self._send_message(message, silent)
 

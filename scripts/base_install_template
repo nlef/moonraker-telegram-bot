@@ -2,6 +2,7 @@
 server: localhost
 chat_id: 123412341241234
 bot_token: 12341234:sdfgsdfgsdfgssdfg-LKsdfgsdfgsdfgsdfg
+log_path: some_log_path
 
 [camera]
 flipVertically: false
