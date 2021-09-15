@@ -270,7 +270,7 @@ class Camera:
             os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!
 
         # Todo: check for nonempty photos!
-        photos = glob.glob(f'{lapse_dir}/*.{self._img_extension}')
+        photos = glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}')
         photos.sort(key=os.path.getmtime)
 
         filename = photos[-1]
@@ -309,7 +309,7 @@ class Camera:
         os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
-            for filename in glob.glob(f'{lapse_dir}/*'):
+            for filename in glob.glob(f'{glob.escape(lapse_dir)}/*'):
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
@@ -317,7 +317,7 @@ class Camera:
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
-            for filename in glob.glob(f'{self.lapse_dir}/*'):
+            for filename in glob.glob(f'{glob.escape(self.lapse_dir)}/*'):
                 os.remove(filename)
 
     def detect_unfinished_lapses(self) -> List[str]:
