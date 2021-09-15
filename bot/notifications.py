@@ -68,14 +68,13 @@ class Notifier:
 
     def _notify(self, message: str, silent: bool):
         if self._cam_wrap.enabled:
-            photo = self._cam_wrap.take_photo()
-            self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-            self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
-            for group_ in self._notify_groups:
-                photo.seek(0)
-                self._bot_updater.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                self._bot_updater.bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
-            photo.close()
+            with self._cam_wrap.take_photo() as photo:
+                self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
+                self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
+                for group_ in self._notify_groups:
+                    photo.seek(0)
+                    self._bot_updater.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+                    self._bot_updater.bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
         else:
             self._send_message(message, silent)
 

@@ -250,11 +250,10 @@ class Camera:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        photo = self.take_photo()
-        filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
-        with open(filename, "wb") as outfile:
-            outfile.write(photo.getvalue())
-        photo.close()
+        with self.take_photo() as photo:
+            filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
+            with open(filename, "wb") as outfile:
+                outfile.write(photo.getvalue())
 
     def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time)
