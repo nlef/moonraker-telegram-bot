@@ -5,7 +5,7 @@ set -eu
 SYSTEMDDIR="/etc/systemd/system"
 MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
 MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
-MOONRAKER_BOT_LOG="${HOME}/klipper_logs/telegram.log"
+MOONRAKER_BOT_LOG="${HOME}/klipper_logs"
 KLIPPER_CONF_DIR="${HOME}/klipper_config"
 CURRENT_USER=${USER}
 
@@ -25,12 +25,23 @@ init_config_path() {
     KLIPPER_CONF_DIR=${klipper_cfg_loc}
   fi
   report_status "Using configs from ${KLIPPER_CONF_DIR}"
+}
 
-  report_status "Selecting log path"
-  echo -e "\n\n\n"
-  read -p "Enter your bot log file: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
-  MOONRAKER_BOT_LOG=${bot_log_path}
-  report_status "Writing bot logs to ${MOONRAKER_BOT_LOG}"
+create_initial_config() {
+  # check in config exists!
+  if [[ ! -f "${KLIPPER_CONF_DIR}"/telegram.conf ]]; then
+    report_status "Selecting log path"
+    echo -e "\n\n\n"
+    read -p "Enter your bot log file: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
+    MOONRAKER_BOT_LOG=${bot_log_path}
+    report_status "Writing bot logs to ${MOONRAKER_BOT_LOG}"
+
+    report_status "Creating base config file"
+    cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${KLIPPER_CONF_DIR}"/telegram.conf
+    cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
+
+    sed -i "s+some_log_path+${MOONRAKER_BOT_LOG}+g" "${KLIPPER_CONF_DIR}"/telegram.conf
+  fi
 }
 
 stop_sevice() {
@@ -69,20 +80,6 @@ create_virtualenv() {
 }
 
 create_service() {
-  # check in config exists!
-  # copy configfile if not exists
-  if [[ -f "${KLIPPER_CONF_DIR}"/application.conf ]]; then
-    mv "${KLIPPER_CONF_DIR}"/application.conf "${KLIPPER_CONF_DIR}"/telegram.conf
-  fi
-
-  if [[ ! -f "${KLIPPER_CONF_DIR}"/telegram.conf ]]; then
-    report_status "Creating base config file"
-    cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${KLIPPER_CONF_DIR}"/telegram.conf
-    cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
-
-    sed -i "s+some_log_path+${MOONRAKER_BOT_LOG}+g" "${KLIPPER_CONF_DIR}"/telegram.conf
-  fi
-
   ### create systemd service file
   sudo /bin/sh -c "cat > ${SYSTEMDDIR}/moonraker-telegram-bot.service" <<EOF
 #Systemd service file for Moonraker Telegram Bot
@@ -111,6 +108,7 @@ EOF
 }
 
 init_config_path
+create_initial_config
 stop_sevice
 cleanup_leagacy
 install_packages

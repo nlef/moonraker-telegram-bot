@@ -1,7 +1,7 @@
 [bot]
 server: localhost
-chat_id: 123412341241234
-bot_token: 12341234:sdfgsdfgsdfgssdfg-LKsdfgsdfgsdfgsdfg
+chat_id: SuperChatId
+bot_token: AweSomeBotToken
 log_path: some_log_path
 
 [camera]
