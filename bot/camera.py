@@ -146,7 +146,8 @@ class Camera:
 
     @staticmethod
     def _create_thumb(image) -> BytesIO:
-        img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        # cv2.cvtColor cause segfaults!
+        img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
         bio.name = 'thumb.jpeg'
         img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
@@ -176,7 +177,12 @@ class Camera:
                 else:
                     if self._flipVertically or self._flipHorizontally:
                         image = cv2.flip(image, self._flip)
-                    img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+                    # # cv2.cvtColor cause segfaults!
+                    # rgb = image[:, :, ::-1]
+                    rgb = image[:, :, [2, 1, 0]]
+                    img = Image.fromarray(rgb)
+                    rgb = None
+                    del rgb
 
             image = None
             del image, success
