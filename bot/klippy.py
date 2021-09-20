@@ -38,7 +38,11 @@ class Klippy:
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
         self.vsd_progress: float = 0.0
+
         self.filament_used: float = 0.0
+        self.filament_total: float = 0.0
+        self.filament_weight: float = 0.0
+        self._thumbnail_path = ''
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -73,19 +77,31 @@ class Klippy:
     def moonraker_host(self):
         return self._host
 
+    def _reset_file_info(self) -> None:
+        self._printing_filename = ''
+        self.file_estimated_time = 0.0
+        self.file_print_start_time = 0.0
+        self.filament_total = 0.0
+        self.filament_weight = 0.0
+        self._thumbnail_path = ''
+
     @printing_filename.setter
     def printing_filename(self, new_value: str):
         if not new_value:
-            self._printing_filename = ''
-            self.file_estimated_time = 0.0
-            self.file_print_start_time = 0.0
+            self._reset_file_info()
             return
+
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         # Todo: add response status check!
         resp = response.json()['result']
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
         self.file_print_start_time = resp['print_start_time'] if resp['print_start_time'] else time.time()
+        self.filament_total = resp['filament_total']
+        self.filament_weight = resp['filament_weight_total']
+        if 'thumbnails' in resp:
+            thumb = max(resp['thumbnails'], key=lambda el: el['size'])
+            self._thumbnail_path = thumb['relative_path']
 
     def _get_marco_list(self) -> list:
         resp = requests.get(f'http://{self._host}/printer/objects/list')
@@ -158,7 +174,7 @@ class Klippy:
         if not res.ok:
             logger.error(res.reason)
 
-    def get_eta(self) -> timedelta:
+    def _get_eta(self) -> timedelta:
         if self._eta_source == 'slicer':
             eta = int(self.file_estimated_time - self.printing_duration)
         else:  # eta by file
@@ -167,22 +183,17 @@ class Klippy:
             eta = 0
         return timedelta(seconds=eta)
 
-    def get_eta_message(self):
-        eta = self.get_eta()
+    def get_eta_message(self) -> str:
+        eta = self._get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
-        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(self.printing_filename)}")
-        resp = response.json()['result']
-        self.file_estimated_time = resp['estimated_time']
-
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(resp['filament_total'] / 1000, 2)}m, weight: {resp['filament_weight_total']}g\n"
+        message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m, weight: {self.filament_weight}g\n"
         message += self.get_eta_message()
 
-        if 'thumbnails' in resp:
-            thumb = max(resp['thumbnails'], key=lambda el: el['size'])
-            img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb['relative_path'])}")).convert('RGB')
+        if self._thumbnail_path:
+            img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(self._thumbnail_path)}")).convert('RGB')
 
             bio = BytesIO()
             bio.name = f'{self.printing_filename}.webp'
@@ -202,5 +213,4 @@ class Klippy:
         return files
 
     def stop_all(self):
-        # FixMe: implemet!
-        pass
+        self._reset_file_info()
