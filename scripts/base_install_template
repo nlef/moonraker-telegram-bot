@@ -1,6 +1,6 @@
 [bot]
 server: localhost
-chat_id: SuperChatId
+chat_id: 123456789
 bot_token: AweSomeBotToken
 log_path: some_log_path
 

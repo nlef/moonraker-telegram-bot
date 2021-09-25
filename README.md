@@ -7,10 +7,12 @@ As always with solutions like these, we kindly remind you not to print unattende
 
 
 
+
+
 ## Features
 - Printing progress notifications at custom intervals with pictures from a webstream/webcam
 - Light control for pictures and videos, confiugurable delay for camera adjustment
-- Configurable timelapsing 
+- Configurable timelapsing (https://youtu.be/gzbzW7Vv2cs)
 - Configurable keyboard for easy control without command typing in the bot
 - Power device control for PSU/MCU control via moonraker
 - Sampling of photos/videos on request at any time
@@ -38,6 +40,9 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 ```
 
 ## Installation, configuration and updating
+
+** The bot does not and will not support moonraker authorization in the foreseeable future.**
+Please disable authorization before installation, otherwise the bot will not function.
 
 When installing the bot for the first time, simply clone this distro. 
 
