@@ -261,13 +261,13 @@ class Camera:
             with open(filename, "wb") as outfile:
                 outfile.write(photo.getvalue())
 
-    def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str):
-        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time)
+    def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str, str):
+        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time, self._klippy.printing_filename)
 
-    def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str):
-        return self._create_timelapse(f'{self._base_dir}/{filename}', filename)
+    def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
+        return self._create_timelapse(f'{self._base_dir}/{filename}', filename, filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str) -> (BytesIO, BytesIO, int, int, str):
+    def _create_timelapse(self, lapse_dir: str, printing_filename: str, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
 
@@ -318,7 +318,7 @@ class Camera:
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
-        return video_bio, thumb_bio, width, height, video_filepath
+        return video_bio, thumb_bio, width, height, video_filepath, filename
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):

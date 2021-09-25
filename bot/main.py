@@ -174,16 +174,6 @@ def send__video(bot, video_bio: BytesIO, thumb_bio: BytesIO, width, height, capt
     thumb_bio.close()
 
 
-def send_timelapse(context: CallbackContext):
-    if not timelapse.enabled or not klippy.printing_filename:
-        logger.debug(f"lapse is inactive for enabled {timelapse.enabled} or file undefined")
-    else:
-        context.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (video_bio, thumb_bio, width, height, video_path) = cameraWrap.create_timelapse()
-        send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {klippy.printing_filename}',
-                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
-
-
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraWrap.enabled:
@@ -321,7 +311,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (video_bio, thumb_bio, width, height, video_path) = cameraWrap.create_timelapse_for_file(lapse_name)
+        (video_bio, thumb_bio, width, height, video_path, videoname) = cameraWrap.create_timelapse_for_file(lapse_name)
         send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {lapse_name}',
                     f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
 
