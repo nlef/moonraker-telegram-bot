@@ -102,13 +102,13 @@ class Timelapse:
             logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
-            (video_bio, thumb_bio, width, height, video_path, filename) = self._camera.create_timelapse()
+            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse()
 
             if video_bio.getbuffer().nbytes > 52428800:
                 self._bot_updater.bot.send_message(self._chat_id, text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}',
                                                    disable_notification=self._silent_progress)
             else:
-                self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {filename}', timeout=120,
+                self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120,
                                                  disable_notification=self._silent_progress)
             video_bio.close()
             thumb_bio.close()

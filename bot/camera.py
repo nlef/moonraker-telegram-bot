@@ -5,6 +5,7 @@ import pathlib
 import threading
 import time
 import glob
+from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 from typing import List
@@ -201,6 +202,15 @@ class Camera:
         del img
         return bio
 
+    @contextmanager
+    def take_video_generator(self):
+        (video_bio, thumb_bio, width, height) = self.take_video()
+        try:
+            yield video_bio, thumb_bio, width, height
+        finally:
+            video_bio.close()
+            thumb_bio.close()
+
     @cam_light_toggle
     def take_video(self) -> (BytesIO, BytesIO, int, int):
         def process_video_frame(frame_local):
@@ -267,7 +277,7 @@ class Camera:
     def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(f'{self._base_dir}/{filename}', filename, filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, lapse_dir: str, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
 
@@ -318,7 +328,7 @@ class Camera:
                 os.remove(filename)
             Path(lapse_dir).rmdir()
 
-        return video_bio, thumb_bio, width, height, video_filepath, filename
+        return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
