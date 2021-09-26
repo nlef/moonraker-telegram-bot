@@ -212,5 +212,13 @@ class Klippy:
         files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
         return files
 
+    def upload_file(self, file: BytesIO) -> bool:
+        response = requests.post(f"http://{self._host}/server/files/upload", files={'file': file})
+        return response.ok
+
+    def start_printing_file(self, filename: str) -> bool:
+        response = requests.post(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}")
+        return response.ok
+
     def stop_all(self):
         self._reset_file_info()

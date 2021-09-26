@@ -6,6 +6,7 @@ import threading
 import time
 import glob
 from contextlib import contextmanager
+from functools import wraps
 from io import BytesIO
 from pathlib import Path
 from typing import List
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def cam_light_toggle(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         self.use_light()
 

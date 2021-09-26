@@ -303,11 +303,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
     elif 'print_file' in query.data:
         filename = query.message.text.split(':')[-1].replace('?', '').strip()
-        response = requests.post(f"http://{host}/printer/print/start?filename={urllib.parse.quote(filename)}")
-        if not response.ok:
-            query.edit_message_text(text=f"Failed start printing file {filename}")
-        else:
+        if klippy.start_printing_file(filename):
             query.delete_message()
+        else:
+            query.edit_message_text(text=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
@@ -365,6 +364,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         update.message.reply_text(f"Bad request: {badreq.message}", disable_notification=notifier.silent_commands)
         return
 
+    # Todo: add context managment!
     uploaded_bio = BytesIO()
     uploaded_bio.name = doc.file_name
     uploaded_bio.write(file_byte_array)
@@ -384,8 +384,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             sending_bio.write(contained_file.read())
             sending_bio.seek(0)
 
-    res = requests.post(f"http://{host}/server/files/upload", files={'file': sending_bio})
-    if res.ok:
+    if klippy.upload_file(sending_bio):
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + '.gcode'
         keyboard = [
             [
