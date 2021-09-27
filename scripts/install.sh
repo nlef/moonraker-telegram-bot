@@ -55,11 +55,6 @@ stop_sevice() {
   fi
 }
 
-cleanup_leagacy() {
-  report_status "Removing old packages"
-  sudo apt remove --purge -y "python3-pil"
-}
-
 install_packages() {
   PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-gevent python3-opencv x264 libx264-dev libwebp-dev"
 
@@ -110,7 +105,6 @@ EOF
 init_config_path
 create_initial_config
 stop_sevice
-cleanup_leagacy
 install_packages
 create_virtualenv
 create_service

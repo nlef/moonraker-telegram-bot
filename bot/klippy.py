@@ -97,8 +97,9 @@ class Klippy:
         self._printing_filename = new_value
         self.file_estimated_time = resp['estimated_time']
         self.file_print_start_time = resp['print_start_time'] if resp['print_start_time'] else time.time()
-        self.filament_total = resp['filament_total']
-        self.filament_weight = resp['filament_weight_total']
+        self.filament_total = resp['filament_total'] if 'filament_total' in resp else 0.0
+        self.filament_weight = resp['filament_weight_total'] if 'filament_weight_total' in resp else 0.0
+
         if 'thumbnails' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             self._thumbnail_path = thumb['relative_path']
@@ -189,7 +190,12 @@ class Klippy:
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m, weight: {self.filament_weight}g\n"
+        if self.filament_total > 0.0:
+            message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m,"
+            if self.filament_weight > 0.0:
+                message += f" weight: {self.filament_weight}g"
+        message += '\n'
+
         message += self.get_eta_message()
 
         if self._thumbnail_path:
