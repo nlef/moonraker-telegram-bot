@@ -28,6 +28,7 @@ class Notifier:
         self._interval_between: int = config.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
         self._notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config[
             'progress_notification'] else list()
+        self._group_only: bool = config.getboolean('progress_notification', 'group_only', fallback=False)
 
         self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
         self._silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=True)
@@ -59,18 +60,20 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
-    def _send_message(self, message: str, silent: bool):
-        self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
-        self._bot_updater.bot.send_message(self._chat_id, text=message, disable_notification=silent)
+    def _send_message(self, message: str, silent: bool, group_only: bool = False):
+        if not group_only:
+            self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
+            self._bot_updater.bot.send_message(self._chat_id, text=message, disable_notification=silent)
         for group in self._notify_groups:
             self._bot_updater.bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
             self._bot_updater.bot.send_message(group, text=message, disable_notification=silent)
 
-    def _notify(self, message: str, silent: bool):
+    def _notify(self, message: str, silent: bool, group_only: bool = False):
         if self._cam_wrap.enabled:
             with self._cam_wrap.take_photo() as photo:
-                self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-                self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
+                if not group_only:
+                    self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
+                    self._bot_updater.bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
                 for group_ in self._notify_groups:
                     photo.seek(0)
                     self._bot_updater.bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
@@ -125,7 +128,8 @@ class Notifier:
             notifymsg += f"{self._klippy.get_eta_message()}"
 
             self._last_notify_time = time.time()
-            self._sched.add_job(self._notify, kwargs={'message': notifymsg, 'silent': self._silent_progress}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+            self._sched.add_job(self._notify, kwargs={'message': notifymsg, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
+                                replace_existing=False)
 
     def _notify_by_time(self):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between):
@@ -136,7 +140,7 @@ class Notifier:
             notifymsg += f"{self._last_message}\n"
         notifymsg += f"{self._klippy.get_eta_message()}"
         self._last_notify_time = time.time()
-        self._notify(notifymsg, self._silent_progress)
+        self._notify(notifymsg, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):
         if self._interval > 0:
