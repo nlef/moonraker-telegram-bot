@@ -326,9 +326,12 @@ class Camera:
         os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
-            for filename in glob.glob(f'{glob.escape(lapse_dir)}/*'):
+            for filename in glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}'):
                 os.remove(filename)
-            Path(lapse_dir).rmdir()
+            if video_bio.getbuffer().nbytes < 52428800:
+                for filename in glob.glob(f'{glob.escape(lapse_dir)}/*'):
+                    os.remove(filename)
+                Path(lapse_dir).rmdir()
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
