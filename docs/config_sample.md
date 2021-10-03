@@ -83,6 +83,8 @@ host: http://localhost:8080/?action=stream
 #	When the bot toggles lights to take a picture, or record a video, most cameras need a couple of seconds to adjust to 
 #	the transition between full darkness and full brightness. This option tells the bot to wait n seconds, before
 #	taking the picture, recording a video, doing timelapse photos. The default is not to use a delay.
+#picture_quality: low
+# low - jpeg, quality 80. high - webp lossless
 ```
 
 ## [progress_notification]
