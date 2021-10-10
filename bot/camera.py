@@ -13,7 +13,7 @@ from typing import List
 
 from numpy import random
 import cv2
-from PIL import Image
+from PIL import Image, _webp
 
 from klippy import Klippy
 from power_device import PowerDevice
@@ -165,6 +165,7 @@ class Camera:
             self.cam_cam.open(self._host)
             self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             success, image = self.cam_cam.read()
+            self.cam_cam.release()
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -195,6 +196,8 @@ class Camera:
         if self._img_extension in ['jpg', 'jpeg']:
             img.save(bio, 'JPEG', quality=80, subsampling=0)
         elif self._img_extension == 'webp':
+            # https://github.com/python-pillow/Pillow/issues/4364
+            _webp.HAVE_WEBPANIM = False
             img.save(bio, 'WebP', quality=0, lossless=True)
         elif self._img_extension == 'png':
             img.save(bio, 'PNG')
@@ -256,6 +259,7 @@ class Camera:
             out.set(cv2.CAP_PROP_FPS, fps)
             out.release()
 
+        self.cam_cam.release()
         video_bio = BytesIO()
         video_bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
@@ -271,7 +275,7 @@ class Camera:
         with self.take_photo() as photo:
             filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
             with open(filename, "wb") as outfile:
-                outfile.write(photo.getvalue())
+                outfile.write(photo.getbuffer())
 
     def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time, self._klippy.printing_filename)
@@ -320,7 +324,8 @@ class Camera:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
             with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                cpf.write(video_bio.getvalue())
+                # cpf.write(video_bio.getvalue())
+                cpf.write(video_bio.getbuffer())
         video_bio.seek(0)
 
         os.remove(f'{lapse_dir}/lapse.lock')

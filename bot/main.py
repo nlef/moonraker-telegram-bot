@@ -183,6 +183,7 @@ def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
     with cameraWrap.take_photo() as bio:
         message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands)
+        bio.close()
 
 
 def get_video(update: Update, _: CallbackContext) -> None:

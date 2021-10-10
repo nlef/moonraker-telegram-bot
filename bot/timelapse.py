@@ -32,7 +32,7 @@ class Timelapse:
         self._running: bool = False
         self._last_height: float = 0.0
 
-        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(4)
+        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
 
         if logging_handler:
             logger.addHandler(logging_handler)
