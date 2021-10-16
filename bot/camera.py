@@ -74,6 +74,7 @@ class Camera:
         self._ready_dir: str = config.get('timelapse', 'copy_finished_timelapse_dir', fallback='')  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = config.getboolean('timelapse', 'cleanup', fallback=True)
         self._fps: int = config.getint('timelapse', 'target_fps', fallback=15)
+        self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
         self._light_need_off: bool = False
         self._light_need_off_lock = threading.Lock()
 
@@ -309,6 +310,9 @@ class Camera:
 
             for filename in photos:
                 out.write(cv2.imread(filename))
+
+            for _ in range(self._fps * self._last_frame_duration):
+                out.write(img)
 
             out.release()
             cv2.destroyAllWindows()

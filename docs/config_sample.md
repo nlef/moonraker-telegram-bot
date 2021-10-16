@@ -148,6 +148,8 @@ This section is responsible for timelapse creation as well as file location for 
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
 #	15 fps equals 15 images per second lapsing. The default is 15 fps.
+#last_frame_duration: 5
+#   defualt 5 seconds
 #manual_mode: false
 #   if True, only commands from gcode will manage timelapse.
 #   Default is false.
