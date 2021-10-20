@@ -92,8 +92,8 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
                               '/light - toggle light\n'
-                              '/emergency - emergency stop printing'
-                              '/restart - restart bot'
+                              '/emergency - emergency stop printing\n'
+                              '/restart - restart bot\n'
                               '/shutdown - shutdown Pi gracefully')
 
 

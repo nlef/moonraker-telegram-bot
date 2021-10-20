@@ -276,7 +276,8 @@ class Camera:
         with self.take_photo() as photo:
             filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
             with open(filename, "wb") as outfile:
-                outfile.write(photo.getbuffer())
+                outfile.write(photo.getvalue())
+            photo.close()
 
     def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time, self._klippy.printing_filename)
@@ -328,8 +329,7 @@ class Camera:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
             with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
-                # cpf.write(video_bio.getvalue())
-                cpf.write(video_bio.getbuffer())
+                cpf.write(video_bio.getvalue())
         video_bio.seek(0)
 
         os.remove(f'{lapse_dir}/lapse.lock')
