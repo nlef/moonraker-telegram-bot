@@ -402,6 +402,14 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     sending_bio.close()
 
 
+# Todo: some case sensitive checks?
+def macros_handler(update: Update, _: CallbackContext) -> None:
+    command = update.message.text.replace('/', '').upper()
+    if command in klippy.macros:
+        print(command)
+        klippy.execute_command(command)
+
+
 def restart(update: Update, _: CallbackContext) -> None:
     ws.close()
     update.message.reply_text("Restarting bot")
@@ -439,6 +447,8 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
+
+    dispatcher.add_handler(MessageHandler(Filters.command, macros_handler, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
 
