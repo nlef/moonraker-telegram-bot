@@ -153,8 +153,9 @@ class Camera:
         # cv2.cvtColor cause segfaults!
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
-        bio.name = 'thumb.jpeg'
-        img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
+        bio.name = 'thumbnail.jpeg'
+        img.thumbnail([320, 320])
+        img.save(bio, 'JPEG', quality=100, optimize=True)
         bio.seek(0)
         img.close()
         del img
