@@ -30,6 +30,7 @@ class Timelapse:
         self._bot_updater: Updater = bot_updater
 
         self._running: bool = False
+        self._paused: bool = False
         self._last_height: float = 0.0
 
         self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
@@ -59,8 +60,19 @@ class Timelapse:
         else:
             self._remove_timelapse_timer()
 
-    # Todo: vase mode calcs
-    def take_lapse_photo(self, position_z: float = -1001):
+    @property
+    def paused(self):
+        return self._paused
+
+    @paused.setter
+    def paused(self, new_val: bool):
+        self._paused = new_val
+        if new_val:
+            self._remove_timelapse_timer()
+        elif self._running:
+            self._add_timelapse_timer()
+
+    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False):
         if not self._enabled:
             logger.debug(f"lapse is disabled")
             return
@@ -69,6 +81,9 @@ class Timelapse:
             return
         elif not self._running:
             logger.debug(f"lapse is not running at the moment")
+            return
+        elif self._paused and not manually:
+            logger.debug(f"lapse is paused at the moment")
             return
         elif not self._mode_manual and self._klippy.printing_duration <= 0.0:
             logger.debug(f"lapse must not run with auto mode and zero print duration")
