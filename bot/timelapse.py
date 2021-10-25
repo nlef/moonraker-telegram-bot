@@ -1,5 +1,6 @@
 import configparser
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from apscheduler.schedulers.base import BaseScheduler
@@ -116,6 +117,8 @@ class Timelapse:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
+            while self._executors_pool._work_queue.qsize() > 0:
+                time.sleep(1)
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse()
 
