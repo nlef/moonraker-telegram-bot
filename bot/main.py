@@ -548,9 +548,11 @@ def notify_gcode_reponse(message_params):
                 klippy.get_status()
             timelapse.clean()
             timelapse.running = True
+            timelapse.paused = False
 
         if 'timelapse stop' in message_params:
             timelapse.running = False
+            timelapse.paused = False
         if 'timelapse pause' in message_params:
             timelapse.paused = True
         if 'timelapse resume' in message_params:
