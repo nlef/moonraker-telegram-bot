@@ -134,4 +134,5 @@ class Timelapse:
     def stop_all(self):
         self._remove_timelapse_timer()
         self._running = False
+        self._paused = False
         self._last_height = 0.0

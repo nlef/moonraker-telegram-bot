@@ -528,11 +528,12 @@ def status_reponse(message_result):
         # Fixme: some logic error with states for klippy.paused and printing
         if print_stats['state'] == "printing":
             klippy.paused = False
+            if not timelapse.manual_mode:
+                timelapse.paused = False
         if print_stats['state'] == "paused":
             klippy.paused = True
             if not timelapse.manual_mode:
                 timelapse.paused = True
-
     if 'display_status' in message_result['status']:
         notifier.message = message_result['status']['display_status']['message']
         klippy.printing_progress = message_result['status']['display_status']['progress']
@@ -632,6 +633,7 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         if not timelapse.manual_mode:
             timelapse.running = False
+            timelapse.paused = False
             timelapse.send_timelapse()
         message += f"Finished printing {klippy.printing_filename} \n"
     elif state == 'error':
@@ -644,6 +646,7 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
+        timelapse.paused = False
 
         message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
     elif state:
