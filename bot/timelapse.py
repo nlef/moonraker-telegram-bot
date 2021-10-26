@@ -117,10 +117,13 @@ class Timelapse:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
+
+            lapse_filename = self._klippy.printing_filename_with_time
+            gcode_name = self._klippy.printing_filename
             while self._executors_pool._work_queue.qsize() > 0:
                 time.sleep(1)
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
-            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse()
+            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name)
 
             if video_bio.getbuffer().nbytes > 52428800:
                 self._bot_updater.bot.send_message(self._chat_id, text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}',
