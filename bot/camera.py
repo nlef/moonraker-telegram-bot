@@ -281,14 +281,16 @@ class Camera:
             photo.close()
 
     def create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(f'{self._base_dir}/{printing_filename}', printing_filename, gcode_name)
+        return self._create_timelapse(printing_filename, gcode_name)
 
     def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(f'{self._base_dir}/{filename}', filename, filename)
+        return self._create_timelapse(filename, filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
+
+        lapse_dir = f'{self._base_dir}/{printing_filename}'
 
         if not Path(f'{lapse_dir}/lapse.lock').is_file():
             os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!

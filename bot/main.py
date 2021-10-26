@@ -97,7 +97,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/shutdown - shutdown Pi gracefully')
 
 
-def echo(update: Update, _: CallbackContext) -> None:
+def echo_unknown(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
@@ -402,12 +402,13 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     sending_bio.close()
 
 
-# Todo: some case sensitive checks?
 def macros_handler(update: Update, _: CallbackContext) -> None:
     command = update.message.text.replace('/', '').upper()
     if command in klippy.macros:
-        print(command)
         klippy.execute_command(command)
+        update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+    else:
+        echo_unknown(update, _)
 
 
 def restart(update: Update, _: CallbackContext) -> None:
@@ -452,7 +453,7 @@ def start_bot(bot_token, socks):
 
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
 
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo_unknown))
 
     dispatcher.add_error_handler(bot_error_handler)
 
