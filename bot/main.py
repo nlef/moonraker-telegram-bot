@@ -97,7 +97,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/shutdown - shutdown Pi gracefully')
 
 
-def echo(update: Update, _: CallbackContext) -> None:
+def echo_unknown(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"unknown command: {update.message.text}")
 
 
@@ -402,6 +402,15 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     sending_bio.close()
 
 
+def macros_handler(update: Update, _: CallbackContext) -> None:
+    command = update.message.text.replace('/', '').upper()
+    if command in klippy.macros:
+        klippy.execute_command(command)
+        update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+    else:
+        echo_unknown(update, _)
+
+
 def restart(update: Update, _: CallbackContext) -> None:
     ws.close()
     update.message.reply_text("Restarting bot")
@@ -440,9 +449,11 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
 
+    dispatcher.add_handler(MessageHandler(Filters.command, macros_handler, run_async=True))
+
     dispatcher.add_handler(MessageHandler(Filters.document & ~Filters.command, upload_file, run_async=True))
 
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo_unknown))
 
     dispatcher.add_error_handler(bot_error_handler)
 
@@ -512,11 +523,18 @@ def status_reponse(message_result):
             notifier.add_notifier_timer()
             if not timelapse.manual_mode:
                 timelapse.running = True
+                timelapse.paused = False
                 # TOdo: manual timelapse start check?
+
+        # Fixme: some logic error with states for klippy.paused and printing
         if print_stats['state'] == "printing":
             klippy.paused = False
+            if not timelapse.manual_mode:
+                timelapse.paused = False
         if print_stats['state'] == "paused":
-            klippy.printing = True
+            klippy.paused = True
+            if not timelapse.manual_mode:
+                timelapse.paused = True
     if 'display_status' in message_result['status']:
         notifier.message = message_result['status']['display_status']['message']
         klippy.printing_progress = message_result['status']['display_status']['progress']
@@ -531,17 +549,19 @@ def notify_gcode_reponse(message_params):
                 klippy.get_status()
             timelapse.clean()
             timelapse.running = True
+            timelapse.paused = False
 
         if 'timelapse stop' in message_params:
             timelapse.running = False
+            timelapse.paused = False
         if 'timelapse pause' in message_params:
-            timelapse.running = False
+            timelapse.paused = True
         if 'timelapse resume' in message_params:
-            timelapse.running = True
+            timelapse.paused = False
         if 'timelapse create' in message_params:
             timelapse.send_timelapse()
     if 'timelapse photo' in message_params:
-        timelapse.take_lapse_photo()
+        timelapse.take_lapse_photo(manually=True)
     if message_params[0].startswith('tgnotify '):
         notifier.send_notification(message_params[0][9:])
     if message_params[0].startswith('tgnotify_photo '):
@@ -599,21 +619,24 @@ def parse_print_stats(message_params):
                 klippy.get_status()
             if not timelapse.manual_mode:
                 timelapse.clean()
+                timelapse.running = True
+                timelapse.paused = False
             # Todo: refactor!
             bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
 
         if not timelapse.manual_mode:
-            timelapse.running = True
+            timelapse.paused = False
     elif state == 'paused':
         klippy.paused = True
         if not timelapse.manual_mode:
-            timelapse.running = False
+            timelapse.paused = True
     # Todo: cleanup timelapse dir on cancel print!
     elif state == 'complete':
         klippy.printing = False
         notifier.remove_notifier_timer()
         if not timelapse.manual_mode:
             timelapse.running = False
+            timelapse.paused = False
             timelapse.send_timelapse()
         message += f"Finished printing {klippy.printing_filename} \n"
     elif state == 'error':
@@ -626,6 +649,7 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
+        timelapse.paused = False
 
         message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
     elif state:

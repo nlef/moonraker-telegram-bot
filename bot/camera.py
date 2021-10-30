@@ -153,8 +153,9 @@ class Camera:
         # cv2.cvtColor cause segfaults!
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
-        bio.name = 'thumb.jpeg'
-        img.save(bio, 'JPEG', quality=60, subsampling=2, optimize=True)
+        bio.name = 'thumbnail.jpeg'
+        img.thumbnail([320, 320])
+        img.save(bio, 'JPEG', quality=100, optimize=True)
         bio.seek(0)
         img.close()
         del img
@@ -279,15 +280,17 @@ class Camera:
                 outfile.write(photo.getvalue())
             photo.close()
 
-    def create_timelapse(self) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(self.lapse_dir, self._klippy.printing_filename_with_time, self._klippy.printing_filename)
+    def create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
+        return self._create_timelapse(printing_filename, gcode_name)
 
     def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(f'{self._base_dir}/{filename}', filename, filename)
+        return self._create_timelapse(filename, filename)
 
-    def _create_timelapse(self, lapse_dir: str, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
+
+        lapse_dir = f'{self._base_dir}/{printing_filename}'
 
         if not Path(f'{lapse_dir}/lapse.lock').is_file():
             os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!

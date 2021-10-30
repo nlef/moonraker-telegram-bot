@@ -1,5 +1,6 @@
 import configparser
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from apscheduler.schedulers.base import BaseScheduler
@@ -30,6 +31,7 @@ class Timelapse:
         self._bot_updater: Updater = bot_updater
 
         self._running: bool = False
+        self._paused: bool = False
         self._last_height: float = 0.0
 
         self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
@@ -59,8 +61,19 @@ class Timelapse:
         else:
             self._remove_timelapse_timer()
 
-    # Todo: vase mode calcs
-    def take_lapse_photo(self, position_z: float = -1001):
+    @property
+    def paused(self):
+        return self._paused
+
+    @paused.setter
+    def paused(self, new_val: bool):
+        self._paused = new_val
+        if new_val:
+            self._remove_timelapse_timer()
+        elif self._running:
+            self._add_timelapse_timer()
+
+    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False):
         if not self._enabled:
             logger.debug(f"lapse is disabled")
             return
@@ -69,6 +82,9 @@ class Timelapse:
             return
         elif not self._running:
             logger.debug(f"lapse is not running at the moment")
+            return
+        elif self._paused and not manually:
+            logger.debug(f"lapse is paused at the moment")
             return
         elif not self._mode_manual and self._klippy.printing_duration <= 0.0:
             logger.debug(f"lapse must not run with auto mode and zero print duration")
@@ -101,8 +117,13 @@ class Timelapse:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
+
+            lapse_filename = self._klippy.printing_filename_with_time
+            gcode_name = self._klippy.printing_filename
+            while self._executors_pool._work_queue.qsize() > 0:
+                time.sleep(1)
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
-            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse()
+            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name)
 
             if video_bio.getbuffer().nbytes > 52428800:
                 self._bot_updater.bot.send_message(self._chat_id, text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}',
@@ -119,4 +140,5 @@ class Timelapse:
     def stop_all(self):
         self._remove_timelapse_timer()
         self._running = False
+        self._paused = False
         self._last_height = 0.0
