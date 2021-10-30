@@ -13,7 +13,7 @@ from zipfile import ZipFile
 
 import requests
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message
 from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
@@ -191,9 +191,18 @@ def get_video(update: Update, _: CallbackContext) -> None:
     if not cameraWrap.enabled:
         message_to_reply.reply_text("camera is disabled")
     else:
+        info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands)
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
-            send__video(message_to_reply.bot, video_bio, thumb_bio, width, height, err_mess='Telegram has a 50mb restriction...')
+            info_reply.edit_text(text="Uploading time-lapse")
+            if video_bio.getbuffer().nbytes > 52428800:
+                info_reply.edit_text(text='Telegram has a 50mb restriction...')
+            else:
+                message_to_reply.reply_video(video=video_bio, thumb=thumb_bio, width=width, height=height, caption='', timeout=120, disable_notification=notifier.silent_commands)
+                message_to_reply.bot.delete_message(chat_id=chatId, message_id=info_reply.message_id)
+
+            video_bio.close()
+            thumb_bio.close()
 
 
 def manage_printing(command: str) -> None:
@@ -310,11 +319,20 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             query.edit_message_text(text=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
+        info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (video_bio, thumb_bio, width, height, video_path, gcode_name) = cameraWrap.create_timelapse_for_file(lapse_name)
-        send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {lapse_name}',
-                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        # Todo: refactor all timelapse cals
+        (video_bio, thumb_bio, width, height, video_path, gcode_name) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
+        info_mess.edit_text(text="Uploading time-lapse")
+        if video_bio.getbuffer().nbytes > 52428800:
+            info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        else:
+            query.bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {lapse_name}', timeout=120,
+                                 disable_notification=notifier.silent_commands)
+            query.bot.delete_message(chat_id=chatId, message_id=info_mess.message_id)
 
+        video_bio.close()
+        thumb_bio.close()
         query.delete_message()
         check_unfinished_lapses()
     else:
