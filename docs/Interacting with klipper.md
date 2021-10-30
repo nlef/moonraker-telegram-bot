@@ -7,14 +7,14 @@ The commands in this document are formatted so that it is possible to cut-and-pa
 
 # RESPOND commands for bot interaction
 ## Manual timelapse modes
-If you have set manual_mode in [[timelapse]](config_sample.md), you can use command to manage timelapse capturing by the bot.
+If you have set manual_mode in [[timelapse]](config_sample.md#timelapse), you can use command to manage timelapse capturing by the bot.
 Following commands are available:
-- `timelapse photo` Used to capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
-- `timelapse start` Marks the beginning of the timelapse capture. Useful, if you want to skip some time before you start the recodring.
-- `timelapse stop` Marks the end of the timelapse capture. Useful if you want to skip something at the end of the print, like bed extension, or purge operations. 
-- `timelapse pause` Pauses the capturing. Useful, if you have to run service operations, like switching filament.
-- `timelapse resume` Resumes the capturing, if it was paused.
-- `timelapse create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
+- `RESPOND PREFIX=timelapse MSG=photo` Used to capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
+- `RESPOND PREFIX=timelapse MSG=start` Marks the beginning of the timelapse capture. Useful, if you want to skip some time before you start the recodring.
+- `RESPOND PREFIX=timelapse MSG=stop` Marks the end of the timelapse capture. You can only run "create" after this command. Useful if you want to skip something at the end of the print, like bed extension, or purge operations. 
+- `RESPOND PREFIX=timelapse MSG=pause` Pauses the automatic capturing. Useful, if you have to run service operations, like switching filament, or if you do not want automated lapse features to run for a reason.
+- `RESPOND PREFIX=timelapse MSG=resume` Resumes the automated capturing, if it was paused.
+- `RESPOND PREFIX=timelapse MSG=create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
 
 ## Custom notifications 
 You can use RESPOND-type commands to send custom messages to the bot. 

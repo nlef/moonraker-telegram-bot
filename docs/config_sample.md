@@ -135,8 +135,8 @@ This section is responsible for timelapse creation as well as file location for 
 #	has rights to write to. Might be useful for saving the sd cards life by writing to external storage.
 #copy_finished_timelapse_dir: /home/pi/timelapse/finished
 #	This sets the folder, to which finished timelapses get copied to. 
-#	The default behaviour is not to copy it anywhere. This might be useful, if you want to keep only the videos, but clean up the pictures,
-#	or if you want to upload the videos to some network location.
+#	The default behaviour is not to copy it anywhere. This might be useful, if you want to keep only the videos, 
+#	but clean up the pictures, or if you want to upload the videos to some network location.
 #cleanup: true
 #	Should the bot clean the catalog with pictures and video after the successful sending to the telegram chat.
 #	Default is true. You might want to set it to false, if you intend on using the pictures later.
@@ -144,7 +144,8 @@ This section is responsible for timelapse creation as well as file location for 
 #	The bot can take timelapse pictures based on the z axis height. The default is not to take pictures based on height.
 #	Your layer height should be a multiple/equal to this number.
 #time: 5
-#	The bot can take timelapse pictures based on time intervals in seconds. The default is not to take pictures based on time intervals.
+#	The bot can take timelapse pictures based on time intervals in seconds. 
+#	The default is not to take pictures based on time intervals.
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
 #	15 fps equals 15 images per second lapsing. The default is 15 fps.
@@ -164,15 +165,18 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #hidden_methods: /video
 #	This allows you to hide unused buttons from your bots keyboard.
 #silent_progress: true
-#	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, but it does not have sound or vibration.
+#	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
+#	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
 #silent_commands: true
-#	Sends all other messages (for example the emergency stop confirmation) without an alert.You still get a "red" notification, but it does not have sound or vibration.
+#	Sends all other messages (for example the emergency stop confirmation) without an alert.You still get a "red" notification, 
+#	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
 #silent_status: true
-#	Sendsthe status message (printer status) without an alert. You still get a "red" notification, but it does not have sound or vibration.
+#	Sendsthe status message (printer status) without an alert. You still get a "red" notification, 
+#	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
 ```
