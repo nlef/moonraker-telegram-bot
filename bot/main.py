@@ -531,7 +531,6 @@ def status_reponse(message_result):
             notifier.add_notifier_timer()
             if not timelapse.manual_mode:
                 timelapse.running = True
-                timelapse.paused = False
                 # TOdo: manual timelapse start check?
 
         # Fixme: some logic error with states for klippy.paused and printing
@@ -557,11 +556,9 @@ def notify_gcode_reponse(message_params):
                 klippy.get_status()
             timelapse.clean()
             timelapse.running = True
-            timelapse.paused = False
 
         if 'timelapse stop' in message_params:
             timelapse.running = False
-            timelapse.paused = False
         if 'timelapse pause' in message_params:
             timelapse.paused = True
         if 'timelapse resume' in message_params:
@@ -628,7 +625,6 @@ def parse_print_stats(message_params):
             if not timelapse.manual_mode:
                 timelapse.clean()
                 timelapse.running = True
-                timelapse.paused = False
             # Todo: refactor!
             bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
 
@@ -644,7 +640,6 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         if not timelapse.manual_mode:
             timelapse.running = False
-            timelapse.paused = False
             timelapse.send_timelapse()
         message += f"Finished printing {klippy.printing_filename} \n"
     elif state == 'error':
@@ -657,7 +652,6 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
-        timelapse.paused = False
 
         message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
     elif state:

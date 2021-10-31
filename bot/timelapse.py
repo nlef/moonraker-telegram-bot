@@ -56,6 +56,7 @@ class Timelapse:
     @running.setter
     def running(self, new_val: bool):
         self._running = new_val
+        self._paused = False
         if new_val:
             self._add_timelapse_timer()
         else:
