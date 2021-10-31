@@ -164,16 +164,6 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
-def send__video(bot, video_bio: BytesIO, thumb_bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
-    if video_bio.getbuffer().nbytes > 52428800:
-        bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
-    else:
-        bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
-
-    video_bio.close()
-    thumb_bio.close()
-
-
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraWrap.enabled:
@@ -194,7 +184,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
         info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands)
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
-            info_reply.edit_text(text="Uploading time-lapse")
+            info_reply.edit_text(text="Uploading video")
             if video_bio.getbuffer().nbytes > 52428800:
                 info_reply.edit_text(text='Telegram has a 50mb restriction...')
             else:

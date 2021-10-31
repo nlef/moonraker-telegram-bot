@@ -122,10 +122,10 @@ class Timelapse:
 
             info_mess: Message = self._bot_updater.bot.send_message(chat_id=self._chat_id, text=f"Starting time-lapse assembly for {gcode_name}", disable_notification=self._silent_progress)
 
-            time.sleep(5)
             if self._executors_pool._work_queue.qsize() > 0:
                 info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
+            time.sleep(5)
             while self._executors_pool._work_queue.qsize() > 0:
                 time.sleep(1)
 
