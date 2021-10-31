@@ -71,7 +71,6 @@ class Timelapse:
         if new_val:
             self._remove_timelapse_timer()
         elif self._running:
-            # Fixme: check! 'Job identifier (timelapse_timer) conflicts with an existing job'
             self._add_timelapse_timer()
 
     def take_lapse_photo(self, position_z: float = -1001, manually: bool = False):
@@ -107,7 +106,7 @@ class Timelapse:
         self._camera.clean()
 
     def _add_timelapse_timer(self):
-        if self._interval > 0:
+        if self._interval > 0 and not self._sched.get_job('timelapse_timer'):
             self._sched.add_job(self.take_lapse_photo, 'interval', seconds=self._interval, id='timelapse_timer')
 
     def _remove_timelapse_timer(self):
@@ -124,9 +123,11 @@ class Timelapse:
             info_mess: Message = self._bot_updater.bot.send_message(chat_id=self._chat_id, text=f"Starting time-lapse assembly for {gcode_name}", disable_notification=self._silent_progress)
 
             time.sleep(5)
+            if self._executors_pool._work_queue.qsize() > 0:
+                info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
+
             while self._executors_pool._work_queue.qsize() > 0:
                 time.sleep(1)
-                info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)

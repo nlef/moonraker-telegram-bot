@@ -701,12 +701,11 @@ def websocket_to_message(ws_loc, ws_message):
                             scheduler.remove_job('ws_reschedule')
                 elif klippy_state in ["error", "shutdown", "startup"]:
                     klippy.connected = False
-                    if not scheduler.get_job('ws_reschedule'):
-                        scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
                 else:
                     logger.error(f"UnKnown klippy state: {klippy_state}")
                     klippy.connected = False
-                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
                 return
 
             if 'devices' in message_result:
@@ -731,8 +730,7 @@ def websocket_to_message(ws_loc, ws_message):
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             stop_all()
             klippy.connected = False
-            if not scheduler.get_job('ws_reschedule'):
-                scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+            scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
         if 'params' not in json_message:
             return
@@ -823,7 +821,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
