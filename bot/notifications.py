@@ -145,7 +145,8 @@ class Notifier:
 
     def add_notifier_timer(self):
         if self._interval > 0:
-            self._sched.add_job(self._notify_by_time, 'interval', seconds=self._interval, id='notifier_timer')
+            # Todo: maybe check if ob exists?
+            self._sched.add_job(self._notify_by_time, 'interval', seconds=self._interval, id='notifier_timer', replace_existing=True)
 
     def remove_notifier_timer(self):
         if self._sched.get_job('notifier_timer'):

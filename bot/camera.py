@@ -14,6 +14,7 @@ from typing import List
 from numpy import random
 import cv2
 from PIL import Image, _webp
+from telegram import Message
 
 from klippy import Klippy
 from power_device import PowerDevice
@@ -280,27 +281,29 @@ class Camera:
                 outfile.write(photo.getvalue())
             photo.close()
 
-    def create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(printing_filename, gcode_name)
+    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+        return self._create_timelapse(printing_filename, gcode_name, info_mess)
 
-    def create_timelapse_for_file(self, filename: str) -> (BytesIO, BytesIO, int, int, str, str):
-        return self._create_timelapse(filename, filename)
+    def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+        return self._create_timelapse(filename, filename, info_mess)
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
 
         lapse_dir = f'{self._base_dir}/{printing_filename}'
 
         if not Path(f'{lapse_dir}/lapse.lock').is_file():
-            os.mknod(f'{lapse_dir}/lapse.lock')  # Fixme: fail on windows hosts!
+            open(f'{lapse_dir}/lapse.lock', mode='a').close()
 
         # Todo: check for nonempty photos!
         photos = glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}')
         photos.sort(key=os.path.getmtime)
+        photo_count = len(photos)
 
-        filename = photos[-1]
-        img = cv2.imread(filename)
+        info_mess.edit_text(text=f"Creating thumbnail")
+        last_photo = photos[-1]
+        img = cv2.imread(last_photo)
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
@@ -312,9 +315,13 @@ class Camera:
             cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=(width, height))
 
-            for filename in photos:
+            info_mess.edit_text(text=f"Images recoding")
+            for fnum, filename in enumerate(photos):
+                if fnum % self._fps == 0:
+                    info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
                 out.write(cv2.imread(filename))
 
+            info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
             for _ in range(self._fps * self._last_frame_duration):
                 out.write(img)
 
@@ -331,6 +338,7 @@ class Camera:
         with open(video_filepath, 'rb') as fh:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
+            info_mess.edit_text(text=f"Copy lapse to target ditectory")
             with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
                 cpf.write(video_bio.getvalue())
         video_bio.seek(0)
@@ -338,6 +346,7 @@ class Camera:
         os.remove(f'{lapse_dir}/lapse.lock')
 
         if self._cleanup:
+            info_mess.edit_text(text=f"Performing cleanups")
             for filename in glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}'):
                 os.remove(filename)
             if video_bio.getbuffer().nbytes < 52428800:

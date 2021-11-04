@@ -13,7 +13,7 @@ from zipfile import ZipFile
 
 import requests
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message
 from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
@@ -164,16 +164,6 @@ def check_unfinished_lapses():
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
-def send__video(bot, video_bio: BytesIO, thumb_bio: BytesIO, width, height, caption: str = '', err_mess: str = ''):
-    if video_bio.getbuffer().nbytes > 52428800:
-        bot.send_message(chatId, text=err_mess, disable_notification=notifier.silent_commands)
-    else:
-        bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=caption, timeout=120, disable_notification=notifier.silent_commands)
-
-    video_bio.close()
-    thumb_bio.close()
-
-
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraWrap.enabled:
@@ -191,9 +181,18 @@ def get_video(update: Update, _: CallbackContext) -> None:
     if not cameraWrap.enabled:
         message_to_reply.reply_text("camera is disabled")
     else:
+        info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands)
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
-            send__video(message_to_reply.bot, video_bio, thumb_bio, width, height, err_mess='Telegram has a 50mb restriction...')
+            info_reply.edit_text(text="Uploading video")
+            if video_bio.getbuffer().nbytes > 52428800:
+                info_reply.edit_text(text='Telegram has a 50mb restriction...')
+            else:
+                message_to_reply.reply_video(video=video_bio, thumb=thumb_bio, width=width, height=height, caption='', timeout=120, disable_notification=notifier.silent_commands)
+                message_to_reply.bot.delete_message(chat_id=chatId, message_id=info_reply.message_id)
+
+            video_bio.close()
+            thumb_bio.close()
 
 
 def manage_printing(command: str) -> None:
@@ -310,11 +309,20 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             query.edit_message_text(text=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
+        info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
-        (video_bio, thumb_bio, width, height, video_path, gcode_name) = cameraWrap.create_timelapse_for_file(lapse_name)
-        send__video(context.bot, video_bio, thumb_bio, width, height, f'time-lapse of {lapse_name}',
-                    f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        # Todo: refactor all timelapse cals
+        (video_bio, thumb_bio, width, height, video_path, gcode_name) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
+        info_mess.edit_text(text="Uploading time-lapse")
+        if video_bio.getbuffer().nbytes > 52428800:
+            info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+        else:
+            query.bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {lapse_name}', timeout=120,
+                                 disable_notification=notifier.silent_commands)
+            query.bot.delete_message(chat_id=chatId, message_id=info_mess.message_id)
 
+        video_bio.close()
+        thumb_bio.close()
         query.delete_message()
         check_unfinished_lapses()
     else:
@@ -511,7 +519,7 @@ def stop_all():
     timelapse.stop_all()
 
 
-def status_reponse(message_result):
+def status_response(message_result):
     if 'print_stats' in message_result['status']:
         print_stats = message_result['status']['print_stats']
         if print_stats['state'] in ['printing', 'paused']:
@@ -523,7 +531,6 @@ def status_reponse(message_result):
             notifier.add_notifier_timer()
             if not timelapse.manual_mode:
                 timelapse.running = True
-                timelapse.paused = False
                 # TOdo: manual timelapse start check?
 
         # Fixme: some logic error with states for klippy.paused and printing
@@ -549,11 +556,9 @@ def notify_gcode_reponse(message_params):
                 klippy.get_status()
             timelapse.clean()
             timelapse.running = True
-            timelapse.paused = False
 
         if 'timelapse stop' in message_params:
             timelapse.running = False
-            timelapse.paused = False
         if 'timelapse pause' in message_params:
             timelapse.paused = True
         if 'timelapse resume' in message_params:
@@ -620,7 +625,6 @@ def parse_print_stats(message_params):
             if not timelapse.manual_mode:
                 timelapse.clean()
                 timelapse.running = True
-                timelapse.paused = False
             # Todo: refactor!
             bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
 
@@ -636,7 +640,6 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         if not timelapse.manual_mode:
             timelapse.running = False
-            timelapse.paused = False
             timelapse.send_timelapse()
         message += f"Finished printing {klippy.printing_filename} \n"
     elif state == 'error':
@@ -649,7 +652,6 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
-        timelapse.paused = False
 
         message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
     elif state:
@@ -666,11 +668,11 @@ def websocket_to_message(ws_loc, ws_message):
         return
 
     if 'id' in json_message:
-        if 'id' in json_message and 'result' in json_message:
+        if 'result' in json_message:
             message_result = json_message['result']
 
             if 'status' in message_result:
-                status_reponse(message_result)
+                status_response(message_result)
                 return
 
             if 'state' in message_result:
@@ -683,12 +685,11 @@ def websocket_to_message(ws_loc, ws_message):
                             scheduler.remove_job('ws_reschedule')
                 elif klippy_state in ["error", "shutdown", "startup"]:
                     klippy.connected = False
-                    if not scheduler.get_job('ws_reschedule'):
-                        scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
                 else:
                     logger.error(f"UnKnown klippy state: {klippy_state}")
                     klippy.connected = False
-                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+                    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
                 return
 
             if 'devices' in message_result:
@@ -704,7 +705,7 @@ def websocket_to_message(ws_loc, ws_message):
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{message_result}")
 
-        if 'id' in json_message and 'error' in json_message:
+        if 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
 
     else:
@@ -713,8 +714,7 @@ def websocket_to_message(ws_loc, ws_message):
             logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
             stop_all()
             klippy.connected = False
-            if not scheduler.get_job('ws_reschedule'):
-                scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+            scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
         if 'params' not in json_message:
             return
@@ -805,7 +805,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule')
+    scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")

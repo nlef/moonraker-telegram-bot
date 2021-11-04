@@ -4,7 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from apscheduler.schedulers.base import BaseScheduler
-from telegram import ChatAction
+from telegram import ChatAction, Message
 from telegram.ext import Updater
 
 from camera import Camera
@@ -56,6 +56,7 @@ class Timelapse:
     @running.setter
     def running(self, new_val: bool):
         self._running = new_val
+        self._paused = False
         if new_val:
             self._add_timelapse_timer()
         else:
@@ -106,7 +107,7 @@ class Timelapse:
         self._camera.clean()
 
     def _add_timelapse_timer(self):
-        if self._interval > 0:
+        if self._interval > 0 and not self._sched.get_job('timelapse_timer'):
             self._sched.add_job(self.take_lapse_photo, 'interval', seconds=self._interval, id='timelapse_timer')
 
     def _remove_timelapse_timer(self):
@@ -117,20 +118,30 @@ class Timelapse:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
-
             lapse_filename = self._klippy.printing_filename_with_time
             gcode_name = self._klippy.printing_filename
+
+            info_mess: Message = self._bot_updater.bot.send_message(chat_id=self._chat_id, text=f"Starting time-lapse assembly for {gcode_name}", disable_notification=self._silent_progress)
+
+            if self._executors_pool._work_queue.qsize() > 0:
+                info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
+
+            time.sleep(5)
             while self._executors_pool._work_queue.qsize() > 0:
                 time.sleep(1)
+
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
-            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name)
+            (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
+
+            info_mess.edit_text(text="Uploading time-lapse")
 
             if video_bio.getbuffer().nbytes > 52428800:
-                self._bot_updater.bot.send_message(self._chat_id, text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}',
-                                                   disable_notification=self._silent_progress)
+                info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
             else:
                 self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120,
                                                  disable_notification=self._silent_progress)
+                self._bot_updater.bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+
             video_bio.close()
             thumb_bio.close()
 
