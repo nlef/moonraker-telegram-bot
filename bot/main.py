@@ -58,6 +58,7 @@ myId = random.randint(300000)
 chatId: int = 12341234
 debug: bool = False
 hidden_methods: list = list()
+custom_buttons: list = list()
 
 bot_updater: Updater
 scheduler = BackgroundScheduler({
@@ -134,7 +135,7 @@ def create_keyboard():
         custom_keyboard.append('/power')
     if light_power_device:
         custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in hidden_methods]
+    filtered = [key for key in custom_keyboard if key not in hidden_methods] + custom_buttons
     keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
     return keyboard
 
@@ -766,6 +767,7 @@ if __name__ == '__main__':
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
 
     hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
+    custom_buttons = [el.strip() for el in conf.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in conf and 'custom_buttons' in conf['telegram_ui'] else list()
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)
