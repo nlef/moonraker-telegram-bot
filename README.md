@@ -37,9 +37,14 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/light		- toggle a specified moonraker power device
 	/emergency	- run an emergency stop
 	/shutdown	- Shut down the host system
+	/MACRO		- Run any macro available on your system.
 ```
 
 ## Installation, configuration and updating
+
+** We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.***
+You may of course still install the bot manually, see the manual below.
+
 
 ** The bot does not and will not support moonraker authorization in the foreseeable future.**
 Please disable authorization before installation, otherwise the bot will not function.
@@ -112,8 +117,6 @@ When writing issues/contacting for support please attach the 'telegram.log' as w
 https://github.com/KevinOConnor/klipper
 
 ---
-
-
 **Moonraker** by [Arksine](https://github.com/Arksine) :
 
 https://github.com/Arksine/moonraker
@@ -123,5 +126,11 @@ https://github.com/Arksine/moonraker
 **Fluidd Webinterface** by [cadriel](https://github.com/cadriel) :
 
 https://github.com/cadriel/fluidd
+
+---
+
+**KIAUH - Klipper Installation And Update Helper** by [th33xitus](https://github.com/th33xitus) :
+
+https://github.com/th33xitus/KIAUH
 
 ---
