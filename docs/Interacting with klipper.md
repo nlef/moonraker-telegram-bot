@@ -6,6 +6,15 @@ This document is a reference for available interactions between klipper and moon
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
 # RESPOND commands for bot interaction
+
+## Running macros from the chat window
+You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be in upper-case lettering. Example usage would be typing ```/MY_FAVOURITE_MACRO``` into the chat.
+
+This might not directly seem useful, but this opens some interesting possbilities:
+You can have a "respond-type" message with pre-typed ```/MY_FAVOURITE_MACRO```, allowing you to simply click on it in the chat to respond to a specific action. 
+
+This might not seem useful on first sight, but opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](sample_macro.md#highlighting) for more info.
+
 ## Manual timelapse modes
 If you have set manual_mode in [[timelapse]](config_sample.md#timelapse), you can use command to manage timelapse capturing by the bot.
 Following commands are available:
