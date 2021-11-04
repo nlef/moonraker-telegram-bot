@@ -42,11 +42,11 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 
 ## Installation, configuration and updating
 
-** We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.***
+**We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.**
 You may of course still install the bot manually, see the manual below.
 
 
-** The bot does not and will not support moonraker authorization in the foreseeable future.**
+**The bot does not and will not support moonraker authorization in the foreseeable future.**
 Please disable authorization before installation, otherwise the bot will not function.
 
 When installing the bot for the first time, simply clone this distro. 
