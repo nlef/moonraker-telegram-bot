@@ -519,7 +519,7 @@ def stop_all():
     timelapse.stop_all()
 
 
-def status_reponse(message_result):
+def status_response(message_result):
     if 'print_stats' in message_result['status']:
         print_stats = message_result['status']['print_stats']
         if print_stats['state'] in ['printing', 'paused']:
@@ -668,11 +668,11 @@ def websocket_to_message(ws_loc, ws_message):
         return
 
     if 'id' in json_message:
-        if 'id' in json_message and 'result' in json_message:
+        if 'result' in json_message:
             message_result = json_message['result']
 
             if 'status' in message_result:
-                status_reponse(message_result)
+                status_response(message_result)
                 return
 
             if 'state' in message_result:
@@ -705,7 +705,7 @@ def websocket_to_message(ws_loc, ws_message):
             if debug:
                 bot_updater.bot.send_message(chatId, text=f"{message_result}")
 
-        if 'id' in json_message and 'error' in json_message:
+        if 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
 
     else:
