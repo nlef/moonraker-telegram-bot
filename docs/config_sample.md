@@ -84,7 +84,9 @@ host: http://localhost:8080/?action=stream
 #	the transition between full darkness and full brightness. This option tells the bot to wait n seconds, before
 #	taking the picture, recording a video, doing timelapse photos. The default is not to use a delay.
 #picture_quality: low
-# low - jpeg, quality 80. high - webp lossless
+#   This parameter controls the picture quality the bot uses for status and timelapse purposes. 
+#   Valid parameters are "low", "high". Low uses jpeg with quality set to 80, high uses losless webp.
+#   Default is "high"
 ```
 
 ## [progress_notification]
@@ -96,7 +98,7 @@ This section is responsible for the notification on printing progress updates. T
 #percent: 5
 #	This is an interval in percent, when a notification with a picture is sent to the chat.
 #	When set to 5, notifications are sent at 5%, 10%, 15%, etc.
-#	When set to 3, notifications are sent at 3%, 6&, 9%, etc.
+#	When set to 3, notifications are sent at 3%, 6%, 9%, etc.
 #	The default is not to send notifications based on print percentage.
 #height: 5
 #	This is an interval in mm, when a notification with a picture is sent to the chat.
@@ -148,9 +150,11 @@ This section is responsible for timelapse creation as well as file location for 
 #	The default is not to take pictures based on time intervals.
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
-#	15 fps equals 15 images per second lapsing. The default is 15 fps.
+#   15 fps equals 15 images per second lapsing. The default is 15 fps.
 #last_frame_duration: 5
-#   defualt 5 seconds
+#   This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
+#   to loop the last picture taken.
+#   Default is 5 seconds. 
 #manual_mode: false
 #   if True, only commands from gcode will manage timelapse.
 #   Default is false.

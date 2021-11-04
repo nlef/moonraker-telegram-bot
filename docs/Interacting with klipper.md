@@ -13,7 +13,7 @@ You have the possibility to run klipper macros directly from the chat interface 
 This might not directly seem useful, but this opens some interesting possbilities:
 You can have a "respond-type" message with pre-typed ```/MY_FAVOURITE_MACRO```, allowing you to simply click on it in the chat to respond to a specific action. 
 
-This might not seem useful on first sight, but opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](sample_macro.md#highlighting) for more info.
+This might not seem useful on first sight, but opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](macro_sample.md#highlighting) for more info.
 
 ## Manual timelapse modes
 If you have set manual_mode in [[timelapse]](config_sample.md#timelapse), you can use command to manage timelapse capturing by the bot.

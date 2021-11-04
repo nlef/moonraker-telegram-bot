@@ -15,7 +15,8 @@ We can somewhat improve the workflow and create a shortcut for the second part.
 
 Here are the macros we are going to use:
 
-```[gcode_macro FILAMENT_INSERT_PREHEAT]
+```
+[gcode_macro FILAMENT_INSERT_PREHEAT]
 gcode:
 	M109 S250
 	RESPOND PREFIX=tgalarm MSG="Preheated, insert filament, run "
