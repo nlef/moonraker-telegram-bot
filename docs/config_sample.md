@@ -25,35 +25,35 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
 #	Only the chat with the correct chat_id can send/receive commans to the bot.
 #socks_proxy: 192.168.0.22:1080
-#   If needed, you can configure the bot to use a socks5 proxy. 
+#	If needed, you can configure the bot to use a socks5 proxy. 
 #light_device: leds
 #	This is the power device in moonraker, to which the lights of the printer/chamber are connected to.
 #	If you do not have lights/have no need to cycle them, skip this parameter.
-#   Default is to omit this.
+#	Default is to omit this.
 #power_device: power
 #	This is the power device in moonraker, to which the power of the printer slave boards are connected to.
 #	A typical usage scenario is to shutdown power to the MCUs, but not to disable the host on which klipper is running.
-#   If you do not have such a setup, skip this.
-#   Default is to omit this.
+#	If you do not have such a setup, skip this.
+#	Default is to omit this.
 #debug: true
 #	This enables extensive logging. Only use it for debugging/troubleshooting.
 #	Default is to omit this/false.
 #log_path: /tmp
-#   You can change the path for the logfiles. The default behaviour is to place them under /tmp.
-#   On a typical installation this would mean, that logs get cleared on a reboot.
-#   You can choose another location, if needed.
+#	You can change the path for the logfiles. The default behaviour is to place them under /tmp.
+#	On a typical installation this would mean, that logs get cleared on a reboot.
+#	You can choose another location, if needed.
 #eta_source: slicer
-#   You can choose, which value to use for remaining time estimation.
-#   Values avaliable: slicer, file
-#   Default value is slicer.
+#	You can choose, which value to use for remaining time estimation.
+#	Values avaliable: slicer, file
+#	Default value is slicer.
 #sensors: mcu, ..., ...
-#   You can add temperature sensors, like the "mcu"sensor to be displayed in the status message. 
-#   Simply enter the names from your klipper config, separated by commas.
-#   Default is not to display any additional temperature sensors.
+#	You can add temperature sensors, like the "mcu"sensor to be displayed in the status message. 
+#	Simply enter the names from your klipper config, separated by commas.
+#	Default is not to display any additional temperature sensors.
 #heaters: extruder, heater_bed
-#   You can add heaters, like the extruder, or the bed to be displayed in the status message. 
-#   Simply enter the names from your klipper config, separated by commas.
-#   Default is not to display any additional heaters. 
+#	You can add heaters, like the extruder, or the bed to be displayed in the status message. 
+#	Simply enter the names from your klipper config, separated by commas.
+#	Default is not to display any additional heaters. 
 ```
 
 ## [camera]
@@ -84,9 +84,9 @@ host: http://localhost:8080/?action=stream
 #	the transition between full darkness and full brightness. This option tells the bot to wait n seconds, before
 #	taking the picture, recording a video, doing timelapse photos. The default is not to use a delay.
 #picture_quality: low
-#   This parameter controls the picture quality the bot uses for status and timelapse purposes. 
-#   Valid parameters are "low", "high". Low uses jpeg with quality set to 80, high uses losless webp.
-#   Default is "high"
+#	This parameter controls the picture quality the bot uses for status and timelapse purposes. 
+#	Valid parameters are "low", "high". Low uses jpeg with quality set to 80, high uses losless webp.
+#	Default is "high"
 ```
 
 ## [progress_notification]
@@ -106,19 +106,19 @@ This section is responsible for the notification on printing progress updates. T
 #	When set to 3, notifications are sent at 3mm, 6mm, 9mm, etc, print height
 #	The default is not to send notifications based on print height.
 #time: 600
-#   This is an interval in seconds, when a notification with a picture is sent to the chat.
+#	This is an interval in seconds, when a notification with a picture is sent to the chat.
 #	When set to 600, notifications are sent at 600 seconds, 1200 seconds, 1800 seconds, etc, print time.
 #	When set to 100, notifications are sent at 100 seconds, 200 seconds, 300 seconds, etc, print time.
 #	The default is not to send notifications based on time.
-#   This type of notifications continues, even when the print is paused. So if your printer triggers a pause, for example 
-#   caused by filament runout, you will still get notifications regularly, until the print is completed/canceled.  
+#	This type of notifications continues, even when the print is paused. So if your printer triggers a pause, for example 
+#	caused by filament runout, you will still get notifications regularly, until the print is completed/canceled.  
 #min_delay_between_notifications: 60
 #	When printing small models the bot can cause unwanted notification/message spam. In future releases
 #	the notification type (silent/normal) will be available. For now you can either mute the bot, or use this parameter
 #	to limit how often notifications are sent. The value sets, how many seconds have to pass, before the next 
 #	notification is sent. Default is not to use any limits.
-#   This parameter is depreciated and will be removed in future verions. Please use the time-based notifications, and
-#   configure other types properly.
+#	This parameter is depreciated and will be removed in future verions. Please use the time-based notifications, and
+#	configure other types properly.
 #groups: group_id_1, group_id_2
 #	When running multiple printers/a farm, you may want to aggregate all notifications from all printers in a group.
 #	You can enter group IDs here, to which notifications will be sent. No control from a group is possible.
@@ -150,14 +150,14 @@ This section is responsible for timelapse creation as well as file location for 
 #	The default is not to take pictures based on time intervals.
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
-#   15 fps equals 15 images per second lapsing. The default is 15 fps.
+#	15 fps equals 15 images per second lapsing. The default is 15 fps.
 #last_frame_duration: 5
-#   This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
-#   to loop the last picture taken.
-#   Default is 5 seconds. 
+#	This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
+#	to loop the last picture taken.
+#	Default is 5 seconds. 
 #manual_mode: false
-#   if True, only commands from gcode will manage timelapse.
-#   Default is false.
+#	if True, only commands from gcode will manage timelapse.
+#	Default is false.
 ```
 
 ## [telegram_ui]
