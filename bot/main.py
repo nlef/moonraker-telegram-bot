@@ -4,14 +4,12 @@ import faulthandler
 import hashlib
 import itertools
 import logging
-import urllib
 from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
 from zipfile import ZipFile
 
-import requests
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message
 from telegram.error import BadRequest
@@ -31,7 +29,6 @@ except ImportError:
 import json
 
 from io import BytesIO
-import cv2
 import emoji
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -58,7 +55,6 @@ sys.excepthook = handle_exception
 
 # some global params
 myId = random.randint(300000)
-host = "localhost"
 chatId: int = 12341234
 debug: bool = False
 hidden_methods: list = list()
@@ -660,6 +656,15 @@ def parse_print_stats(message_params):
         notifier.send_notification(message)
 
 
+def power_device_state(device):
+    device_name = device["device"]
+    device_state = True if device["status"] == 'on' else False
+    if psu_power_device and psu_power_device.name == device_name:
+        psu_power_device.device_state = device_state
+    if light_power_device and light_power_device.name == device_name:
+        light_power_device.device_state = device_state
+
+
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     logger.debug(ws_message)
@@ -693,13 +698,8 @@ def websocket_to_message(ws_loc, ws_message):
                 return
 
             if 'devices' in message_result:
-                for dev in message_result['devices']:
-                    device_name = dev["device"]
-                    device_state = True if dev["status"] == 'on' else False
-                    if psu_power_device and psu_power_device.name == device_name:
-                        psu_power_device.device_state = device_state
-                    if light_power_device and light_power_device.name == device_name:
-                        light_power_device.device_state = device_state
+                for device in message_result['devices']:
+                    power_device_state(device)
                 return
 
             if debug:
@@ -724,14 +724,9 @@ def websocket_to_message(ws_loc, ws_message):
         if message_method == 'notify_gcode_response':
             notify_gcode_reponse(message_params)
 
-        # Todo: check for multiple device state change
         if message_method == 'notify_power_changed':
-            device_name = message_params[0]["device"]
-            device_state = True if message_params[0]["status"] == 'on' else False
-            if psu_power_device and psu_power_device.name == device_name:
-                psu_power_device.device_state = device_state
-            if light_power_device and light_power_device.name == device_name:
-                light_power_device.device_state = device_state
+            for device in message_params:
+                power_device_state(device)
 
         if message_method == 'notify_status_update':
             notify_status_update(message_params)
@@ -810,5 +805,4 @@ if __name__ == '__main__':
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
 
-    cv2.destroyAllWindows()
     bot_updater.stop()
