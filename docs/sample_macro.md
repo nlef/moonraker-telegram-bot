@@ -32,12 +32,12 @@ First, we run the FILAMENT_INSERT_PREHEAT macro, does not matter which way, from
 
 What happens next ist very simple - after the extruder has reached the desired temperature, the bot sends two messages to the chat, one with a notification, the other without. It looks like this in the chat:
 
-*insert screenshot*
+![image](https://user-images.githubusercontent.com/51682059/140410273-33ae0cac-e805-4ff9-98f7-2fe0b4db3a66.png)
 
 Telegram automatically highlights things it considers commands for a bot, if the message starts with "/" and does not have spaces. This means, that sending `/FILAMENT_INSERT` produces a clickable shortcut in the chat, which only requires clicking on it, to send the command. 
 
 This means, that as soon as we have received the message and inserted the filament, we can then press the "/FILAMENT_INSERT" in the chat, to run the macro with that name, which in turn extrudes the desired amount of plastic and powers down the extruder.
 
-*insert screenshot*
+![image](https://user-images.githubusercontent.com/51682059/140410315-9a85f862-99c9-496f-b624-72221625077f.png)
 
 This principle works for any macro/multiple macros you wish to run. 
