@@ -2,6 +2,8 @@ This document is a reference on how to write useful macros to use with the bot t
 
 The macros in this document are formatted so that it is possible to cut-and-paste them into your config.
 
+# Advanced bot-oriented macro usage
+
 ## Highlighting
 
 Let's imagine, that you regularly change filament. 
