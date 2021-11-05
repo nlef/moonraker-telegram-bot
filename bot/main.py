@@ -84,7 +84,9 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/pause - pause printing\n'
                               '/resume - resume printing\n'
                               '/cancel - cancel printing\n'
-                              '/files - list last 5 files( you can start printing one from menu)\n'
+                              '/files - list last 5 files(you can start printing one from menu)\n'
+                              '/macros - list all visible macros from klipper (macros beginning with _ are exluded)\n'
+                              '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
                               '/photo - capture & send me a photo\n'
                               '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
@@ -127,10 +129,7 @@ def status(update: Update, _: CallbackContext) -> None:
 
 
 def create_keyboard():
-    custom_keyboard = [
-        '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/emergency', '/macros', '/shutdown'
-    ]
+    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/photo', '/video', '/emergency', '/macros', '/shutdown']
     if psu_power_device:
         custom_keyboard.append('/power')
     if light_power_device:
