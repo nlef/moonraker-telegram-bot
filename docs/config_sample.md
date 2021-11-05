@@ -26,6 +26,8 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	Only the chat with the correct chat_id can send/receive commans to the bot.
 #socks_proxy: 192.168.0.22:1080
 #   If needed, you can configure the bot to use a socks5 proxy. 
+#user: root
+#password: qwerty
 #light_device: leds
 #	This is the power device in moonraker, to which the lights of the printer/chamber are connected to.
 #	If you do not have lights/have no need to cycle them, skip this parameter.

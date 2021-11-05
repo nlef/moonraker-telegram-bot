@@ -140,10 +140,8 @@ def create_keyboard():
 
 
 def greeting_message():
-    if klippy.check_connection():
-        mess = 'Printer online'
-    else:
-        mess = 'Bot online, no moonraker connection! Failing...'
+    response = klippy.check_connection()
+    mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     check_unfinished_lapses()
@@ -791,8 +789,6 @@ if __name__ == '__main__':
     timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, bot_updater, chatId, rotatingHandler, debug)
     notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
-
     scheduler.start()
 
     # debug reasons only
@@ -800,6 +796,8 @@ if __name__ == '__main__':
         parselog()
 
     greeting_message()
+
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_tiken}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
