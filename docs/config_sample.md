@@ -1,9 +1,10 @@
 This document is a reference for options available in the moonraker-telegram-bot
 
-The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up
-the bot and setting up an initial config file.
+The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up the bot and setting
+up an initial config file.
 
-# Sample bot configuration 
+# Sample bot configuration
+
 ## [bot]
 
 Configuration of the main bot parameters
@@ -127,7 +128,7 @@ This section is responsible for the notification on printing progress updates. T
 
 ## [timelapse]
 
-This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional. 
+This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional.
 
 ```
 [timelapse]
@@ -166,7 +167,8 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 [telegram_ui]
 #hidden_methods: /video
 #	This allows you to hide unused buttons from your bots keyboard.
-#custom_buttons: /my_super_button
+#custom_buttons: /my_super_button,/mu_second_button
+#require_confirmation_macro: false
 #silent_progress: true
 #	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
 #	but it does not have sound or vibration.

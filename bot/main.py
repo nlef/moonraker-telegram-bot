@@ -59,6 +59,7 @@ chatId: int = 12341234
 debug: bool = False
 hidden_methods: list = list()
 custom_buttons: list = list()
+require_confirmation_macro: bool = False
 
 bot_updater: Updater
 scheduler = BackgroundScheduler({
@@ -280,9 +281,14 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == 'power_on_printer':
         psu_power_device.switch_device(True)
         query.delete_message()
-    elif 'gmacro:' in query.data:
-        klippy.execute_command(query.data.replace('gmacro:', ''))
+    elif 'macro:' in query.data:
+        command = query.data.replace('macro:', '')
+        update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+        klippy.execute_command(command)
         query.delete_message()
+    elif 'macroc:' in query.data:
+        command = query.data.replace('macroc:', '')
+        query.edit_message_text(text=f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'))
     elif '.gcode' in query.data and ':' not in query.data:
         keyboard_keys = dict((x['callback_data'], x['text']) for x in
                              itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
@@ -348,10 +354,22 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
 
 def get_macros(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'gmacro:{el}'), klippy.macros))))
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if require_confirmation_macro else f'macro:{el}'), klippy.macros))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+
+
+def macros_handler(update: Update, _: CallbackContext) -> None:
+    command = update.message.text.replace('/', '').upper()
+    if command in klippy.macros:
+        if require_confirmation_macro:
+            update.message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands)
+        else:
+            klippy.execute_command(command)
+            update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+    else:
+        echo_unknown(update, _)
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
@@ -402,15 +420,6 @@ def upload_file(update: Update, _: CallbackContext) -> None:
 
     uploaded_bio.close()
     sending_bio.close()
-
-
-def macros_handler(update: Update, _: CallbackContext) -> None:
-    command = update.message.text.replace('/', '').upper()
-    if command in klippy.macros:
-        klippy.execute_command(command)
-        update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
-    else:
-        echo_unknown(update, _)
 
 
 def restart(update: Update, _: CallbackContext) -> None:
@@ -765,6 +774,7 @@ if __name__ == '__main__':
 
     hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
     custom_buttons = [el.strip() for el in conf.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in conf and 'custom_buttons' in conf['telegram_ui'] else list()
+    require_confirmation_macro = conf.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)
