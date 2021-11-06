@@ -17,6 +17,7 @@ As always with solutions like these, we kindly remind you not to print unattende
 - Light control for pictures and videos, confiugurable delay for camera adjustment
 - Configurable timelapsing (https://youtu.be/gzbzW7Vv2cs)
 - Configurable keyboard for easy control without command typing in the bot
+- Macro/gcode execution via the bot chat
 - Power device control for PSU/MCU control via moonraker
 - Sampling of photos/videos on request at any time
 - Pause, Cancel, Resume with a double confirmation 
@@ -29,29 +30,30 @@ These are the commands, which are currently available in the bot. Most of them a
 All commands are available on the bot keyboard, unused commands can be hidden via config.
 
 ```
-	/status		- get the status (printing, paused, error) of the printer
-	/pause		- pause the current print
-	/resume		- resume the current print
-	/cancel		- cancel the current print
-	/files		- get the last 5 .gcode files, and the option to print them
-	/photo 		- capture a picture from the webstream/webcam
-	/video 		- capture a video from the webstream/webcam
-	/poweroff	- turn off a specified moonraker power device
-	/light		- toggle a specified moonraker power device
-	/emergency	- run an emergency stop
-	/shutdown	- Shut down the host system
+	/status			- get the status (printing, paused, error) of the printer
+	/pause			- pause the current print
+	/resume			- resume the current print
+	/cancel			- cancel the current print
+	/files			- get the last 5 .gcode files, and the option to print them
+	/macros			- list all available non-hidden macros
+	/gcode %gcode%	- run any gcode command, spaces are supported
+	/photo 			- capture a picture from the webstream/webcam
+	/video 			- capture a video from the webstream/webcam
+	/power			- turn off a specified moonraker power device
+	/light			- toggle a specified moonraker power device
+	/emergency		- run an emergency stop
 	/bot_restart	- Restart the bot to apply config changes
-	/MACRO		- Run any macro available on your system.
+	/shutdown		- Shut down the host system
+	/%macro_name%	- Run any macro available on your system.
 ```
 
 ## Installation, configuration and updating
 
 **We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.**
+**Moonraker [history] component must be configured.**
+
 You may of course still install the bot manually, see the manual below.
 
-
-**The bot does not and will not support moonraker authorization in the foreseeable future.**
-Please disable authorization before installation, otherwise the bot will not function.
 
 When installing the bot for the first time, simply clone this distro. 
 
@@ -73,7 +75,7 @@ You can check on all the parameters and what they do in the [config_sample](docs
 Before you can start using the bot you will have to create and configure a telegram bot.
 The process is straightforward and is explained in the 'config_sample' in more detail. 
 
-Moonraker [history] component must be configured.
+
 
 To update the bot, we recommend simply using the moonraker update manager. This is explained in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager/).
 Here is the section needed:

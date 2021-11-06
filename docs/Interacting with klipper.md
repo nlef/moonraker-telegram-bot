@@ -8,12 +8,18 @@ The commands in this document are formatted so that it is possible to cut-and-pa
 # RESPOND commands for bot interaction
 
 ## Running macros from the chat window
-You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be in upper-case lettering. Example usage would be typing ```/MY_FAVOURITE_MACRO``` into the chat.
+You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` into the chat.
 
 This might not directly seem useful, but this opens some interesting possbilities:
-You can have a "respond-type" message with pre-typed ```/MY_FAVOURITE_MACRO```, allowing you to simply click on it in the chat to respond to a specific action. 
+You can have a "respond-type" message with pre-typed `/MY_FAVOURITE_MACRO`, allowing you to simply click on it in the chat to respond to a specific action. 
 
 This might not seem useful on first sight, but opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](macro_sample.md#highlighting) for more info.
+
+## Running gcode from the chat window
+You have the possibility to run any gcode directly from the chat interface.
+Simply type `/gcode %your gcode here%` into the chat. Spaces are supported.
+Example usage would be typing `/gcode G28 X Y` into the chat.
+
 
 ## Manual timelapse modes
 If you have set manual_mode in [[timelapse]](config_sample.md#timelapse), you can use command to manage timelapse capturing by the bot.
