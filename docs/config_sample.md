@@ -26,7 +26,7 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
 #	Only the chat with the correct chat_id can send/receive commands to the bot.
 #socks_proxy: 192.168.0.22:1080
-#   If needed, you can configure the bot to use a socks5 proxy. 
+#	If needed, you can configure the bot to use a socks5 proxy. 
 #user: root
 #password: qwerty
 #light_device: leds
@@ -169,9 +169,11 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 
 ```
 [telegram_ui]
-#hidden_methods: /video
-#	This allows you to hide unused buttons from your bots keyboard.
-#custom_buttons: /my_super_button,/my_second_button
+#hidden_methods: /bot_restart
+#	This allows you to hide unused buttons from your bots keyboard. A good example is the bot_restart command - 
+#	after you are finished configuring everything, you propably don't need the command as a key on the keyboard.
+#	This does not disable the command - you can still run the command by typing it into the chat
+#custom_buttons: /my_super_button, /my_second_button
 #	This allows you to add your own custom macros to the bot's keyboard. The macro listed in this section
 #	should be defined in klipper config files, in UPPERCASE. Maximum macro name length is 54 chars.
 #	Useful to add a button for a filament change, for homing, for axis movement, etc.

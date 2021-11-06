@@ -33,7 +33,7 @@ gcode:
 
 First, we run the FILAMENT_INSERT_PREHEAT macro, does not matter which way, from your webinterface, from your macro button, type it out in console, whatever floats your boat.
 
-What happens next ist very simple - after the extruder has reached the desired temperature, the bot sends two messages to the chat, one with a notification, the other without. It looks like this in the chat:
+What happens next is very simple - after the extruder has reached the desired temperature, the bot sends two messages to the chat, one with a notification, the other without. It looks like this in the chat:
 
 ![image](https://user-images.githubusercontent.com/51682059/140410273-33ae0cac-e805-4ff9-98f7-2fe0b4db3a66.png)
 
@@ -43,4 +43,4 @@ This means, that as soon as we have received the message and inserted the filame
 
 ![image](https://user-images.githubusercontent.com/51682059/140410315-9a85f862-99c9-496f-b624-72221625077f.png)
 
-This principle works for any macro/multiple macros you wish to run. 
+This method works for any macro/multiple macros you wish to run. 
