@@ -36,15 +36,15 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/cancel			- cancel the current print
 	/files			- get the last 5 .gcode files, and the option to print them
 	/macros			- list all available non-hidden macros
-	/gcode %gcode%	- run any gcode command, spaces are supported
+	/gcode %gcode%		- run any gcode command, spaces are supported
 	/photo 			- capture a picture from the webstream/webcam
 	/video 			- capture a video from the webstream/webcam
 	/power			- turn off a specified moonraker power device
 	/light			- toggle a specified moonraker power device
 	/emergency		- run an emergency stop
-	/bot_restart	- Restart the bot to apply config changes
+	/bot_restart		- Restart the bot to apply config changes
 	/shutdown		- Shut down the host system
-	/%macro_name%	- Run any macro available on your system.
+	/%macro_name%		- Run any macro available on your system.
 ```
 
 ## Installation, configuration and updating
