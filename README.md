@@ -72,7 +72,7 @@ When the process is done, run the install script:
 You will get asked, where to place the configuration file to. It is recommended to place it in the same catalog, where klipper configs are located, for ease of access and backup.
 You can check on all the parameters and what they do in the [config_sample](docs/config_sample.md). As with klipper, start with the minimum, and expand the functionality based on your needs.
 
-There are different ways to communicate with the bot via commands in klipper. You can read up on it in [interacting with klipper](docs/interacting with klipper.md).
+There are different ways to communicate with the bot via commands in klipper. You can read up on it in [interacting with klipper](docs/interacting_with_klipper.md).
 Ideas on how to extend the capabilities of the bot with macros are in the [macro_sample](docs/macro_sample.md).
 
 
