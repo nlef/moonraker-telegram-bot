@@ -28,6 +28,8 @@ class Klippy:
         self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
         self._sensors_dict: dict = self._prepare_sens_dict()
         self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
+        self._user = config.get('bot', 'user', fallback='')
+        self._passwd = config.get('bot', 'password', fallback='')
 
         self.connected: bool = False
         self.printing: bool = False
@@ -43,6 +45,8 @@ class Klippy:
         self.filament_total: float = 0.0
         self.filament_weight: float = 0.0
         self._thumbnail_path = ''
+
+        self._jwt_token: str = ''
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -77,6 +81,27 @@ class Klippy:
     def moonraker_host(self):
         return self._host
 
+    @property
+    def _headers(self):
+        heads = {}
+        if self._jwt_token:
+            heads = {'Authorization': f"Bearer {self._jwt_token}"}
+
+        return heads
+
+    @property
+    def one_shot_tiken(self) -> str:
+        if not self._user and not self._jwt_token:
+            return ''
+
+        resp = requests.get(f'http://{self._host}/access/oneshot_token', headers=self._headers)
+        if resp.ok:
+            res = f"?token={resp.json()['result']}"
+        else:
+            logger.error(resp.reason)
+            res = ''
+        return res
+
     def _reset_file_info(self) -> None:
         self._printing_filename = ''
         self.file_estimated_time = 0.0
@@ -91,7 +116,7 @@ class Klippy:
             self._reset_file_info()
             return
 
-        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}")
+        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}", headers=self._headers)
         # Todo: add response status check!
         resp = response.json()['result']
         self._printing_filename = new_value
@@ -105,19 +130,36 @@ class Klippy:
             self._thumbnail_path = thumb['relative_path']
 
     def _get_marco_list(self) -> list:
-        resp = requests.get(f'http://{self._host}/printer/objects/list')
+        resp = requests.get(f'http://{self._host}/printer/objects/list', headers=self._headers)
         if not resp.ok:
             return list()
         macro_lines = list(filter(lambda it: 'gcode_macro' in it and ' _' not in it, resp.json()['result']['objects']))
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
         return [key for key in loaded_macros if key not in self._disabled_macros]
 
-    def check_connection(self) -> bool:
+    def auth_moonraker(self) -> str:
+        if not self._user or not self._passwd:
+            return ''
+
+        res = requests.post(f"http://{self._host}/access/login", json={'username': self._user, 'password': self._passwd})
+        if res.ok:
+            # Todo: check if token refresh needed
+            self._jwt_token = res.json()['result']['token']
+            return ''
+        else:
+            logger.error(res.reason)
+            return f"Auth failed.\n {res.reason}"
+
+    def check_connection(self) -> str:
+        auth = self.auth_moonraker()
+        if auth:
+            return auth
+
         try:
-            response = requests.get(f"http://{self._host}/printer/info", timeout=2)
-            return True if response.ok else False
+            response = requests.get(f"http://{self._host}/printer/info", headers=self._headers, timeout=2)
+            return '' if response.ok else f"Connection failed. {response.reason}"
         except Exception:
-            return False
+            return 'f"Connection failed.'
 
     @staticmethod
     def sensor_message(sensor: str, sens_key: str, response) -> str:
@@ -135,7 +177,7 @@ class Klippy:
         return message
 
     def get_status(self) -> str:
-        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status{self._sensors_query}")
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status{self._sensors_query}", headers=self._headers)
         resp = response.json()['result']['status']
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
@@ -171,7 +213,7 @@ class Klippy:
 
     def execute_command(self, command: str):
         data = {'commands': [f'{command}']}
-        res = requests.post(f"http://{self._host}/api/printer/command", json=data)
+        res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
         if not res.ok:
             logger.error(res.reason)
 
@@ -213,17 +255,17 @@ class Klippy:
             return message, None
 
     def get_gcode_files(self):
-        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes")
+        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers)
         resp = response.json()
         files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
         return files
 
     def upload_file(self, file: BytesIO) -> bool:
-        response = requests.post(f"http://{self._host}/server/files/upload", files={'file': file})
+        response = requests.post(f"http://{self._host}/server/files/upload", files={'file': file}, headers=self._headers)
         return response.ok
 
     def start_printing_file(self, filename: str) -> bool:
-        response = requests.post(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}")
+        response = requests.post(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}", headers=self._headers)
         return response.ok
 
     def stop_all(self):

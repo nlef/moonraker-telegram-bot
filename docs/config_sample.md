@@ -1,9 +1,10 @@
 This document is a reference for options available in the moonraker-telegram-bot
 
-The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up
-the bot and setting up an initial config file.
+The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up the bot and setting
+up an initial config file.
 
-# Sample bot configuration 
+# Sample bot configuration
+
 ## [bot]
 
 Configuration of the main bot parameters
@@ -25,7 +26,9 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
 #	Only the chat with the correct chat_id can send/receive commands to the bot.
 #socks_proxy: 192.168.0.22:1080
-#	If needed, you can configure the bot to use a socks5 proxy. 
+#   If needed, you can configure the bot to use a socks5 proxy. 
+#user: root
+#password: qwerty
 #light_device: leds
 #	This is the power device in moonraker, to which the lights of the printer/chamber are connected to.
 #	If you do not have lights/have no need to cycle them, skip this parameter.
@@ -127,7 +130,7 @@ This section is responsible for the notification on printing progress updates. T
 
 ## [timelapse]
 
-This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional. 
+This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional.
 
 ```
 [timelapse]
@@ -168,6 +171,13 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 [telegram_ui]
 #hidden_methods: /video
 #	This allows you to hide unused buttons from your bots keyboard.
+#custom_buttons: /my_super_button,/my_second_button
+#	This allows you to add your own custom macros to the bot's keyboard. The macro listed in this section
+#	should be defined in klipper config files, in UPPERCASE. Maximum macro name length is 54 chars.
+#	Useful to add a button for a filament change, for homing, for axis movement, etc.
+#require_confirmation_macro: false
+#	This flag makes the bot confirm, if you want to run a macro, similar to the check which happens 
+#	with the "/shutdown" command.
 #silent_progress: true
 #	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
 #	but it does not have sound or vibration.

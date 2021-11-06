@@ -4,14 +4,12 @@ import faulthandler
 import hashlib
 import itertools
 import logging
-import urllib
 from logging.handlers import RotatingFileHandler
 import os
 import sys
 from pathlib import Path
 from zipfile import ZipFile
 
-import requests
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message
 from telegram.error import BadRequest
@@ -31,7 +29,6 @@ except ImportError:
 import json
 
 from io import BytesIO
-import cv2
 import emoji
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -58,10 +55,11 @@ sys.excepthook = handle_exception
 
 # some global params
 myId = random.randint(300000)
-host = "localhost"
 chatId: int = 12341234
 debug: bool = False
 hidden_methods: list = list()
+custom_buttons: list = list()
+require_confirmation_macro: bool = False
 
 bot_updater: Updater
 scheduler = BackgroundScheduler({
@@ -87,7 +85,9 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/pause - pause printing\n'
                               '/resume - resume printing\n'
                               '/cancel - cancel printing\n'
-                              '/files - list last 5 files( you can start printing one from menu)\n'
+                              '/files - list last 5 files(you can start printing one from menu)\n'
+                              '/macros - list all visible macros from klipper (macros beginning with _ are exluded)\n'
+                              '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
                               '/photo - capture & send me a photo\n'
                               '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
@@ -130,24 +130,19 @@ def status(update: Update, _: CallbackContext) -> None:
 
 
 def create_keyboard():
-    custom_keyboard = [
-        '/status', '/pause', '/cancel', '/resume', '/files',
-        '/photo', '/video', '/emergency', '/macros', '/shutdown'
-    ]
+    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/photo', '/video', '/emergency', '/macros', '/shutdown']
     if psu_power_device:
         custom_keyboard.append('/power')
     if light_power_device:
         custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in hidden_methods]
+    filtered = [key for key in custom_keyboard if key not in hidden_methods] + custom_buttons
     keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
     return keyboard
 
 
 def greeting_message():
-    if klippy.check_connection():
-        mess = 'Printer online'
-    else:
-        mess = 'Bot online, no moonraker connection! Failing...'
+    response = klippy.check_connection()
+    mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     check_unfinished_lapses()
@@ -286,9 +281,14 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == 'power_on_printer':
         psu_power_device.switch_device(True)
         query.delete_message()
-    elif 'gmacro:' in query.data:
-        klippy.execute_command(query.data.replace('gmacro:', ''))
+    elif 'macro:' in query.data:
+        command = query.data.replace('macro:', '')
+        update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
         query.delete_message()
+        klippy.execute_command(command)
+    elif 'macroc:' in query.data:
+        command = query.data.replace('macroc:', '')
+        query.edit_message_text(text=f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'))
     elif '.gcode' in query.data and ':' not in query.data:
         keyboard_keys = dict((x['callback_data'], x['text']) for x in
                              itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
@@ -354,10 +354,22 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
 
 def get_macros(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'gmacro:{el}'), klippy.macros))))
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if require_confirmation_macro else f'macro:{el}'), klippy.macros))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+
+
+def macros_handler(update: Update, _: CallbackContext) -> None:
+    command = update.message.text.replace('/', '').upper()
+    if command in klippy.macros:
+        if require_confirmation_macro:
+            update.message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands)
+        else:
+            klippy.execute_command(command)
+            update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+    else:
+        echo_unknown(update, _)
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
@@ -408,15 +420,6 @@ def upload_file(update: Update, _: CallbackContext) -> None:
 
     uploaded_bio.close()
     sending_bio.close()
-
-
-def macros_handler(update: Update, _: CallbackContext) -> None:
-    command = update.message.text.replace('/', '').upper()
-    if command in klippy.macros:
-        klippy.execute_command(command)
-        update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
-    else:
-        echo_unknown(update, _)
 
 
 def restart(update: Update, _: CallbackContext) -> None:
@@ -660,6 +663,15 @@ def parse_print_stats(message_params):
         notifier.send_notification(message)
 
 
+def power_device_state(device):
+    device_name = device["device"]
+    device_state = True if device["status"] == 'on' else False
+    if psu_power_device and psu_power_device.name == device_name:
+        psu_power_device.device_state = device_state
+    if light_power_device and light_power_device.name == device_name:
+        light_power_device.device_state = device_state
+
+
 def websocket_to_message(ws_loc, ws_message):
     json_message = json.loads(ws_message)
     logger.debug(ws_message)
@@ -693,13 +705,8 @@ def websocket_to_message(ws_loc, ws_message):
                 return
 
             if 'devices' in message_result:
-                for dev in message_result['devices']:
-                    device_name = dev["device"]
-                    device_state = True if dev["status"] == 'on' else False
-                    if psu_power_device and psu_power_device.name == device_name:
-                        psu_power_device.device_state = device_state
-                    if light_power_device and light_power_device.name == device_name:
-                        light_power_device.device_state = device_state
+                for device in message_result['devices']:
+                    power_device_state(device)
                 return
 
             if debug:
@@ -724,14 +731,9 @@ def websocket_to_message(ws_loc, ws_message):
         if message_method == 'notify_gcode_response':
             notify_gcode_reponse(message_params)
 
-        # Todo: check for multiple device state change
         if message_method == 'notify_power_changed':
-            device_name = message_params[0]["device"]
-            device_state = True if message_params[0]["status"] == 'on' else False
-            if psu_power_device and psu_power_device.name == device_name:
-                psu_power_device.device_state = device_state
-            if light_power_device and light_power_device.name == device_name:
-                light_power_device.device_state = device_state
+            for device in message_params:
+                power_device_state(device)
 
         if message_method == 'notify_status_update':
             notify_status_update(message_params)
@@ -771,6 +773,8 @@ if __name__ == '__main__':
     log_path = conf.get('bot', 'log_path', fallback='/tmp')
 
     hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
+    custom_buttons = [el.strip() for el in conf.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in conf and 'custom_buttons' in conf['telegram_ui'] else list()
+    require_confirmation_macro = conf.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)
@@ -795,8 +799,6 @@ if __name__ == '__main__':
     timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, bot_updater, chatId, rotatingHandler, debug)
     notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
-
     scheduler.start()
 
     # debug reasons only
@@ -805,10 +807,11 @@ if __name__ == '__main__':
 
     greeting_message()
 
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_tiken}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
+
     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 
     ws.run_forever(skip_utf8_validation=True)
     logger.info("Exiting! Moonraker connection lost!")
 
-    cv2.destroyAllWindows()
     bot_updater.stop()
