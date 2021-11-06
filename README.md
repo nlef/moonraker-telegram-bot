@@ -1,5 +1,8 @@
 # moonraker-telegram-bot
 
+![image](https://user-images.githubusercontent.com/51682059/140623765-3b839b4b-40c2-4f87-8969-6cb609f2c5f1.png)
+
+
 The general idea of this project is to provide you with a way to control and monitor your printer without having to setup a vpn, opening your home network, or doing any sort of other network-related vodoo.
 In addition you get the benefits of push-style notifications always in your pocket, and a bandwidth-friendly way to check up on your print progress, when not near the printer.
 
@@ -37,6 +40,7 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 	/light		- toggle a specified moonraker power device
 	/emergency	- run an emergency stop
 	/shutdown	- Shut down the host system
+	/bot_restart	- Restart the bot to apply config changes
 	/MACRO		- Run any macro available on your system.
 ```
 
@@ -89,7 +93,7 @@ Please understand, that entering commands into the console takes a certain amoun
 
 
 When tweaking the bot, remember that you have to **restart the service every time you change the config**:
-You can either do so via ssh
+You can either do so via the chat command/button `/bot_restart` or via ssh
 `sudo systemctl restart moonraker-telegram-bot`
 
 
