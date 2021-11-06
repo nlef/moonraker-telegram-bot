@@ -23,7 +23,7 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	This is the bot token, the most important part of every bot. 
 #	You get it when you create a new bot. To create a new bot, you have to talk to @BotFather in telegram. 
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
-#	Only the chat with the correct chat_id can send/receive commans to the bot.
+#	Only the chat with the correct chat_id can send/receive commands to the bot.
 #socks_proxy: 192.168.0.22:1080
 #	If needed, you can configure the bot to use a socks5 proxy. 
 #light_device: leds
