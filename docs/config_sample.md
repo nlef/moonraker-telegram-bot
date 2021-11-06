@@ -28,7 +28,10 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #socks_proxy: 192.168.0.22:1080
 #	If needed, you can configure the bot to use a socks5 proxy. 
 #user: root
+#	If you have moonraker authorization enabled, you can enter the user and password here.
+#	My advice is to not expose your printer to the internet, but I am not your mother.
 #password: qwerty
+#	The password is stored in plain text.
 #light_device: leds
 #	This is the power device in moonraker, to which the lights of the printer/chamber are connected to.
 #	If you do not have lights/have no need to cycle them, skip this parameter.
