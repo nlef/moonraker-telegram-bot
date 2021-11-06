@@ -94,15 +94,15 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/light - toggle light\n'
                               '/emergency - emergency stop printing\n'
                               '/restart - restart bot\n'
-                              '/shutdown - shutdown Pi gracefully')
+                              '/shutdown - shutdown Pi gracefully', quote=True)
 
 
 def echo_unknown(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"unknown command: {update.message.text}")
+    update.message.reply_text(f"unknown command: {update.message.text}", quote=True)
 
 
 def unknown_chat(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}")
+    update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}", quote=True)
 
 
 def send_print_start_info(context: CallbackContext):
@@ -123,7 +123,7 @@ def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     mess = klippy.get_status()
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands)
+    message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
     if klippy.printing_filename:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
         send_file_info(message_to_reply.bot, notifier.silent_commands, f"Printing: {klippy.printing_filename} \n")
@@ -162,28 +162,28 @@ def check_unfinished_lapses():
 def get_photo(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraWrap.enabled:
-        message_to_reply.reply_text("camera is disabled")
+        message_to_reply.reply_text("camera is disabled", quote=True)
         return
 
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
     with cameraWrap.take_photo() as bio:
-        message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands)
+        message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands, quote=True)
         bio.close()
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if not cameraWrap.enabled:
-        message_to_reply.reply_text("camera is disabled")
+        message_to_reply.reply_text("camera is disabled", quote=True)
     else:
-        info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands)
+        info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands, quote=True)
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
             info_reply.edit_text(text="Uploading video")
             if video_bio.getbuffer().nbytes > 52428800:
                 info_reply.edit_text(text='Telegram has a 50mb restriction...')
             else:
-                message_to_reply.reply_video(video=video_bio, thumb=thumb_bio, width=width, height=height, caption='', timeout=120, disable_notification=notifier.silent_commands)
+                message_to_reply.reply_video(video=video_bio, thumb=thumb_bio, width=width, height=height, caption='', timeout=120, disable_notification=notifier.silent_commands, quote=True)
                 message_to_reply.bot.delete_message(chat_id=chatId, message_id=info_reply.message_id)
 
             video_bio.close()
@@ -214,7 +214,7 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
 
 def pause_printing(update: Update, __: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'), disable_notification=notifier.silent_commands)
+    update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def resume_printing(_: Update, __: CallbackContext) -> None:
@@ -223,17 +223,17 @@ def resume_printing(_: Update, __: CallbackContext) -> None:
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Cancel printing?', reply_markup=confirm_keyboard('cancel_printing'), disable_notification=notifier.silent_commands)
+    update.message.reply_text('Cancel printing?', reply_markup=confirm_keyboard('cancel_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def emergency_stop(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'), disable_notification=notifier.silent_commands)
+    update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def shutdown_host(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands)
+    update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def power(update: Update, _: CallbackContext) -> None:
@@ -241,11 +241,11 @@ def power(update: Update, _: CallbackContext) -> None:
     message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     if psu_power_device:
         if psu_power_device.device_state:
-            message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands)
+            message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands, quote=True)
         else:
-            message_to_reply.reply_text('Power On printer?', reply_markup=confirm_keyboard('power_on_printer'), disable_notification=notifier.silent_commands)
+            message_to_reply.reply_text('Power On printer?', reply_markup=confirm_keyboard('power_on_printer'), disable_notification=notifier.silent_commands, quote=True)
     else:
-        message_to_reply.reply_text("No power device in config!", disable_notification=notifier.silent_commands)
+        message_to_reply.reply_text("No power device in config!", disable_notification=notifier.silent_commands, quote=True)
 
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
@@ -253,7 +253,7 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
     if light_power_device:
         light_power_device.toggle_device()
     else:
-        message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands)
+        message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands, quote=True)
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
@@ -262,6 +262,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     query.answer()
     # Todo: maybe regex check?
     if query.data == 'do_nothing':
+        context.bot.delete_message(update.effective_message.chat_id, update.effective_message.reply_to_message.message_id)
         query.delete_message()
     elif query.data == 'emergency_stop':
         emergency_stop_printer()
@@ -283,7 +284,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif 'macro:' in query.data:
         command = query.data.replace('macro:', '')
-        update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+        update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands, quote=True)
         query.delete_message()
         klippy.execute_command(command)
     elif 'macroc:' in query.data:
@@ -339,7 +340,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
     files_keys = list(map(list, zip(map(create_file_button, klippy.get_gcode_files()))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
-    update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+    update.message.reply_text('Gcode files to print:', reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True)
 
 
 def exec_gcode(update: Update, _: CallbackContext) -> None:
@@ -349,25 +350,25 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
         command = message.text.replace('/gcode ', '')
         klippy.execute_command(command)
     else:
-        message.reply_text('No command provided')
+        message.reply_text('No command provided', quote=True)
 
 
 def get_macros(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
     files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if require_confirmation_macro else f'macro:{el}'), klippy.macros))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
-    update.message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+    update.effective_message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True)
 
 
 def macros_handler(update: Update, _: CallbackContext) -> None:
-    command = update.message.text.replace('/', '').upper()
+    command = update.effective_message.text.replace('/', '').upper()
     if command in klippy.macros:
         if require_confirmation_macro:
-            update.message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands)
+            update.effective_message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands, quote=True)
         else:
             klippy.execute_command(command)
-            update.message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
+            update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands, quote=True)
     else:
         echo_unknown(update, _)
 
@@ -376,13 +377,13 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if not doc.file_name.endswith(('.gcode', '.zip')):
-        update.message.reply_text(f"unknown filetype in {doc.file_name}", disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"unknown filetype in {doc.file_name}", disable_notification=notifier.silent_commands, quote=True)
         return
 
     try:
         file_byte_array = doc.get_file().download_as_bytearray()
     except BadRequest as badreq:
-        update.message.reply_text(f"Bad request: {badreq.message}", disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"Bad request: {badreq.message}", disable_notification=notifier.silent_commands, quote=True)
         return
 
     # Todo: add context managment!
@@ -397,7 +398,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     elif doc.file_name.endswith('.zip'):
         with ZipFile(uploaded_bio) as my_zip_file:
             if len(my_zip_file.namelist()) > 1:
-                update.message.reply_text(f"Multiple files in archive {doc.file_name}", disable_notification=notifier.silent_commands)
+                update.message.reply_text(f"Multiple files in archive {doc.file_name}", disable_notification=notifier.silent_commands, quote=True)
                 return
 
             contained_file = my_zip_file.open(my_zip_file.namelist()[0])
@@ -414,9 +415,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(f"Successfully uploaded file: {sending_bio.name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"Successfully uploaded file: {sending_bio.name}", reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True)
     else:
-        update.message.reply_text(f"Failed uploading file: {sending_bio.name}", disable_notification=notifier.silent_commands)
+        update.message.reply_text(f"Failed uploading file: {sending_bio.name}", disable_notification=notifier.silent_commands, quote=True)
 
     uploaded_bio.close()
     sending_bio.close()
@@ -424,7 +425,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
 
 def restart(update: Update, _: CallbackContext) -> None:
     ws.close()
-    update.message.reply_text("Restarting bot")
+    update.message.reply_text("Restarting bot", quote=True)
     os._exit(1)
 
 
