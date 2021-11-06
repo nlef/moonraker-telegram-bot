@@ -93,8 +93,9 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/power - toggle moonraker power device from config\n'
                               '/light - toggle light\n'
                               '/emergency - emergency stop printing\n'
-                              '/restart - restart bot\n'
-                              '/shutdown - shutdown Pi gracefully', quote=True)
+                              '/bot_restart - restarts the bot service, useful for config updates\n'
+                              '/shutdown - shutdown Pi gracefully',
+                              quote=True)
 
 
 def echo_unknown(update: Update, _: CallbackContext) -> None:
@@ -423,7 +424,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     sending_bio.close()
 
 
-def restart(update: Update, _: CallbackContext) -> None:
+def bot_restart(update: Update, _: CallbackContext) -> None:
     ws.close()
     update.message.reply_text("Restarting bot", quote=True)
     os._exit(1)
@@ -456,7 +457,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
-    dispatcher.add_handler(CommandHandler("restart", restart))
+    dispatcher.add_handler(CommandHandler("bot_restart", bot_restart))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
