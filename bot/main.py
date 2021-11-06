@@ -284,8 +284,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif 'macro:' in query.data:
         command = query.data.replace('macro:', '')
         update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands)
-        klippy.execute_command(command)
         query.delete_message()
+        klippy.execute_command(command)
     elif 'macroc:' in query.data:
         command = query.data.replace('macroc:', '')
         query.edit_message_text(text=f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'))

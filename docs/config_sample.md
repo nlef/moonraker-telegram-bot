@@ -168,6 +168,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #hidden_methods: /video
 #	This allows you to hide unused buttons from your bots keyboard.
 #custom_buttons: /my_super_button,/mu_second_button
+# max lenght 54 symbols for each command
 #require_confirmation_macro: false
 #silent_progress: true
 #	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
