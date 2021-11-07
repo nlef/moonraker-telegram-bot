@@ -15,16 +15,16 @@ server: localhost
 #	This is the adress, where the moonraker of the desired printer is located at. 
 #	In most cases it will be 'localhost'. Alternatively, an ip:port, as in 192.168.0.19:7125 can be entered, 
 #	if you are running multiple moonraker instances on the machine, or if the bot is located not on the printer itself.
-chat_id: xxxxxxxxx
-#	This is the ID of the chat, where the bot is supposed to be able to send updates to. 
-#	To get the ID, after creating a new bot write something to this bot, then navigate to 
-#	https://api.telegram.org/bot<bot_token>/getUpdates you will see json with information about your message, sent to the bot. 
-#	Find chat_id there.
 bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	This is the bot token, the most important part of every bot. 
 #	You get it when you create a new bot. To create a new bot, you have to talk to @BotFather in telegram. 
 #	The only thing you need is the token, the rest is taken care of by the chat_id.
 #	Only the chat with the correct chat_id can send/receive commands to the bot.
+chat_id: xxxxxxxxx
+#	This is the ID of the chat, where the bot is supposed to be able to send updates to. 
+#	To get the ID, after creating a new bot write something to this bot, then navigate to 
+#	https://api.telegram.org/bot<bot_token>/getUpdates you will see json with information about your message, sent to the bot. 
+#	Find chat_id there.
 #socks_proxy: 192.168.0.22:1080
 #	If needed, you can configure the bot to use a socks5 proxy. 
 #user: root
