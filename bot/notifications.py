@@ -25,7 +25,6 @@ class Notifier:
         self._percent: int = config.getint('progress_notification', 'percent', fallback=0)
         self._height: int = config.getint('progress_notification', 'height', fallback=0)
         self._interval: int = config.getint('progress_notification', 'time', fallback=0)
-        self._interval_between: int = config.getint('progress_notification', 'min_delay_between_notifications', fallback=0)
         self._notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config[
             'progress_notification'] else list()
         self._group_only: bool = config.getboolean('progress_notification', 'group_only', fallback=False)
@@ -37,7 +36,6 @@ class Notifier:
         self._last_height: int = 0
         self._last_percent: int = 0
         self._last_message: str = ''
-        self._last_notify_time: int = 0
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -115,13 +113,9 @@ class Notifier:
         self._last_height = 0
         self._klippy.printing_duration = 0
         self._last_message = ''
-        self._last_notify_time = 0
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
-            return
-
-        if self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between:
             return
 
         notifymsg = ''
@@ -144,19 +138,17 @@ class Notifier:
                 notifymsg += f"{self._last_message}\n"
             notifymsg += f"{self._klippy.get_eta_message()}"
 
-            self._last_notify_time = time.time()
             self._sched.add_job(self._notify, kwargs={'message': notifymsg, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
                                 replace_existing=False)
 
     def _notify_by_time(self):
-        if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._interval_between > 0 and time.time() < self._last_notify_time + self._interval_between):
+        if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
             return
 
         notifymsg = f"Printing for {timedelta(seconds=round(self._klippy.printing_duration))}\n"
         if self._last_message:
             notifymsg += f"{self._last_message}\n"
         notifymsg += f"{self._klippy.get_eta_message()}"
-        self._last_notify_time = time.time()
         self._notify(notifymsg, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):

@@ -118,13 +118,6 @@ This section is responsible for the notification on printing progress updates. T
 #	The default is not to send notifications based on time.
 #	This type of notifications continues, even when the print is paused. So if your printer triggers a pause, for example 
 #	caused by filament runout, you will still get notifications regularly, until the print is completed/canceled.  
-#min_delay_between_notifications: 60
-#	When printing small models the bot can cause unwanted notification/message spam. In future releases
-#	the notification type (silent/normal) will be available. For now you can either mute the bot, or use this parameter
-#	to limit how often notifications are sent. The value sets, how many seconds have to pass, before the next 
-#	notification is sent. Default is not to use any limits.
-#	This parameter is depreciated and will be removed in future verions. Please use the time-based notifications, and
-#	configure other types properly.
 #groups: group_id_1, group_id_2
 #	When running multiple printers/a farm, you may want to aggregate all notifications from all printers in a group.
 #	You can enter group IDs here, to which notifications will be sent. No control from a group is possible.
