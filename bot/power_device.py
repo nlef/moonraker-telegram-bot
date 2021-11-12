@@ -32,6 +32,7 @@ class PowerDevice(object):
     def toggle_device(self):
         self.switch_device(not self.device_state)
 
+    # Fixme: add auth params
     def switch_device(self, state: bool):
         with self._state_lock:
             if state:

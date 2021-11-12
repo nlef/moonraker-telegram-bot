@@ -554,6 +554,36 @@ def status_response(message_result):
         klippy.vsd_progress = message_result['status']['virtual_sdcard']['progress']
 
 
+def parse_timelapse_params(message: str):
+    mass_parts = message.split(sep=" ")
+    mass_parts.pop(0)
+    for part in mass_parts:
+        if 'enabled' in part:
+            timelapse.enabled = bool(int(part.split(sep="=").pop()))
+        elif 'manual_mode' in part:
+            timelapse.manual_mode = bool(int(part.split(sep="=").pop()))
+        elif 'height' in part:
+            timelapse.set_height(float(part.split(sep="=").pop()))
+        elif 'time' in part:
+            timelapse.set_interval(int(part.split(sep="=").pop()))
+        elif 'target_fps' in part:
+            timelapse.set_fps(int(part.split(sep="=").pop()))
+        elif 'last_frame_duration' in part:
+            timelapse.set_last_frame_duration(int(part.split(sep="=").pop()))
+
+
+def parse_notification_params(message: str):
+    mass_parts = message.split(sep=" ")
+    mass_parts.pop(0)
+    for part in mass_parts:
+        if 'percent' in part:
+            notifier.set_percent(int(part.split(sep="=").pop()))
+        elif 'height' in part:
+            notifier.set_height(float(part.split(sep="=").pop()))
+        elif 'time' in part:
+            notifier.set_interval(int(part.split(sep="=").pop()))
+
+
 def notify_gcode_reponse(message_params):
     if timelapse.manual_mode:
         if 'timelapse start' in message_params:
@@ -580,6 +610,10 @@ def notify_gcode_reponse(message_params):
         notifier.send_error(message_params[0][8:])
     if message_params[0].startswith('tgalarm_photo '):
         notifier.send_error_with_photo(message_params[0][14:])
+    if message_params[0].startswith('set_timelapse_params '):
+        parse_timelapse_params(message_params[0])
+    if message_params[0].startswith('set_notify_params '):
+        parse_timelapse_params(message_params[0])
 
 
 def notify_status_update(message_params):

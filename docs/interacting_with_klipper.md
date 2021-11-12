@@ -37,8 +37,14 @@ You can use RESPOND-type commands to send custom messages to the bot.
 Intended usage is to send custom status updates to the bot, as "heating done". An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgnotify MSG=my_message` or `RESPOND PREFIX=tgnotify MSG="my message with spaces"` if you need spaces.
 - `tgnotify_photo`  Captures a picture, sends a message with an alert configured by 'silent_status'.
 Works exactly the same as the simple notify command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.
-
 - `tgalarm` Sends a message with an alert. You get a "red" notification with sound or vibration.
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.
 - `tgalarm_photo` Captures a picture, sends a message with an alert. You get a "red" notification with sound or vibration.
 Works exactly the same as the simple alarm command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.
+
+## Runtime params
+timelapse params
+`RESPOND PREFIX=set_timelapse_params MSG="enabled=[1|0] manual_mode=[1|0] height=0.22 time=18 target_fps=20 last_frame_duration=10"`
+
+notification params
+`RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"`

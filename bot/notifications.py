@@ -60,6 +60,22 @@ class Notifier:
     def message(self, new: str):
         self._last_message = new
 
+    def set_percent(self, new_value: int):
+        if new_value >= 0:
+            self._percent = new_value
+
+    def set_height(self, new_value: float):
+        if new_value >= 0:
+            self._height = new_value
+
+    def set_interval(self, new_value: int):
+        if new_value == 0:
+            self._interval = new_value
+            self.remove_notifier_timer()
+        elif new_value > 0:
+            self._interval = new_value
+            self._reschedule_notifier_timer()
+
     def _send_message(self, message: str, silent: bool, group_only: bool = False):
         if not group_only:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
@@ -151,6 +167,10 @@ class Notifier:
     def remove_notifier_timer(self):
         if self._sched.get_job('notifier_timer'):
             self._sched.remove_job('notifier_timer')
+
+    def _reschedule_notifier_timer(self):
+        if self._interval > 0 and self._sched.get_job('notifier_timer'):
+            self._sched.add_job(self._notify_by_time, 'interval', seconds=self._interval, id='notifier_timer', replace_existing=True)
 
     def stop_all(self):
         self.reset_notifications()

@@ -45,9 +45,37 @@ class Timelapse:
     def enabled(self):
         return self._enabled
 
+    @enabled.setter
+    def enabled(self, new_val: bool):
+        self._enabled = new_val
+
     @property
     def manual_mode(self):
         return self._mode_manual
+
+    @manual_mode.setter
+    def manual_mode(self, new_val: bool):
+        self._mode_manual = new_val
+
+    def set_interval(self, new_value: int):
+        if new_value == 0:
+            self._interval = new_value
+            self._remove_timelapse_timer()
+        elif new_value > 0:
+            self._interval = new_value
+            self._reschedule_timelapse_timer()
+
+    def set_height(self, new_value):
+        if new_value >= 0:
+            self._height = new_value
+
+    def set_fps(self, new_value: int):
+        if new_value >= 1:
+            self._camera.set_fps(new_value)
+
+    def set_last_frame_duration(self, new_value: int):
+        if new_value >= 0:
+            self._camera.set_last_frame_duration(new_value)
 
     @property
     def running(self):
@@ -113,6 +141,10 @@ class Timelapse:
     def _remove_timelapse_timer(self):
         if self._sched.get_job('timelapse_timer'):
             self._sched.remove_job('timelapse_timer')
+
+    def _reschedule_timelapse_timer(self):
+        if self._interval > 0 and self._sched.get_job('timelapse_timer'):
+            self._sched.add_job(self.take_lapse_photo, 'interval', seconds=self._interval, id='timelapse_timer', replace_existing=True)
 
     def _send_lapse(self):
         if not self._enabled or not self._klippy.printing_filename:

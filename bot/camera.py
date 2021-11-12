@@ -71,11 +71,13 @@ class Camera:
         self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
         self._imgs_path: str = imgs_path
         self._klippy: Klippy = klippy
+        # Todo: refactor into timelapse class
         self._base_dir: str = config.get('timelapse', 'basedir', fallback='/tmp/timelapse')  # Fixme: relative path failed! ~/timelapse
         self._ready_dir: str = config.get('timelapse', 'copy_finished_timelapse_dir', fallback='')  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = config.getboolean('timelapse', 'cleanup', fallback=True)
         self._fps: int = config.getint('timelapse', 'target_fps', fallback=15)
         self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
+
         self._light_need_off: bool = False
         self._light_need_off_lock = threading.Lock()
 
@@ -148,6 +150,12 @@ class Camera:
     def free_light(self):
         with self._light_request_lock:
             self._light_requests -= 1
+
+    def set_fps(self, new_val: int):
+        self._fps = new_val
+
+    def set_last_frame_duration(self, new_val: int):
+        self._last_frame_duration = new_val
 
     @staticmethod
     def _create_thumb(image) -> BytesIO:
