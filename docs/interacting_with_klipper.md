@@ -44,7 +44,7 @@ Works exactly the same as the simple alarm command, but also takes a photo from 
 
 ## Runtime params
 timelapse params
-`RESPOND PREFIX=set_timelapse_params MSG="enabled=[1|0] manual_mode=[1|0] height=0.22 time=18 target_fps=20 last_frame_duration=10"`
+`RESPOND PREFIX=set_timelapse_params MSG="enabled=[1|0] manual_mode=[1|0] height=0.22 time=18 target_fps=20 min_lapse_duration=5 max_lapse_duration=15 last_frame_duration=10"`
 
 notification params
 `RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"`

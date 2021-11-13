@@ -150,6 +150,10 @@ This section is responsible for timelapse creation as well as file location for 
 #target_fps: 15  
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
 #	15 fps equals 15 images per second lapsing. The default is 15 fps.
+#min_lapse_duration: 5
+#	Default is 0 seconds - unlimited
+#max_lapse_duration: 5
+#	Default is 0 seconds - unlimited
 #last_frame_duration: 5
 #	This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
 #	to loop the last picture taken.

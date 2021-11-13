@@ -563,13 +563,17 @@ def parse_timelapse_params(message: str):
         elif 'manual_mode' in part:
             timelapse.manual_mode = bool(int(part.split(sep="=").pop()))
         elif 'height' in part:
-            timelapse.set_height(float(part.split(sep="=").pop()))
+            timelapse.height = float(part.split(sep="=").pop())
         elif 'time' in part:
-            timelapse.set_interval(int(part.split(sep="=").pop()))
+            timelapse.interval = int(part.split(sep="=").pop())
         elif 'target_fps' in part:
-            timelapse.set_fps(int(part.split(sep="=").pop()))
+            timelapse.target_fps = int(part.split(sep="=").pop())
         elif 'last_frame_duration' in part:
-            timelapse.set_last_frame_duration(int(part.split(sep="=").pop()))
+            timelapse.last_frame_duration = int(part.split(sep="=").pop())
+        elif 'min_lapse_duration' in part:
+            timelapse.min_lapse_duration = int(part.split(sep="=").pop())
+        elif 'max_lapse_duration' in part:
+            timelapse.max_lapse_duration = int(part.split(sep="=").pop())
 
 
 def parse_notification_params(message: str):
@@ -577,11 +581,11 @@ def parse_notification_params(message: str):
     mass_parts.pop(0)
     for part in mass_parts:
         if 'percent' in part:
-            notifier.set_percent(int(part.split(sep="=").pop()))
+            notifier.percent = int(part.split(sep="=").pop())
         elif 'height' in part:
-            notifier.set_height(float(part.split(sep="=").pop()))
+            notifier.height = float(part.split(sep="=").pop())
         elif 'time' in part:
-            notifier.set_interval(int(part.split(sep="=").pop()))
+            notifier.interval = int(part.split(sep="=").pop())
 
 
 def notify_gcode_reponse(message_params):
@@ -837,13 +841,13 @@ if __name__ == '__main__':
 
     scheduler.start()
 
-    # debug reasons only
-    if log_parser:
-        parselog()
-
     greeting_message()
 
     ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_tiken}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
+
+    # debug reasons only
+    if log_parser:
+        parselog()
 
     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
 

@@ -20,12 +20,23 @@ class Timelapse:
         self._mode_manual: bool = config.getboolean('timelapse', 'manual_mode', fallback=False)
         self._height: float = config.getfloat('timelapse', 'height', fallback=0.0)
         self._interval: int = config.getint('timelapse', 'time', fallback=0)
+        self._target_fps: int = config.getint('timelapse', 'target_fps', fallback=15)
+        self._min_lapse_duration: int = config.getint('timelapse', 'min_lapse_duration', fallback=0)
+        self._max_lapse_duration: int = config.getint('timelapse', 'max_lapse_duration', fallback=0)
+        self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
 
         # Todo: use notifier?
         self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
 
         self._klippy = klippy
         self._camera = camera
+
+        # push params to cameras instances
+        self._camera.target_fps = self._target_fps
+        self._camera.min_lapse_duration = self._min_lapse_duration
+        self._camera.max_lapse_duration = self._max_lapse_duration
+        self._camera.last_frame_duration = self._last_frame_duration
+
         self._sched = scheduler
         self._chat_id: int = chat_id
         self._bot_updater: Updater = bot_updater
@@ -46,18 +57,23 @@ class Timelapse:
         return self._enabled
 
     @enabled.setter
-    def enabled(self, new_val: bool):
-        self._enabled = new_val
+    def enabled(self, new_value: bool):
+        self._enabled = new_value
 
     @property
     def manual_mode(self):
         return self._mode_manual
 
     @manual_mode.setter
-    def manual_mode(self, new_val: bool):
-        self._mode_manual = new_val
+    def manual_mode(self, new_value: bool):
+        self._mode_manual = new_value
 
-    def set_interval(self, new_value: int):
+    @property
+    def interval(self):
+        return self._interval
+
+    @interval.setter
+    def interval(self, new_value: int):
         if new_value == 0:
             self._interval = new_value
             self._remove_timelapse_timer()
@@ -65,17 +81,54 @@ class Timelapse:
             self._interval = new_value
             self._reschedule_timelapse_timer()
 
-    def set_height(self, new_value):
+    @property
+    def height(self):
+        return self._height
+
+    @height.setter
+    def height(self, new_value):
         if new_value >= 0:
             self._height = new_value
 
-    def set_fps(self, new_value: int):
-        if new_value >= 1:
-            self._camera.set_fps(new_value)
+    @property
+    def target_fps(self):
+        return self._target_fps
 
-    def set_last_frame_duration(self, new_value: int):
+    @target_fps.setter
+    def target_fps(self, new_value: int):
+        if new_value >= 1:
+            self._target_fps = new_value
+            self._camera.target_fps = new_value
+
+    @property
+    def min_lapse_duration(self):
+        return self._min_lapse_duration
+
+    @min_lapse_duration.setter
+    def min_lapse_duration(self, new_value: int):
         if new_value >= 0:
-            self._camera.set_last_frame_duration(new_value)
+            self._min_lapse_duration = new_value
+            self._camera.min_lapse_duration = new_value
+
+    @property
+    def max_lapse_duration(self):
+        return self._max_lapse_duration
+
+    @max_lapse_duration.setter
+    def max_lapse_duration(self, new_value: int):
+        if new_value >= 0:
+            self._max_lapse_duration = new_value
+            self._camera.max_lapse_duration = new_value
+
+    @property
+    def last_frame_duration(self):
+        return self._last_frame_duration
+
+    @last_frame_duration.setter
+    def last_frame_duration(self, new_value: int):
+        if new_value >= 0:
+            self._last_frame_duration = new_value
+            self._camera.last_frame_duration = new_value
 
     @property
     def running(self):

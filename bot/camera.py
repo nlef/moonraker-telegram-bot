@@ -1,5 +1,6 @@
 import configparser
 import logging
+import math
 import os
 import pathlib
 import threading
@@ -75,8 +76,11 @@ class Camera:
         self._base_dir: str = config.get('timelapse', 'basedir', fallback='/tmp/timelapse')  # Fixme: relative path failed! ~/timelapse
         self._ready_dir: str = config.get('timelapse', 'copy_finished_timelapse_dir', fallback='')  # Fixme: relative path failed! ~/timelapse
         self._cleanup: bool = config.getboolean('timelapse', 'cleanup', fallback=True)
-        self._fps: int = config.getint('timelapse', 'target_fps', fallback=15)
-        self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
+
+        self._target_fps: int = 15
+        self._min_lapse_duration: int = 0
+        self._max_lapse_duration: int = 0
+        self._last_frame_duration: int = 5
 
         self._light_need_off: bool = False
         self._light_need_off_lock = threading.Lock()
@@ -130,9 +134,9 @@ class Camera:
             return self._light_need_off
 
     @light_need_off.setter
-    def light_need_off(self, new: bool):
+    def light_need_off(self, new_value: bool):
         with self._light_need_off_lock:
-            self._light_need_off = new
+            self._light_need_off = new_value
 
     @property
     def lapse_dir(self) -> str:
@@ -151,11 +155,40 @@ class Camera:
         with self._light_request_lock:
             self._light_requests -= 1
 
-    def set_fps(self, new_val: int):
-        self._fps = new_val
+    @property
+    def target_fps(self):
+        return self._target_fps
 
-    def set_last_frame_duration(self, new_val: int):
-        self._last_frame_duration = new_val
+    @target_fps.setter
+    def target_fps(self, new_value: int):
+        self._target_fps = new_value
+
+    @property
+    def min_lapse_duration(self):
+        return self._min_lapse_duration
+
+    @min_lapse_duration.setter
+    def min_lapse_duration(self, new_value: int):
+        if new_value >= 0:
+            self._min_lapse_duration = new_value
+
+    @property
+    def max_lapse_duration(self):
+        return self._max_lapse_duration
+
+    @max_lapse_duration.setter
+    def max_lapse_duration(self, new_value: int):
+        if new_value >= 0:
+            self._max_lapse_duration = new_value
+
+    @property
+    def last_frame_duration(self):
+        return self._last_frame_duration
+
+    @last_frame_duration.setter
+    def last_frame_duration(self, new_value: int):
+        if new_value >= 0:
+            self._last_frame_duration = new_value
 
     @staticmethod
     def _create_thumb(image) -> BytesIO:
@@ -295,6 +328,18 @@ class Camera:
     def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(filename, filename, info_mess)
 
+    def _calculate_fps(self, frames_count: int):
+        actual_duration = frames_count / self._target_fps
+
+        # Todo: check _max_lapse_duration > _min_lapse_duration
+        if (self._min_lapse_duration == 0 and self._max_lapse_duration == 0) or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0):
+            return self._target_fps
+        elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
+            fps = math.ceil(frames_count / self._min_lapse_duration)
+            return fps if fps >= 1 else 1
+        elif actual_duration > self._max_lapse_duration > 0:
+            return math.ceil(frames_count / self._min_lapse_duration)
+
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:
             time.sleep(1)
@@ -319,18 +364,20 @@ class Camera:
         if Path(video_filepath).is_file():
             os.remove(video_filepath)
 
+        lapse_fps = self._calculate_fps(photo_count)
+
         with self._camera_lock:
             cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
-            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=self._fps, frameSize=(width, height))
+            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=lapse_fps, frameSize=(width, height))
 
             info_mess.edit_text(text=f"Images recoding")
             for fnum, filename in enumerate(photos):
-                if fnum % self._fps == 0:
+                if fnum % lapse_fps == 0:
                     info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
                 out.write(cv2.imread(filename))
 
             info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
-            for _ in range(self._fps * self._last_frame_duration):
+            for _ in range(lapse_fps * self._last_frame_duration):
                 out.write(img)
 
             out.release()
@@ -369,6 +416,7 @@ class Camera:
             for filename in glob.glob(f'{glob.escape(self.lapse_dir)}/*'):
                 os.remove(filename)
 
+    # Todo: refactor into timelapse class
     def detect_unfinished_lapses(self) -> List[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
         return list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))

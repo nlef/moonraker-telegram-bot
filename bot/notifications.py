@@ -55,18 +55,33 @@ class Notifier:
         return self._last_message
 
     @message.setter
-    def message(self, new: str):
-        self._last_message = new
+    def message(self, new_value: str):
+        self._last_message = new_value
 
-    def set_percent(self, new_value: int):
+    @property
+    def percent(self):
+        return self._percent
+
+    @percent.setter
+    def percent(self, new_value: int):
         if new_value >= 0:
             self._percent = new_value
 
-    def set_height(self, new_value: float):
+    @property
+    def height(self):
+        return self._percent
+
+    @height.setter
+    def height(self, new_value: float):
         if new_value >= 0:
             self._height = new_value
 
-    def set_interval(self, new_value: int):
+    @property
+    def interval(self):
+        return self._interval
+
+    @interval.setter
+    def interval(self, new_value: int):
         if new_value == 0:
             self._interval = new_value
             self.remove_notifier_timer()
