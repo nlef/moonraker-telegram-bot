@@ -8,7 +8,6 @@ import emoji
 import requests
 import urllib
 from datetime import datetime, timedelta
-from urllib.request import urlopen
 from PIL import Image
 from io import BytesIO
 
@@ -241,16 +240,20 @@ class Klippy:
         message += self.get_eta_message()
 
         if self._thumbnail_path:
-            img = Image.open(urlopen(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(self._thumbnail_path)}")).convert('RGB')
+            response = requests.get(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(self._thumbnail_path)}", stream=True, headers=self._headers)
+            if response.ok:
+                response.raw.decode_content = True
+                img = Image.open(response.raw).convert('RGB')
 
-            bio = BytesIO()
-            bio.name = f'{self.printing_filename}.webp'
-            img.save(bio, 'WebP', quality=0, lossless=True)
-            bio.seek(0)
-
-            img.close()
-
-            return message, bio
+                bio = BytesIO()
+                bio.name = f'{self.printing_filename}.webp'
+                img.save(bio, 'WebP', quality=0, lossless=True)
+                bio.seek(0)
+                img.close()
+                return message, bio
+            else:
+                logger.error(f"Thumbnail download failed for {self._thumbnail_path} \n\n{response.reason}")
+                return message, None
         else:
             return message, None
 
