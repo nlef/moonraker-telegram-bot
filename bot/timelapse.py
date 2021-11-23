@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Timelapse:
     def __init__(self, config: configparser.ConfigParser, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, bot_updater: Updater, chat_id: int, logging_handler: logging.Handler = None,
                  debug_logging: bool = False):
-        self._enabled: bool = 'timelapse' in config
+        self._enabled: bool = 'timelapse' in config and camera.enabled
         self._mode_manual: bool = config.getboolean('timelapse', 'manual_mode', fallback=False)
         self._height: float = config.getfloat('timelapse', 'height', fallback=0.0)
         self._interval: int = config.getint('timelapse', 'time', fallback=0)
@@ -107,6 +107,8 @@ class Timelapse:
     @min_lapse_duration.setter
     def min_lapse_duration(self, new_value: int):
         if new_value >= 0:
+            if new_value <= self._max_lapse_duration and not new_value == 0:
+                logger.warning(f"Min lapse duration {new_value} is lower than max lapse duration {self._max_lapse_duration}")
             self._min_lapse_duration = new_value
             self._camera.min_lapse_duration = new_value
 
@@ -117,6 +119,8 @@ class Timelapse:
     @max_lapse_duration.setter
     def max_lapse_duration(self, new_value: int):
         if new_value >= 0:
+            if new_value <= self._min_lapse_duration and not new_value == 0:
+                logger.warning(f"Max lapse duration {new_value} is lower than min lapse duration {self._min_lapse_duration}")
             self._max_lapse_duration = new_value
             self._camera.max_lapse_duration = new_value
 

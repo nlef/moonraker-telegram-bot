@@ -131,7 +131,10 @@ def status(update: Update, _: CallbackContext) -> None:
 
 
 def create_keyboard():
-    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/photo', '/video', '/emergency', '/macros', '/shutdown']
+    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/emergency', '/macros', '/shutdown']
+    if cameraWrap.enabled:
+        custom_keyboard.append('/photo')
+        custom_keyboard.append('/video')
     if psu_power_device:
         custom_keyboard.append('/power')
     if light_power_device:
