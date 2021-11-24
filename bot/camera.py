@@ -338,7 +338,7 @@ class Camera:
             fps = math.ceil(frames_count / self._min_lapse_duration)
             return fps if fps >= 1 else 1
         elif actual_duration > self._max_lapse_duration > 0:
-            return math.ceil(frames_count / self._min_lapse_duration)
+            return math.ceil(frames_count / self._max_lapse_duration)
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         while self.light_need_off:

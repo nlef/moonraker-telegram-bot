@@ -157,8 +157,9 @@ class Klippy:
         try:
             response = requests.get(f"http://{self._host}/printer/info", headers=self._headers, timeout=2)
             return '' if response.ok else f"Connection failed. {response.reason}"
-        except Exception:
-            return 'f"Connection failed.'
+        except Exception as ex:
+            logger.error(ex, exc_info=True)
+            return f"Connection failed."
 
     @staticmethod
     def sensor_message(sensor: str, sens_key: str, response) -> str:
