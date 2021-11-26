@@ -53,7 +53,7 @@ chat_id: xxxxxxxxx
 #	Values avaliable: slicer, file
 #	Default value is slicer.
 #sensors: mcu, ..., ...
-#	You can add temperature sensors, like the "mcu"sensor to be displayed in the status message. 
+#	You can add temperature sensors, like the "mcu" sensor to be displayed in the status message. 
 #	Simply enter the names from your klipper config, separated by commas.
 #	Default is not to display any additional temperature sensors.
 #heaters: extruder, heater_bed
@@ -98,6 +98,7 @@ host: http://localhost:8080/?action=stream
 ## [progress_notification]
 
 This section is responsible for the notification on printing progress updates. This entire section is optional.
+You can override these parameters with [runtime settings](interacting_with_klipper.md#Runtime lapse and notification setting)
 
 ```
 #[progress_notification]
@@ -127,6 +128,7 @@ This section is responsible for the notification on printing progress updates. T
 ## [timelapse]
 
 This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional.
+You can override these parameters with [runtime settings](interacting_with_klipper.md#Runtime lapse and notification setting)
 
 ```
 [timelapse]
@@ -151,9 +153,14 @@ This section is responsible for timelapse creation as well as file location for 
 #	This is the target fps of the created video. The larger this number, the "faster" the timelapse will be.
 #	15 fps equals 15 images per second lapsing. The default is 15 fps.
 #min_lapse_duration: 5
-#	Default is 0 seconds - unlimited
+#	On short prints, or with limited lapse pictures available, the lapse often gets to short to meaningfully display
+#	the printing progress. You can specify the desired minimum duration of the created timelapse 
+#	(not including last_frame_duration). This means, that the fps will get reduced, if the lapse is shorter than this time.
+#	The default is to omit this. 
 #max_lapse_duration: 5
-#	Default is 0 seconds - unlimited
+#	Similar to min_lapse_duration, if your lapse video gets too long to watch, you can specify a desired time, which
+#	should not be exceeded. This means, that the fps will get increased, if the lapse is going to be longer than this time.
+#	The default is to omit this. 
 #last_frame_duration: 5
 #	This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
 #	to loop the last picture taken.
