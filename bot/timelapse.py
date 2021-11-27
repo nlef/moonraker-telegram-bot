@@ -25,6 +25,9 @@ class Timelapse:
         self._max_lapse_duration: int = config.getint('timelapse', 'max_lapse_duration', fallback=0)
         self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
 
+        self._after_lapse_gcode: str = config.get('timelapse', 'after_lapse_gcode', fallback='')
+        self._after_lapse_send_video: bool = config.getboolean('timelapse', 'after_lapse_send_video', fallback=True)
+
         # Todo: use notifier?
         self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
 
@@ -222,14 +225,20 @@ class Timelapse:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
 
-            info_mess.edit_text(text="Uploading time-lapse")
+            if self._after_lapse_send_video:
+                info_mess.edit_text(text="Uploading time-lapse")
 
-            if video_bio.getbuffer().nbytes > 52428800:
-                info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+                if video_bio.getbuffer().nbytes > 52428800:
+                    info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
+                else:
+                    self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120,
+                                                     disable_notification=self._silent_progress)
+                    self._bot_updater.bot.delete_message(self._chat_id, message_id=info_mess.message_id)
             else:
-                self._bot_updater.bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120,
-                                                 disable_notification=self._silent_progress)
-                self._bot_updater.bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                info_mess.edit_text(text="Time-lapse creation finished")
+
+            if self._after_lapse_gcode:
+                self._klippy.execute_command(self._after_lapse_gcode.strip())
 
             video_bio.close()
             thumb_bio.close()

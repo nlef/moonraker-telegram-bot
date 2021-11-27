@@ -168,6 +168,10 @@ You can override these parameters with [runtime settings](interacting_with_klipp
 #manual_mode: false
 #	if True, only commands from gcode will manage timelapse.
 #	Default is false.
+#after_lapse_gcode: mysuper_macro
+# 
+#after_lapse_send_video: true
+#
 ```
 
 ## [telegram_ui]

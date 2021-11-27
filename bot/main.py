@@ -752,8 +752,8 @@ def websocket_to_message(ws_loc, ws_message):
                     power_device_state(device)
                 return
 
-            if debug:
-                bot_updater.bot.send_message(chatId, text=f"{message_result}")
+            # if debug:
+            #     bot_updater.bot.send_message(chatId, text=f"{message_result}")
 
         if 'error' in json_message:
             notifier.send_error(f"{json_message['error']['message']}")
@@ -846,7 +846,7 @@ if __name__ == '__main__':
 
     greeting_message()
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_tiken}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
+    ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_token}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
     # debug reasons only
     if log_parser:

@@ -30,6 +30,8 @@ class Klippy:
         self._user = config.get('bot', 'user', fallback='')
         self._passwd = config.get('bot', 'password', fallback='')
 
+        self._dbname = 'telegram-bot'
+
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
@@ -89,7 +91,7 @@ class Klippy:
         return heads
 
     @property
-    def one_shot_tiken(self) -> str:
+    def one_shot_token(self) -> str:
         if not self._user and not self._jwt_token:
             return ''
 
@@ -274,3 +276,28 @@ class Klippy:
 
     def stop_all(self):
         self._reset_file_info()
+
+    # moonraker databse section
+    def get_param_from_db(self, param_name: str):
+        res = requests.get(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", headers=self._headers)
+        if res.ok:
+            return res.json()['result']['value']
+        else:
+            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
+            # Fixme: return default value? check for 404!
+            return None
+
+    def save_param_to_db(self, param_name: str, value):
+        data = {
+            "namespace": self._dbname,
+            "key": param_name,
+            "value": value
+        }
+        res = requests.post(f"http://{self._host}/server/database/item", json=data, headers=self._headers)
+        if not res.ok:
+            logger.error(f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}")
+
+    def delete_param_from_db(self, param_name: str):
+        res = requests.delete(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", headers=self._headers)
+        if not res.ok:
+            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
