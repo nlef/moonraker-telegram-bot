@@ -2,9 +2,11 @@
 # This script installs Moonraker telegram bot
 set -eu
 
+SCRIPT_PATH=$(dirname "${BASH_SOURCE[0]}")
+MOONRAKER_BOT_DIR=$(realpath "$SCRIPT_PATH/..")
+
 SYSTEMDDIR="/etc/systemd/system"
-MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
-MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
+MOONRAKER_BOT_ENV="$MOONRAKER_BOT_DIR-env"
 MOONRAKER_BOT_LOG="${HOME}/klipper_logs"
 KLIPPER_CONF_DIR="${HOME}/klipper_config"
 CURRENT_USER=${USER}
