@@ -1,6 +1,5 @@
 import configparser
 import logging
-import time
 from datetime import timedelta
 
 from apscheduler.schedulers.base import BaseScheduler

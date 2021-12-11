@@ -561,35 +561,69 @@ def status_response(message_result):
 def parse_timelapse_params(message: str):
     mass_parts = message.split(sep=" ")
     mass_parts.pop(0)
+    response = ''
     for part in mass_parts:
-        if 'enabled' in part:
-            timelapse.enabled = bool(int(part.split(sep="=").pop()))
-        elif 'manual_mode' in part:
-            timelapse.manual_mode = bool(int(part.split(sep="=").pop()))
-        elif 'height' in part:
-            timelapse.height = float(part.split(sep="=").pop())
-        elif 'time' in part:
-            timelapse.interval = int(part.split(sep="=").pop())
-        elif 'target_fps' in part:
-            timelapse.target_fps = int(part.split(sep="=").pop())
-        elif 'last_frame_duration' in part:
-            timelapse.last_frame_duration = int(part.split(sep="=").pop())
-        elif 'min_lapse_duration' in part:
-            timelapse.min_lapse_duration = int(part.split(sep="=").pop())
-        elif 'max_lapse_duration' in part:
-            timelapse.max_lapse_duration = int(part.split(sep="=").pop())
+        try:
+            if 'enabled' in part:
+                timelapse.enabled = bool(int(part.split(sep="=").pop()))
+                response += f"enabled={timelapse.enabled} "
+            elif 'manual_mode' in part:
+                timelapse.manual_mode = bool(int(part.split(sep="=").pop()))
+                response += f"manual_mode={timelapse.manual_mode} "
+            elif 'height' in part:
+                timelapse.height = float(part.split(sep="=").pop())
+                response += f"height={timelapse.height} "
+            elif 'time' in part:
+                timelapse.interval = int(part.split(sep="=").pop())
+                response += f"time={timelapse.interval} "
+            elif 'target_fps' in part:
+                timelapse.target_fps = int(part.split(sep="=").pop())
+                response += f"target_fps={timelapse.target_fps} "
+            elif 'last_frame_duration' in part:
+                timelapse.last_frame_duration = int(part.split(sep="=").pop())
+                response += f"last_frame_duration={timelapse.last_frame_duration} "
+            elif 'min_lapse_duration' in part:
+                timelapse.min_lapse_duration = int(part.split(sep="=").pop())
+                response += f"min_lapse_duration={timelapse.min_lapse_duration} "
+            elif 'max_lapse_duration' in part:
+                timelapse.max_lapse_duration = int(part.split(sep="=").pop())
+                response += f"max_lapse_duration={timelapse.max_lapse_duration} "
+        except Exception as ex:
+            klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
+    if response:
+        full_conf = f"enabled={timelapse.enabled} " \
+                    f"manual_mode={timelapse.manual_mode} " \
+                    f"height={timelapse.height} " \
+                    f"time={timelapse.interval} " \
+                    f"target_fps={timelapse.target_fps} " \
+                    f"last_frame_duration={timelapse.last_frame_duration} " \
+                    f"min_lapse_duration={timelapse.min_lapse_duration} " \
+                    f"max_lapse_duration={timelapse.max_lapse_duration} "
+        klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
+        klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')
 
 
 def parse_notification_params(message: str):
     mass_parts = message.split(sep=" ")
     mass_parts.pop(0)
+    response = ''
     for part in mass_parts:
-        if 'percent' in part:
-            notifier.percent = int(part.split(sep="=").pop())
-        elif 'height' in part:
-            notifier.height = float(part.split(sep="=").pop())
-        elif 'time' in part:
-            notifier.interval = int(part.split(sep="=").pop())
+        try:
+            if 'percent' in part:
+                notifier.percent = int(part.split(sep="=").pop())
+                response += f"percent={notifier.percent} "
+            elif 'height' in part:
+                notifier.height = float(part.split(sep="=").pop())
+                response += f"height={notifier.height} "
+            elif 'time' in part:
+                notifier.interval = int(part.split(sep="=").pop())
+                response += f"time={notifier.interval} "
+        except Exception as ex:
+            klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
+    if response:
+        full_conf = f"percent={notifier.percent} height={notifier.height} time={notifier.interval} "
+        klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
+        klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
 
 def notify_gcode_reponse(message_params):
@@ -621,7 +655,7 @@ def notify_gcode_reponse(message_params):
     if message_params[0].startswith('set_timelapse_params '):
         parse_timelapse_params(message_params[0])
     if message_params[0].startswith('set_notify_params '):
-        parse_timelapse_params(message_params[0])
+        parse_notification_params(message_params[0])
 
 
 def notify_status_update(message_params):
