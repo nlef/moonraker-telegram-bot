@@ -25,6 +25,7 @@ class Timelapse:
         self._max_lapse_duration: int = config.getint('timelapse', 'max_lapse_duration', fallback=0)
         self._last_frame_duration: int = config.getint('timelapse', 'last_frame_duration', fallback=5)
 
+        # Todo: add to runtime params section!
         self._after_lapse_gcode: str = config.get('timelapse', 'after_lapse_gcode', fallback='')
         self._after_lapse_send_video: bool = config.getboolean('timelapse', 'after_lapse_send_video', fallback=True)
 

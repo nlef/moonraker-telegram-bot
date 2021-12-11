@@ -73,7 +73,7 @@ scheduler = BackgroundScheduler({
 cameraWrap: Camera
 timelapse: Timelapse
 notifier: Notifier
-ws: websocket.WebSocketApp
+ws: websocket.WebSocketApp = None
 klippy: Klippy
 light_power_device: PowerDevice
 psu_power_device: PowerDevice
@@ -428,7 +428,8 @@ def upload_file(update: Update, _: CallbackContext) -> None:
 
 
 def bot_restart(update: Update, _: CallbackContext) -> None:
-    ws.close()
+    if ws:
+        ws.close()
     update.message.reply_text("Restarting bot", quote=True)
     os._exit(1)
 
@@ -732,15 +733,21 @@ def websocket_to_message(ws_loc, ws_message):
 
             if 'state' in message_result:
                 klippy_state = message_result['state']
+                klippy.state = klippy_state
                 if klippy_state == 'ready':
                     if ws_loc.keep_running:
                         klippy.connected = True
+                        klippy.state_message = ''
                         subscribe(ws_loc)
                         if scheduler.get_job('ws_reschedule'):
                             scheduler.remove_job('ws_reschedule')
                 elif klippy_state in ["error", "shutdown", "startup"]:
                     klippy.connected = False
                     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
+                    state_message = message_result['state_message']
+                    if not klippy.state_message == state_message:
+                        klippy.state_message = state_message
+                        notifier.send_error(f"Klippy changed state to {klippy.state}\n{klippy.state_message}")
                 else:
                     logger.error(f"UnKnown klippy state: {klippy_state}")
                     klippy.connected = False

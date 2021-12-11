@@ -35,6 +35,9 @@ class Klippy:
         self.connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
+        self.state: str = ''
+        self.state_message: str = ''
+
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
         self._printing_filename: str = ''
