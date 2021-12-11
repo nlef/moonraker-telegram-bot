@@ -72,6 +72,8 @@ host: http://localhost:8080/?action=stream
 #	This is the adress, where the desired webcam/webstream is located at. Enter this the same way you enter it in 
 #	your printers web interface/your player. If you can stream it, the bot supports it, native h264 streams,
 #	for example a vlc stream from a runcam webcam is absolutely possible. Do not feel contstrained by mjpeg streams.
+#fps: 30
+# use this fps instead of stream metadata
 #flipVertically: false
 #	You can flip the camera image vertically, if needed. Disabled by default. Set to true if needed.
 #flipHorizontally: false

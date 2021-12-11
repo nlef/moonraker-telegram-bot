@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
+from queue import Queue
 from typing import List
 
 from numpy import random
@@ -70,6 +71,7 @@ class Camera:
         self._flipHorizontally: bool = config.getboolean('camera', 'flipHorizontally', fallback=False)
         self._fourcc: str = config.get('camera', 'fourcc', fallback='x264')
         self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
+        self._stream_fps: int = config.getint('camera', 'fps', fallback=0)
         self._imgs_path: str = imgs_path
         self._klippy: Klippy = klippy
         # Todo: refactor into timelapse class
@@ -273,6 +275,15 @@ class Camera:
                     frame_local = cv2.flip(frame_local, self._flip)
             return frame_local
 
+        def write_video():
+            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
+            while video_lock.locked():
+                out.write(process_video_frame(frame_queue.get()))
+            while not frame_queue.empty():
+                out.write(process_video_frame(frame_queue.get()))
+            out.release()
+            video_written_event.set()
+
         with self._camera_lock:
             cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
             self.cam_cam.open(self._host)
@@ -286,22 +297,24 @@ class Camera:
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(process_video_frame(frame))
             del frame, channels
-            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS)
-            fps = 10
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+
             filepath = os.path.join('/tmp/', 'video.mp4')
-            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
+            frame_queue = Queue()
+            video_lock = threading.Lock()
+            video_written_event = threading.Event()
+            video_written_event.clear()
+            video_lock.acquire()
+            threading.Thread(target=write_video, args=()).start()
             t_end = time.time() + self._videoDuration
-            while success and time.time() < t_end:
-                prev_frame_time = time.time()
+            while success and time.time() <= t_end:
                 success, frame_loc = self.cam_cam.read()
-                out.write(process_video_frame(frame_loc))
+                frame_queue.put(frame_loc)
                 frame_loc = None
                 del frame_loc
-                fps = 1 / (time.time() - prev_frame_time)
 
-            logger.debug(f"Measured video fps is {fps}, while camera fps {fps_cam}")
-            out.set(cv2.CAP_PROP_FPS, fps)
-            out.release()
+            video_lock.release()
+            video_written_event.wait()
 
         self.cam_cam.release()
         video_bio = BytesIO()
