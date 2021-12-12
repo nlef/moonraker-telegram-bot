@@ -775,11 +775,11 @@ def websocket_to_message(ws_loc, ws_message):
                         subscribe(ws_loc)
                         if scheduler.get_job('ws_reschedule'):
                             scheduler.remove_job('ws_reschedule')
-                elif klippy_state in ["error", "shutdown", "startup"]:
+                elif klippy_state in ['error', 'shutdown', 'startup']:
                     klippy.connected = False
                     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)
                     state_message = message_result['state_message']
-                    if not klippy.state_message == state_message:
+                    if not klippy.state_message == state_message and not klippy_state == 'startup':
                         klippy.state_message = state_message
                         notifier.send_error(f"Klippy changed state to {klippy.state}\n{klippy.state_message}")
                 else:

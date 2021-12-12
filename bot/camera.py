@@ -276,11 +276,20 @@ class Camera:
             return frame_local
 
         def write_video():
+            cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
             while video_lock.locked():
-                out.write(process_video_frame(frame_queue.get()))
+                frame_local = frame_queue.get()
+                out.write(process_video_frame(frame_local))
+                frame_local = None
+                del frame_local
+
             while not frame_queue.empty():
-                out.write(process_video_frame(frame_queue.get()))
+                frame_local = frame_queue.get()
+                out.write(process_video_frame(frame_local))
+                frame_local = None
+                del frame_local
+
             out.release()
             video_written_event.set()
 
@@ -300,7 +309,7 @@ class Camera:
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
             filepath = os.path.join('/tmp/', 'video.mp4')
-            frame_queue = Queue()
+            frame_queue = Queue(fps_cam * 2)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
