@@ -74,6 +74,10 @@ class Klippy:
         return self._get_marco_list()
 
     @property
+    def macros_all(self):
+        return self._get_full_marco_list()
+
+    @property
     def printing_filename(self):
         return self._printing_filename
 
@@ -133,13 +137,16 @@ class Klippy:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             self._thumbnail_path = thumb['relative_path']
 
-    def _get_marco_list(self) -> list:
+    def _get_full_marco_list(self) -> list:
         resp = requests.get(f'http://{self._host}/printer/objects/list', headers=self._headers)
         if not resp.ok:
             return list()
-        macro_lines = list(filter(lambda it: 'gcode_macro' in it and ' _' not in it, resp.json()['result']['objects']))
+        macro_lines = list(filter(lambda it: 'gcode_macro' in it, resp.json()['result']['objects']))
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
-        return [key for key in loaded_macros if key not in self._disabled_macros]
+        return loaded_macros
+
+    def _get_marco_list(self) -> list:
+        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros]
 
     def auth_moonraker(self) -> str:
         if not self._user or not self._passwd:

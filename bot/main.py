@@ -367,7 +367,7 @@ def get_macros(update: Update, _: CallbackContext) -> None:
 
 def macros_handler(update: Update, _: CallbackContext) -> None:
     command = update.effective_message.text.replace('/', '').upper()
-    if command in klippy.macros:
+    if command in klippy.macros_all:
         if require_confirmation_macro:
             update.effective_message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands, quote=True)
         else:
@@ -588,6 +588,8 @@ def parse_timelapse_params(message: str):
             elif 'max_lapse_duration' in part:
                 timelapse.max_lapse_duration = int(part.split(sep="=").pop())
                 response += f"max_lapse_duration={timelapse.max_lapse_duration} "
+            else:
+                klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
         except Exception as ex:
             klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
     if response:
@@ -618,6 +620,8 @@ def parse_notification_params(message: str):
             elif 'time' in part:
                 notifier.interval = int(part.split(sep="=").pop())
                 response += f"time={notifier.interval} "
+            else:
+                klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
         except Exception as ex:
             klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
     if response:

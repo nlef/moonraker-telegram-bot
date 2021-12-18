@@ -5,6 +5,16 @@ This document is a reference for available interactions between klipper and moon
 
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
+## m117 gcode
+```
+Printed 20mm
+Layer 99/120
+Estimated time left: 0:11:35
+Finish at 2021-12-10 15:28
+```
+`Layer 99/120` is message fom m117 gcode. 
+
+
 # RESPOND commands for bot interaction
 
 ## Running macros from the chat window
