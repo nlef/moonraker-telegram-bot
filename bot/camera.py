@@ -69,6 +69,7 @@ class Camera:
         self._threads: int = config.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
         self._flipVertically: bool = config.getboolean('camera', 'flipVertically', fallback=False)
         self._flipHorizontally: bool = config.getboolean('camera', 'flipHorizontally', fallback=False)
+        rotate: str = config.get('camera', 'rotate', fallback='')
         self._fourcc: str = config.get('camera', 'fourcc', fallback='x264')
         self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
         self._stream_fps: int = config.getint('camera', 'fps', fallback=0)
@@ -113,6 +114,19 @@ class Camera:
             self._flip = 1
         elif self._flipVertically:
             self._flip = 0
+
+        # image rotation for fixes angles only!
+        # ROTATE_180 = 1
+        # ROTATE_90_CLOCKWISE = 0
+        # ROTATE_90_COUNTERCLOCKWISE = 2
+        if rotate == '90_cw':
+            self._rotate_code = cv2.ROTATE_90_CLOCKWISE
+        elif rotate == '90_ccw':
+            self._rotate_code = cv2.ROTATE_90_COUNTERCLOCKWISE
+        elif rotate == '180':
+            self._rotate_code = cv2.ROTATE_180
+        else:
+            self._rotate_code = -10
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -198,7 +212,7 @@ class Camera:
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
         bio.name = 'thumbnail.jpeg'
-        img.thumbnail([320, 320])
+        img.thumbnail((320, 320))
         img.save(bio, 'JPEG', quality=100, optimize=True)
         bio.seek(0)
         img.close()
@@ -227,6 +241,9 @@ class Camera:
                 else:
                     if self._flipVertically or self._flipHorizontally:
                         image = cv2.flip(image, self._flip)
+                    # Todo: check memory leaks
+                    if self._rotate_code > -10:
+                        image = cv2.rotate(image, rotateCode=self._rotate_code)
                     # # cv2.cvtColor cause segfaults!
                     # rgb = image[:, :, ::-1]
                     rgb = image[:, :, [2, 1, 0]]
@@ -273,6 +290,9 @@ class Camera:
                     del frame_loc_
                 else:
                     frame_local = cv2.flip(frame_local, self._flip)
+            # Todo: check memory leaks
+            if self._rotate_code > -10:
+                frame_local = cv2.rotate(frame_local, rotateCode=self._rotate_code)
             return frame_local
 
         def write_video():
@@ -303,8 +323,9 @@ class Camera:
                 logger.debug("failed to get camera frame for video")
                 # Todo: get picture from imgs?
 
+            frame = process_video_frame(frame)
             height, width, channels = frame.shape
-            thumb_bio = self._create_thumb(process_video_frame(frame))
+            thumb_bio = self._create_thumb(frame)
             del frame, channels
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 

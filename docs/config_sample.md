@@ -78,6 +78,8 @@ host: http://localhost:8080/?action=stream
 #	You can flip the camera image vertically, if needed. Disabled by default. Set to true if needed.
 #flipHorizontally: false
 #	You can flip the camera image horizontally, if needed. Disabled by default. Set to true if needed.
+#rotate: 90_cw
+# allowed values: 90_cw, 90_ccw, 180. default is empty, so no rotation performed
 #fourcc: x264
 #	You can change the opencv VideoWriter fourcc codec. The default value is 'x264'.
 # 	An alternative is mp4v for playback on specific apple devices, or if the machine which is going to do
