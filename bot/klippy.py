@@ -242,30 +242,55 @@ class Klippy:
         eta = self._get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
+    def _populate_with_thumb(self, thumb_path: str, message: str):
+        response = requests.get(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True, headers=self._headers)
+        if response.ok:
+            response.raw.decode_content = True
+            img = Image.open(response.raw).convert('RGB')
+
+            bio = BytesIO()
+            bio.name = f'{self.printing_filename}.webp'
+            img.save(bio, 'WebP', quality=0, lossless=True)
+            bio.seek(0)
+            img.close()
+            return message, bio
+        else:
+            logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
+            return message, None
+
     def get_file_info(self, message: str = '') -> (str, BytesIO):
         message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
         if self.filament_total > 0.0:
-            message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m,"
+            message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m"
             if self.filament_weight > 0.0:
-                message += f" weight: {self.filament_weight}g"
+                message += f", weight: {self.filament_weight}g"
         message += '\n'
 
         message += self.get_eta_message()
 
         if self._thumbnail_path:
-            response = requests.get(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(self._thumbnail_path)}", stream=True, headers=self._headers)
-            if response.ok:
-                response.raw.decode_content = True
-                img = Image.open(response.raw).convert('RGB')
+            return self._populate_with_thumb(self._thumbnail_path, message)
+        else:
+            return message, None
 
-                bio = BytesIO()
-                bio.name = f'{self.printing_filename}.webp'
-                img.save(bio, 'WebP', quality=0, lossless=True)
-                bio.seek(0)
-                img.close()
-                return message, bio
+    def get_file_info_by_name(self, filename: str, message: str):
+        response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}", headers=self._headers)
+        # Todo: add response status check!
+        resp = response.json()['result']
+        message += '\n'
+        if 'filament_total' in resp and resp['filament_total'] > 0.0:
+            message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m"
+            if 'filament_weight_total' in resp and resp['filament_weight_total'] > 0.0:
+                message += f", weight: {resp['filament_weight_total']}g"
+        if 'estimated_time' in resp and resp['estimated_time'] > 0.0:
+            message += f"\nEstimated printing time: {timedelta(seconds=resp['estimated_time'])}"
+
+        if 'thumbnails' in resp:
+            thumb = max(resp['thumbnails'], key=lambda el: el['size'])
+            if 'relative_path' in thumb:
+                return self._populate_with_thumb(thumb['relative_path'], message)
             else:
-                logger.error(f"Thumbnail download failed for {self._thumbnail_path} \n\n{response.reason}")
+                logger.error(f"Thumbnail relative_path not found in {resp}")
                 return message, None
         else:
             return message, None
@@ -273,7 +298,7 @@ class Klippy:
     def get_gcode_files(self):
         response = requests.get(f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers)
         resp = response.json()
-        files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:5]
+        files = sorted(resp['result'], key=lambda item: item['modified'], reverse=True)[:10]
         return files
 
     def upload_file(self, file: BytesIO) -> bool:
@@ -311,3 +336,21 @@ class Klippy:
         res = requests.delete(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", headers=self._headers)
         if not res.ok:
             logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
+
+    # [gcode_macro bot_data]
+    # variable_homyak_test: 0
+    # gcode:
+    # M118 Homyak: {homyak_test}
+    #
+    #
+    # [gcode_macro bot_data_update]
+    # gcode:
+    # { % set    homyak_test = params.homyak_test | default(40) | float %}
+    # SET_GCODE_VARIABLE    MACRO = bot_data    VARIABLE = homyak_test    VALUE = {homyak_test}
+
+    # Todo: add macro example into docs.
+    # bot variables will be saved to this macro and become usable from klipper macros!
+    def save_data_to_marco(self):
+        # lapse_duration, lapse_video_size, lapse_path
+        command = f'bot_data_update homyak_test=55'
+        self.execute_command(command)

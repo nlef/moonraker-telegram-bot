@@ -11,7 +11,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity
 from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
@@ -295,8 +295,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         command = query.data.replace('macroc:', '')
         query.edit_message_text(text=f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'))
     elif '.gcode' in query.data and ':' not in query.data:
-        keyboard_keys = dict((x['callback_data'], x['text']) for x in
-                             itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
+        keyboard_keys = dict((x['callback_data'], x['text']) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()['inline_keyboard']))
         filename = keyboard_keys[query.data]
         keyboard = [
             [
@@ -305,13 +304,27 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(text=f"Start printing file:{filename}?", reply_markup=reply_markup)
+        start_pre_mess = 'Start printing file:'
+        message, bio = klippy.get_file_info_by_name(filename, f"{start_pre_mess}{filename}?")
+        if bio is not None:
+            update.effective_message.reply_to_message.reply_photo(photo=bio, caption=message, reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True,
+                                                                  caption_entities=[MessageEntity(type='bold', offset=len(start_pre_mess), length=len(filename))])
+            bio.close()
+            context.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
+        else:
+            query.edit_message_text(text=message, reply_markup=reply_markup, entities=[MessageEntity(type='bold', offset=len(start_pre_mess), length=len(filename))])
     elif 'print_file' in query.data:
-        filename = query.message.text.split(':')[-1].replace('?', '').strip()
+        if query.message.caption:
+            filename = query.message.parse_caption_entity(query.message.caption_entities[0]).strip()
+        else:
+            filename = query.message.parse_entity(query.message.entities[0]).strip()
         if klippy.start_printing_file(filename):
             query.delete_message()
         else:
-            query.edit_message_text(text=f"Failed start printing file {filename}")
+            if query.message.text:
+                query.edit_message_text(text=f"Failed start printing file {filename}")
+            elif query.message.caption:
+                query.message.edit_caption(caption=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
         lapse_name = query.data.replace('lapse:', '')
         info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
