@@ -239,6 +239,7 @@ class Timelapse:
                 info_mess.edit_text(text="Time-lapse creation finished")
 
             if self._after_lapse_gcode:
+                self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f'{gcode_name}.mp4')
                 self._klippy.execute_command(self._after_lapse_gcode.strip())
 
             video_bio.close()

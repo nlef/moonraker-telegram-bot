@@ -64,3 +64,29 @@ Parameters for the notifications give you the option to control settings similar
 `RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"`
 
 This run-time setting behaves similarly to klipper - the requested parameters remain consistent until the next restart of the bot.
+
+## Macro for storing finished timelapse variables
+```
+# lapse_duration, lapse_video_size, lapse_path, lapse_filename
+[gcode_macro bot_data]
+variable_lapse_video_size: 0
+variable_lapse_filename: 'None'
+variable_lapse_path: 'None'
+gcode:
+    M118 Setting bot lapse variables
+    M118 lapse_filename {lapse_filename}
+    M118 lapse_path {lapse_path}
+    M118 lapse_video_size {lapse_video_size}
+
+
+[gcode_macro bot_data_update]
+gcode:
+    # M118 { rawparams }
+    {% set lapse_video_size = params.VIDEO_SIZE|default(0)|int %} # size in bites
+    {% set lapse_filename = params.FILENAME|default('None')|string %}
+    {% set lapse_path = params.PATH|default('None')|string %}
+    # M118 lapse_filename {lapse_filename} lapse_path {lapse_path_full}
+    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_video_size}
+    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='"{lapse_filename}"'
+    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='"{lapse_path}"'
+```

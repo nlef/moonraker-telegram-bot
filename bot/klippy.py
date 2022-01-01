@@ -69,6 +69,7 @@ class Klippy:
             sens_dict[sens] = f"temperature_sensor {sens}"
         return sens_dict
 
+    # Todo: save macros list until klippy restart
     @property
     def macros(self):
         return self._get_marco_list()
@@ -337,20 +338,11 @@ class Klippy:
         if not res.ok:
             logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
 
-    # [gcode_macro bot_data]
-    # variable_homyak_test: 0
-    # gcode:
-    # M118 Homyak: {homyak_test}
-    #
-    #
-    # [gcode_macro bot_data_update]
-    # gcode:
-    # { % set    homyak_test = params.homyak_test | default(40) | float %}
-    # SET_GCODE_VARIABLE    MACRO = bot_data    VARIABLE = homyak_test    VALUE = {homyak_test}
-
-    # Todo: add macro example into docs.
-    # bot variables will be saved to this macro and become usable from klipper macros!
-    def save_data_to_marco(self):
-        # lapse_duration, lapse_video_size, lapse_path
-        command = f'bot_data_update homyak_test=55'
-        self.execute_command(command)
+    # Todo: check if macro exists!
+    def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
+        full_macro_list = self._get_full_marco_list()
+        if 'bot_data_update' in full_macro_list and 'bot_data' in full_macro_list:
+            command = f'bot_data_update VIDEO_SIZE={lapse_size} FILENAME="{filename}" PATH="{path}"'
+            self.execute_command(command)
+        else:
+            logger.error(f'Marcos "bot_data" and "bot_data_update" not defined')
