@@ -1,6 +1,5 @@
 import configparser
 import logging
-from datetime import timedelta
 
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto

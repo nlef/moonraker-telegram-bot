@@ -25,8 +25,6 @@ class Klippy:
         self._psu_device = psu_device
         self._sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
         self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
-        self._sensors_dict: dict = self._prepare_sens_dict()
-        self._sensors_query = '&' + '&'.join(self._sensors_dict.values())
         self._user = config.get('bot', 'user', fallback='')
         self._passwd = config.get('bot', 'password', fallback='')
 
@@ -52,22 +50,25 @@ class Klippy:
         self._thumbnail_path = ''
 
         self._jwt_token: str = ''
+        # Todo: create sensors class!!
+        self.sensors_dict: dict = dict()
 
         if logging_handler:
             logger.addHandler(logging_handler)
         if debug:
             logger.setLevel(logging.DEBUG)
 
-    def _prepare_sens_dict(self):
+    def prepare_sens_dict_subscribe(self):
+        self.sensors_dict = {}
         sens_dict = {}
         for heat in self._heates_list:
             if heat in ['extruder', 'heater_bed']:
-                sens_dict[heat] = heat
+                sens_dict[heat] = None
             else:
-                sens_dict[heat] = f"heater_generic {heat}"
+                sens_dict[f"heater_generic {heat}"] = None
 
         for sens in self._sensors_list:
-            sens_dict[sens] = f"temperature_sensor {sens}"
+            sens_dict[f"temperature_sensor {sens}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -185,22 +186,19 @@ class Klippy:
             return f"Connection failed."
 
     @staticmethod
-    def sensor_message(sensor: str, sens_key: str, response) -> str:
-        if sens_key not in response or not response[sens_key]:
-            return ''
-
-        sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", sensor).replace('_', '')
-        message = f"{sens_name.title()}: {round(response[sens_key]['temperature'])}"
-        if 'target' in response[sens_key]:
-            if response[sens_key]['target'] > 0.0:
-                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(response[sens_key]['target'])}"
-            if response[sens_key]['power'] > 0.0:
+    def sensor_message(name: str, value) -> str:
+        sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
+        message = f"{sens_name.title()}: {round(value['temperature'])}"
+        if 'target' in value:
+            if value['target'] > 0.0:
+                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
+            if value['power'] > 0.0:
                 message += emoji.emojize(' :fire: ', use_aliases=True)
         message += '\n'
         return message
 
     def get_status(self) -> str:
-        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status{self._sensors_query}", headers=self._headers)
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", headers=self._headers)
         resp = response.json()['result']['status']
         print_stats = resp['print_stats']
         webhook = resp['webhooks']
@@ -224,8 +222,8 @@ class Klippy:
         elif print_stats['state'] == 'complete':
             pass
 
-        for sens, s_key in self._sensors_dict.items():
-            message += self.sensor_message(sens, s_key, resp)
+        for name, value in self.sensors_dict.items():
+            message += self.sensor_message(name, value)
 
         if self._light_device:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
@@ -267,6 +265,7 @@ class Klippy:
             return message, bio
         else:
             logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
+            # Todo: add preview placeholder!
             return message, None
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
@@ -288,6 +287,9 @@ class Klippy:
         message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
 
         message += self.get_eta_message()
+
+        for name, value in self.sensors_dict.items():
+            message += self.sensor_message(name, value)
 
         if self._light_device:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"

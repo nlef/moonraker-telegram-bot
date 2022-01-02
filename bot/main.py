@@ -513,6 +513,13 @@ def subscribe(websock):
                         }
                     },
                     'id': myId}))
+    websock.send(
+        json.dumps({'jsonrpc': '2.0',
+                    'method': 'printer.objects.subscribe',
+                    'params': {
+                        'objects': klippy.prepare_sens_dict_subscribe()
+                    },
+                    'id': myId}))
 
 
 def on_open(websock):
@@ -537,9 +544,9 @@ def stop_all():
     timelapse.stop_all()
 
 
-def status_response(message_result):
-    if 'print_stats' in message_result['status']:
-        print_stats = message_result['status']['print_stats']
+def status_response(status_resp):
+    if 'print_stats' in status_resp:
+        print_stats = status_resp['print_stats']
         if print_stats['state'] in ['printing', 'paused']:
             klippy.printing = True
             klippy.printing_filename = print_stats['filename']
@@ -560,11 +567,20 @@ def status_response(message_result):
             klippy.paused = True
             if not timelapse.manual_mode:
                 timelapse.paused = True
-    if 'display_status' in message_result['status']:
-        notifier.message = message_result['status']['display_status']['message']
-        klippy.printing_progress = message_result['status']['display_status']['progress']
-    if 'virtual_sdcard' in message_result['status']:
-        klippy.vsd_progress = message_result['status']['virtual_sdcard']['progress']
+    if 'display_status' in status_resp:
+        notifier.message = status_resp['display_status']['message']
+        klippy.printing_progress = status_resp['display_status']['progress']
+    if 'virtual_sdcard' in status_resp:
+        klippy.vsd_progress = status_resp['virtual_sdcard']['progress']
+
+    # Todo: add sensors & heaters parsing
+    for sens in [key for key in status_resp if 'temperature_sensor' in key]:
+        if status_resp[sens]:
+            klippy.sensors_dict[sens.replace('temperature_sensor ', '')] = status_resp[sens]
+
+    for heaters in [key for key in status_resp if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
+        if status_resp[heaters]:
+            klippy.sensors_dict[heaters.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', '')] = status_resp[heaters]
 
 
 def notify_gcode_reponse(message_params):
@@ -621,6 +637,12 @@ def notify_status_update(message_params):
 
     if 'print_stats' in message_params[0]:
         parse_print_stats(message_params)
+
+    for sens in [key for key in message_params[0] if 'temperature_sensor' in key]:
+        klippy.sensors_dict[sens.replace('temperature_sensor ', '')] = message_params[0][sens]
+
+    for heaters in [key for key in message_params[0] if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
+        klippy.sensors_dict[heaters.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', '')] = message_params[0][heaters]
 
 
 def parse_print_stats(message_params):
@@ -704,7 +726,7 @@ def websocket_to_message(ws_loc, ws_message):
             message_result = json_message['result']
 
             if 'status' in message_result:
-                status_response(message_result)
+                status_response(message_result['status'])
                 return
 
             if 'state' in message_result:
