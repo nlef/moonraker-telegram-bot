@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Timelapse:
-    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, bot_updater: Updater, chat_id: int, logging_handler: logging.Handler = None,
-                 debug_logging: bool = False):
+    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, bot_updater: Updater, chat_id: int, logging_handler: logging.Handler = None, debug: bool = False):
         self._enabled: bool = 'timelapse' in config and camera.enabled
         self._mode_manual: bool = config.getboolean('timelapse', 'manual_mode', fallback=False)
         self._height: float = config.getfloat('timelapse', 'height', fallback=0.0)
@@ -53,7 +52,7 @@ class Timelapse:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug_logging:
+        if debug:
             logger.setLevel(logging.DEBUG)
 
     @property
@@ -238,12 +237,12 @@ class Timelapse:
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
 
+            video_bio.close()
+            thumb_bio.close()
+
             if self._after_lapse_gcode:
                 self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f'{gcode_name}.mp4')
                 self._klippy.execute_command(self._after_lapse_gcode.strip())
-
-            video_bio.close()
-            thumb_bio.close()
 
     def send_timelapse(self):
         self._sched.add_job(self._send_lapse, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=False)
@@ -253,3 +252,49 @@ class Timelapse:
         self._running = False
         self._paused = False
         self._last_height = 0.0
+
+    def parse_timelapse_params(self, message: str):
+        mass_parts = message.split(sep=" ")
+        mass_parts.pop(0)
+        response = ''
+        for part in mass_parts:
+            try:
+                if 'enabled' in part:
+                    self.enabled = bool(int(part.split(sep="=").pop()))
+                    response += f"enabled={self.enabled} "
+                elif 'manual_mode' in part:
+                    self.manual_mode = bool(int(part.split(sep="=").pop()))
+                    response += f"manual_mode={self.manual_mode} "
+                elif 'height' in part:
+                    self.height = float(part.split(sep="=").pop())
+                    response += f"height={self.height} "
+                elif 'time' in part:
+                    self.interval = int(part.split(sep="=").pop())
+                    response += f"time={self.interval} "
+                elif 'target_fps' in part:
+                    self.target_fps = int(part.split(sep="=").pop())
+                    response += f"target_fps={self.target_fps} "
+                elif 'last_frame_duration' in part:
+                    self.last_frame_duration = int(part.split(sep="=").pop())
+                    response += f"last_frame_duration={self.last_frame_duration} "
+                elif 'min_lapse_duration' in part:
+                    self.min_lapse_duration = int(part.split(sep="=").pop())
+                    response += f"min_lapse_duration={self.min_lapse_duration} "
+                elif 'max_lapse_duration' in part:
+                    self.max_lapse_duration = int(part.split(sep="=").pop())
+                    response += f"max_lapse_duration={self.max_lapse_duration} "
+                else:
+                    self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
+            except Exception as ex:
+                self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
+        if response:
+            full_conf = f"enabled={self.enabled} " \
+                        f"manual_mode={self.manual_mode} " \
+                        f"height={self.height} " \
+                        f"time={self.interval} " \
+                        f"target_fps={self.target_fps} " \
+                        f"last_frame_duration={self.last_frame_duration} " \
+                        f"min_lapse_duration={self.min_lapse_duration} " \
+                        f"max_lapse_duration={self.max_lapse_duration} "
+            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
+            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

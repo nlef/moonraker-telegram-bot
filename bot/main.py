@@ -106,11 +106,7 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}", quote=True)
 
 
-def send_print_start_info(context: CallbackContext):
-    message = context.job.context
-    send_file_info(context.bot, notifier.silent_status, message)
-
-
+# Todo: remove?
 def send_file_info(bot, silent: bool, message: str = ''):
     message, bio = klippy.get_file_info(message)
     if bio is not None:
@@ -127,7 +123,7 @@ def status(update: Update, _: CallbackContext) -> None:
     message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
     if klippy.printing_filename:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-        send_file_info(message_to_reply.bot, notifier.silent_commands, f"Printing: {klippy.printing_filename} \n")
+        send_file_info(message_to_reply.bot, notifier.silent_commands)
 
 
 def create_keyboard():
@@ -571,78 +567,6 @@ def status_response(message_result):
         klippy.vsd_progress = message_result['status']['virtual_sdcard']['progress']
 
 
-def parse_timelapse_params(message: str):
-    mass_parts = message.split(sep=" ")
-    mass_parts.pop(0)
-    response = ''
-    for part in mass_parts:
-        try:
-            if 'enabled' in part:
-                timelapse.enabled = bool(int(part.split(sep="=").pop()))
-                response += f"enabled={timelapse.enabled} "
-            elif 'manual_mode' in part:
-                timelapse.manual_mode = bool(int(part.split(sep="=").pop()))
-                response += f"manual_mode={timelapse.manual_mode} "
-            elif 'height' in part:
-                timelapse.height = float(part.split(sep="=").pop())
-                response += f"height={timelapse.height} "
-            elif 'time' in part:
-                timelapse.interval = int(part.split(sep="=").pop())
-                response += f"time={timelapse.interval} "
-            elif 'target_fps' in part:
-                timelapse.target_fps = int(part.split(sep="=").pop())
-                response += f"target_fps={timelapse.target_fps} "
-            elif 'last_frame_duration' in part:
-                timelapse.last_frame_duration = int(part.split(sep="=").pop())
-                response += f"last_frame_duration={timelapse.last_frame_duration} "
-            elif 'min_lapse_duration' in part:
-                timelapse.min_lapse_duration = int(part.split(sep="=").pop())
-                response += f"min_lapse_duration={timelapse.min_lapse_duration} "
-            elif 'max_lapse_duration' in part:
-                timelapse.max_lapse_duration = int(part.split(sep="=").pop())
-                response += f"max_lapse_duration={timelapse.max_lapse_duration} "
-            else:
-                klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
-        except Exception as ex:
-            klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
-    if response:
-        full_conf = f"enabled={timelapse.enabled} " \
-                    f"manual_mode={timelapse.manual_mode} " \
-                    f"height={timelapse.height} " \
-                    f"time={timelapse.interval} " \
-                    f"target_fps={timelapse.target_fps} " \
-                    f"last_frame_duration={timelapse.last_frame_duration} " \
-                    f"min_lapse_duration={timelapse.min_lapse_duration} " \
-                    f"max_lapse_duration={timelapse.max_lapse_duration} "
-        klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
-        klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')
-
-
-def parse_notification_params(message: str):
-    mass_parts = message.split(sep=" ")
-    mass_parts.pop(0)
-    response = ''
-    for part in mass_parts:
-        try:
-            if 'percent' in part:
-                notifier.percent = int(part.split(sep="=").pop())
-                response += f"percent={notifier.percent} "
-            elif 'height' in part:
-                notifier.height = float(part.split(sep="=").pop())
-                response += f"height={notifier.height} "
-            elif 'time' in part:
-                notifier.interval = int(part.split(sep="=").pop())
-                response += f"time={notifier.interval} "
-            else:
-                klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
-        except Exception as ex:
-            klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
-    if response:
-        full_conf = f"percent={notifier.percent} height={notifier.height} time={notifier.interval} "
-        klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
-        klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
-
-
 def notify_gcode_reponse(message_params):
     if timelapse.manual_mode:
         if 'timelapse start' in message_params:
@@ -670,9 +594,9 @@ def notify_gcode_reponse(message_params):
     if message_params[0].startswith('tgalarm_photo '):
         notifier.send_error_with_photo(message_params[0][14:])
     if message_params[0].startswith('set_timelapse_params '):
-        parse_timelapse_params(message_params[0])
+        timelapse.parse_timelapse_params(message_params[0])
     if message_params[0].startswith('set_notify_params '):
-        parse_notification_params(message_params[0])
+        notifier.parse_notification_params(message_params[0])
 
 
 def notify_status_update(message_params):
@@ -680,14 +604,15 @@ def notify_status_update(message_params):
         if 'message' in message_params[0]['display_status']:
             notifier.message = message_params[0]['display_status']['message']
         if 'progress' in message_params[0]['display_status']:
-            notifier.schedule_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
             klippy.printing_progress = message_params[0]['display_status']['progress']
+            notifier.schedule_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
 
     if 'toolhead' in message_params[0] and 'position' in message_params[0]['toolhead']:
         # position_z = json_message["params"][0]['toolhead']['position'][2]
         pass
     if 'gcode_move' in message_params[0] and 'position' in message_params[0]['gcode_move']:
         position_z = message_params[0]['gcode_move']['gcode_position'][2]
+        klippy.printing_height = position_z
         notifier.schedule_notification(position_z=int(position_z))
         timelapse.take_lapse_photo(position_z)
 
@@ -723,8 +648,7 @@ def parse_print_stats(message_params):
             if not timelapse.manual_mode:
                 timelapse.clean()
                 timelapse.running = True
-            # Todo: refactor!
-            bot_updater.job_queue.run_once(send_print_start_info, 0, context=f"Printer started printing: {klippy.printing_filename} \n")
+            notifier.send_print_start_info()
 
         if not timelapse.manual_mode:
             timelapse.paused = False
@@ -739,7 +663,8 @@ def parse_print_stats(message_params):
         if not timelapse.manual_mode:
             timelapse.running = False
             timelapse.send_timelapse()
-        message += f"Finished printing {klippy.printing_filename} \n"
+        # Fixme: add finish printing method in notifier
+        notifier.send_print_finish()
     elif state == 'error':
         klippy.printing = False
         timelapse.running = False
@@ -755,7 +680,7 @@ def parse_print_stats(message_params):
     elif state:
         logger.error(f"Unknown state: {state}")
     if message:
-        notifier.send_notification(message)
+        notifier.send_status_update(message)
 
 
 def power_device_state(device):
@@ -849,7 +774,8 @@ def parselog():
 
     for mes in tt:
         websocket_to_message(ws, mes)
-        # time.sleep(0.01)
+        import time
+        time.sleep(0.01)
     print('lalal')
 
 

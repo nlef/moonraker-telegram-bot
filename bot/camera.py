@@ -62,7 +62,7 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, imgs_path: str = "", logging_handler: logging.Handler = None, debug_logging: bool = False):
+    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, imgs_path: str = "", logging_handler: logging.Handler = None, debug: bool = False):
         camera_host = config.get('camera', 'host', fallback=f"http://{klippy.moonraker_host}:8080/?action=stream")  # Todo: remove default host?
         self._host = int(camera_host) if str.isdigit(camera_host) else camera_host
         self.enabled: bool = 'camera' in config
@@ -130,7 +130,7 @@ class Camera:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug_logging:
+        if debug:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"

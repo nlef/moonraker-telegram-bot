@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug_logging: bool = False):
+    def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug: bool = False):
         self._host = config.get('bot', 'server', fallback='localhost')
         self._disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
         self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
@@ -40,6 +40,7 @@ class Klippy:
 
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
+        self.printing_height: float = 0.0
         self._printing_filename: str = ''
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
@@ -54,7 +55,7 @@ class Klippy:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug_logging:
+        if debug:
             logger.setLevel(logging.DEBUG)
 
     def _prepare_sens_dict(self):
@@ -69,6 +70,9 @@ class Klippy:
             sens_dict[sens] = f"temperature_sensor {sens}"
         return sens_dict
 
+    def _filament_weight_used(self) -> float:
+        return self.filament_weight * (self.filament_used / self.filament_total)
+
     # Todo: save macros list until klippy restart
     @property
     def macros(self):
@@ -77,14 +81,6 @@ class Klippy:
     @property
     def macros_all(self):
         return self._get_full_marco_list()
-
-    @property
-    def printing_filename(self):
-        return self._printing_filename
-
-    @property
-    def printing_filename_with_time(self):
-        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     @property
     def moonraker_host(self):
@@ -112,12 +108,26 @@ class Klippy:
         return res
 
     def _reset_file_info(self) -> None:
-        self._printing_filename = ''
-        self.file_estimated_time = 0.0
-        self.file_print_start_time = 0.0
-        self.filament_total = 0.0
-        self.filament_weight = 0.0
+        self.printing_duration: float = 0.0
+        self.printing_progress: float = 0.0
+        self.printing_height: float = 0.0
+        self._printing_filename: str = ''
+        self.file_estimated_time: float = 0.0
+        self.file_print_start_time: float = 0.0
+        self.vsd_progress: float = 0.0
+
+        self.filament_used: float = 0.0
+        self.filament_total: float = 0.0
+        self.filament_weight: float = 0.0
         self._thumbnail_path = ''
+
+    @property
+    def printing_filename(self):
+        return self._printing_filename
+
+    @property
+    def printing_filename_with_time(self):
+        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     @printing_filename.setter
     def printing_filename(self, new_value: str):
@@ -149,7 +159,7 @@ class Klippy:
     def _get_marco_list(self) -> list:
         return [key for key in self._get_full_marco_list() if key not in self._disabled_macros]
 
-    def auth_moonraker(self) -> str:
+    def _auth_moonraker(self) -> str:
         if not self._user or not self._passwd:
             return ''
 
@@ -163,7 +173,7 @@ class Klippy:
             return f"Auth failed.\n {res.reason}"
 
     def check_connection(self) -> str:
-        auth = self.auth_moonraker()
+        auth = self._auth_moonraker()
         if auth:
             return auth
 
@@ -260,19 +270,30 @@ class Klippy:
             return message, None
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
-        message += f"Printed {round(self.printing_progress * 100, 0)}%\n"
-        if self.filament_total > 0.0:
-            message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m"
-            if self.filament_weight > 0.0:
-                message += f", weight: {self.filament_weight}g"
-        message += '\n'
-
-        message += self.get_eta_message()
-
+        message = self.get_print_stats(message)
         if self._thumbnail_path:
             return self._populate_with_thumb(self._thumbnail_path, message)
         else:
             return message, None
+
+    def get_print_stats(self, message_pre: str = ''):
+        message = f'Printing: {self.printing_filename} \n' if not message_pre else f'{message_pre}: {self.printing_filename} \n'
+        message += f'Progress {round(self.printing_progress * 100, 0)}%'
+        message += f', height: {self.printing_height}mm\n' if self.printing_height > 0.0 else "\n"
+        if self.filament_total > 0.0:
+            message += f'Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m'
+            if self.filament_weight > 0.0:
+                message += f', weight: {round(self._filament_weight_used(), 2)}/{self.filament_weight}g'
+            message += '\n'
+        message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
+
+        message += self.get_eta_message()
+
+        if self._light_device:
+            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
+        if self._psu_device:
+            message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+        return message
 
     def get_file_info_by_name(self, filename: str, message: str):
         response = requests.get(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}", headers=self._headers)
@@ -296,6 +317,7 @@ class Klippy:
         else:
             return message, None
 
+    # TOdo: add scrolling
     def get_gcode_files(self):
         response = requests.get(f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers)
         resp = response.json()
@@ -338,7 +360,7 @@ class Klippy:
         if not res.ok:
             logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
 
-    # Todo: check if macro exists!
+    # macro data section
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
         full_macro_list = self._get_full_marco_list()
         if 'bot_data_update' in full_macro_list and 'bot_data' in full_macro_list:
