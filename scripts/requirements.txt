@@ -1,8 +1,9 @@
 tzlocal==2.1
-python-telegram-bot==13.9
+python-telegram-bot==13.10
+PySocks==1.7.1
+ujson==5.1.0
 wsaccel==0.6.3
 websocket-client==1.2.3
-Pillow==8.4.0
+Pillow==9.0.0
 emoji==1.6.1
 requests==2.26.0
-PySocks==1.7.1

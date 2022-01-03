@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from zipfile import ZipFile
 
+import ujson
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity
 from telegram.error import BadRequest
@@ -26,7 +27,6 @@ try:
     import thread
 except ImportError:
     import _thread as thread
-import json
 
 from io import BytesIO
 import emoji
@@ -191,15 +191,15 @@ def get_video(update: Update, _: CallbackContext) -> None:
 
 
 def manage_printing(command: str) -> None:
-    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
+    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
 def emergency_stop_printer():
-    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
+    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
 
 
 def shutdown_pi_host():
-    ws.send(json.dumps({"jsonrpc": "2.0", "method": f"machine.shutdown", "id": myId}))
+    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"machine.shutdown", "id": myId}))
 
 
 def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
@@ -501,7 +501,7 @@ def on_error(_, error):
 
 def subscribe(websock):
     websock.send(
-        json.dumps({'jsonrpc': '2.0',
+        ujson.dumps({'jsonrpc': '2.0',
                     'method': 'printer.objects.subscribe',
                     'params': {
                         'objects': {
@@ -514,7 +514,7 @@ def subscribe(websock):
                     },
                     'id': myId}))
     websock.send(
-        json.dumps({'jsonrpc': '2.0',
+        ujson.dumps({'jsonrpc': '2.0',
                     'method': 'printer.objects.subscribe',
                     'params': {
                         'objects': klippy.prepare_sens_dict_subscribe()
@@ -524,11 +524,11 @@ def subscribe(websock):
 
 def on_open(websock):
     websock.send(
-        json.dumps({'jsonrpc': '2.0',
+        ujson.dumps({'jsonrpc': '2.0',
                     'method': 'printer.info',
                     'id': myId}))
     websock.send(
-        json.dumps({'jsonrpc': '2.0',
+        ujson.dumps({'jsonrpc': '2.0',
                     'method': 'machine.device_power.devices',
                     'id': myId}))
 
@@ -715,7 +715,7 @@ def power_device_state(device):
 
 
 def websocket_to_message(ws_loc, ws_message):
-    json_message = json.loads(ws_message)
+    json_message = ujson.loads(ws_message)
     logger.debug(ws_message)
 
     if 'error' in json_message:
