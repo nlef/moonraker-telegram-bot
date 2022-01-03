@@ -50,6 +50,7 @@ class Klippy:
         self._thumbnail_path = ''
 
         self._jwt_token: str = ''
+
         # Todo: create sensors class!!
         self.sensors_dict: dict = dict()
 
@@ -197,39 +198,18 @@ class Klippy:
         message += '\n'
         return message
 
-    def get_status(self) -> str:
-        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", headers=self._headers)
-        resp = response.json()['result']['status']
-        print_stats = resp['print_stats']
-        webhook = resp['webhooks']
-        message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
-
-        if 'display_status' in resp and 'message' in resp['display_status']:
-            msg = resp['display_status']['message']
-            if msg and msg is not None:
-                message += f"{msg}\n"
-        if 'state_message' in webhook:
-            message += f"State message: {webhook['state_message']}\n"
-
-        message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
-
-        if print_stats['state'] == 'printing':
-            if not self.printing_filename:
-                self.printing_filename = print_stats['filename']
-            message += f"Printing filename: {self.printing_filename} \n"
-        elif print_stats['state'] == 'paused':
-            message += f"Printing paused\n"
-        elif print_stats['state'] == 'complete':
-            pass
-
+    def _get_sensors_message(self):
+        message = ''
         for name, value in self.sensors_dict.items():
             message += self.sensor_message(name, value)
+        return message
 
+    def _get_power_devices_mess(self):
+        message = ''
         if self._light_device:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
         if self._psu_device:
             message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
-
         return message
 
     def execute_command(self, command: str):
@@ -247,7 +227,7 @@ class Klippy:
             eta = 0
         return timedelta(seconds=eta)
 
-    def get_eta_message(self) -> str:
+    def _get_eta_message(self) -> str:
         eta = self._get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
@@ -275,7 +255,7 @@ class Klippy:
         else:
             return message, None
 
-    def get_print_stats(self, message_pre: str = ''):
+    def _get_printing_file_info(self, message_pre: str = ''):
         message = f'Printing: {self.printing_filename} \n' if not message_pre else f'{message_pre}: {self.printing_filename} \n'
         message += f'Progress {round(self.printing_progress * 100, 0)}%'
         message += f', height: {self.printing_height}mm\n' if self.printing_height > 0.0 else "\n"
@@ -286,15 +266,44 @@ class Klippy:
             message += '\n'
         message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
 
-        message += self.get_eta_message()
+        message += self._get_eta_message()
+        return message
 
-        for name, value in self.sensors_dict.items():
-            message += self.sensor_message(name, value)
+    def get_print_stats(self, message_pre: str = ''):
+        return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
-        if self._light_device:
-            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
-        if self._psu_device:
-            message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+    def get_status(self) -> str:
+        response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", headers=self._headers)
+        resp = response.json()['result']['status']
+        print_stats = resp['print_stats']
+        webhook = resp['webhooks']
+        message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
+
+        if 'display_status' in resp and 'message' in resp['display_status']:
+            msg = resp['display_status']['message']
+            if msg and msg is not None:
+                message += f"{msg}\n"
+        if 'state_message' in webhook:
+            message += f"State message: {webhook['state_message']}\n"
+
+        message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
+
+        if print_stats['state'] == 'printing':
+            if not self.printing_filename:
+                self.printing_filename = print_stats['filename']
+            message += f"Printing filename: {self.printing_filename} \n"
+        elif print_stats['state'] == 'paused':
+            message += f"Printing paused\n"
+        elif print_stats['state'] == 'complete':
+            pass
+
+        message += '\n'
+        if self.printing_filename:
+            message += self._get_printing_file_info()
+
+        message += self._get_sensors_message()
+        message += self._get_power_devices_mess()
+
         return message
 
     def get_file_info_by_name(self, filename: str, message: str):

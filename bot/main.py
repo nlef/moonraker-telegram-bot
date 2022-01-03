@@ -106,24 +106,17 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
     update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}", quote=True)
 
 
-# Todo: remove?
-def send_file_info(bot, silent: bool, message: str = ''):
-    message, bio = klippy.get_file_info(message)
-    if bio is not None:
-        bot.send_photo(chatId, photo=bio, caption=message, disable_notification=silent)
-        bio.close()
-    else:
-        bot.send_message(chatId, message, disable_notification=silent)
-
-
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     mess = klippy.get_status()
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
-    if klippy.printing_filename:
+    if cameraWrap.enabled:
+        with cameraWrap.take_photo() as bio:
+            message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+            message_to_reply.reply_photo(photo=bio, caption=mess, disable_notification=notifier.silent_commands)
+            bio.close()
+    else:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-        send_file_info(message_to_reply.bot, notifier.silent_commands)
+        message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
 
 
 def create_keyboard():
@@ -502,35 +495,35 @@ def on_error(_, error):
 def subscribe(websock):
     websock.send(
         ujson.dumps({'jsonrpc': '2.0',
-                    'method': 'printer.objects.subscribe',
-                    'params': {
-                        'objects': {
-                            'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
-                            'display_status': ['progress', 'message'],
-                            'toolhead': ['position'],
-                            'gcode_move': ['position', 'gcode_position'],
-                            'virtual_sdcard': ['progress']
-                        }
-                    },
-                    'id': myId}))
+                     'method': 'printer.objects.subscribe',
+                     'params': {
+                         'objects': {
+                             'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
+                             'display_status': ['progress', 'message'],
+                             'toolhead': ['position'],
+                             'gcode_move': ['position', 'gcode_position'],
+                             'virtual_sdcard': ['progress']
+                         }
+                     },
+                     'id': myId}))
     websock.send(
         ujson.dumps({'jsonrpc': '2.0',
-                    'method': 'printer.objects.subscribe',
-                    'params': {
-                        'objects': klippy.prepare_sens_dict_subscribe()
-                    },
-                    'id': myId}))
+                     'method': 'printer.objects.subscribe',
+                     'params': {
+                         'objects': klippy.prepare_sens_dict_subscribe()
+                     },
+                     'id': myId}))
 
 
 def on_open(websock):
     websock.send(
         ujson.dumps({'jsonrpc': '2.0',
-                    'method': 'printer.info',
-                    'id': myId}))
+                     'method': 'printer.info',
+                     'id': myId}))
     websock.send(
         ujson.dumps({'jsonrpc': '2.0',
-                    'method': 'machine.device_power.devices',
-                    'id': myId}))
+                     'method': 'machine.device_power.devices',
+                     'id': myId}))
 
 
 def reshedule():

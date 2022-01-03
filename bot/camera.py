@@ -115,10 +115,6 @@ class Camera:
         elif self._flipVertically:
             self._flip = 0
 
-        # image rotation for fixes angles only!
-        # ROTATE_180 = 1
-        # ROTATE_90_CLOCKWISE = 0
-        # ROTATE_90_COUNTERCLOCKWISE = 2
         if rotate == '90_cw':
             self._rotate_code = cv2.ROTATE_90_CLOCKWISE
         elif rotate == '90_ccw':
@@ -371,7 +367,7 @@ class Camera:
     def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(filename, filename, info_mess)
 
-    def _calculate_fps(self, frames_count: int):
+    def _calculate_fps(self, frames_count: int) -> int:
         actual_duration = frames_count / self._target_fps
 
         # Todo: check _max_lapse_duration > _min_lapse_duration
