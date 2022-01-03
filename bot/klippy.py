@@ -189,12 +189,14 @@ class Klippy:
     @staticmethod
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
-        message = f"{sens_name.title()}: {round(value['temperature'])}"
         if 'target' in value:
+            message = emoji.emojize(' :hotsprings: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
             if value['target'] > 0.0:
                 message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
             if value['power'] > 0.0:
                 message += emoji.emojize(' :fire: ', use_aliases=True)
+        else:
+            message = emoji.emojize(' :thermometer: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
         message += '\n'
         return message
 
