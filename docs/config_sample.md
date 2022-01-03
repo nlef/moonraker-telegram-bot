@@ -210,4 +210,6 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
+#status_single_message: false
+#	Default is true.
 ```

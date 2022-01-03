@@ -26,9 +26,9 @@ class Notifier:
         self._notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config['progress_notification'] else list()
         self._group_only: bool = config.getboolean('progress_notification', 'group_only', fallback=False)
 
-        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
-        self._silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=True)
-        self._silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=True)
+        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=False)
+        self._silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=False)
+        self._silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=False)
         self._status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
         self._pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
 

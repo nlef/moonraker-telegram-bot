@@ -29,7 +29,7 @@ class Timelapse:
         self._after_lapse_send_video: bool = config.getboolean('timelapse', 'after_lapse_send_video', fallback=True)
 
         # Todo: use notifier?
-        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=True)
+        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=False)
 
         self._klippy = klippy
         self._camera = camera
