@@ -88,7 +88,6 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/files - list last 5 files(you can start printing one from menu)\n'
                               '/macros - list all visible macros from klipper (macros beginning with _ are exluded)\n'
                               '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
-                              '/photo - capture & send me a photo\n'
                               '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
                               '/light - toggle light\n'
@@ -122,7 +121,6 @@ def status(update: Update, _: CallbackContext) -> None:
 def create_keyboard():
     custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/emergency', '/macros', '/shutdown']
     if cameraWrap.enabled:
-        custom_keyboard.append('/photo')
         custom_keyboard.append('/video')
     if psu_power_device:
         custom_keyboard.append('/power')
@@ -150,18 +148,6 @@ def check_unfinished_lapses():
     files_keys.append([InlineKeyboardButton(emoji.emojize(':no_entry_sign: ', use_aliases=True), callback_data='do_nothing')])
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
-
-
-def get_photo(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
-    if not cameraWrap.enabled:
-        message_to_reply.reply_text("camera is disabled", quote=True)
-        return
-
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
-    with cameraWrap.take_photo() as bio:
-        message_to_reply.reply_photo(photo=bio, disable_notification=notifier.silent_commands, quote=True)
-        bio.close()
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
@@ -455,7 +441,6 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
-    dispatcher.add_handler(CommandHandler("photo", get_photo))
     dispatcher.add_handler(CommandHandler("video", get_video))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
