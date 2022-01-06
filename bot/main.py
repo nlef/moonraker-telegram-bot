@@ -255,7 +255,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     query.answer()
     # Todo: maybe regex check?
     if query.data == 'do_nothing':
-        context.bot.delete_message(update.effective_message.chat_id, update.effective_message.reply_to_message.message_id)
+        if update.effective_message.reply_to_message:
+            context.bot.delete_message(update.effective_message.chat_id, update.effective_message.reply_to_message.message_id)
         query.delete_message()
     elif query.data == 'emergency_stop':
         emergency_stop_printer()

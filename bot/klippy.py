@@ -234,28 +234,29 @@ class Klippy:
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
     def _populate_with_thumb(self, thumb_path: str, message: str):
-        response = requests.get(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True, headers=self._headers)
-        if response.ok:
-            response.raw.decode_content = True
-            img = Image.open(response.raw).convert('RGB')
-
-            bio = BytesIO()
-            bio.name = f'{self.printing_filename}.webp'
-            img.save(bio, 'WebP', quality=0, lossless=True)
-            bio.seek(0)
-            img.close()
-            return message, bio
+        if not thumb_path:
+            # Todo: resize?
+            img = Image.open('../imgs/nopreview.png').convert('RGB')
         else:
-            logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
-            # Todo: add preview placeholder!
-            return message, None
+            response = requests.get(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True, headers=self._headers)
+            if response.ok:
+                response.raw.decode_content = True
+                img = Image.open(response.raw).convert('RGB')
+            else:
+                logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
+                # Todo: resize?
+                img = Image.open('../imgs/nopreview.png').convert('RGB')
+
+        bio = BytesIO()
+        bio.name = f'{self.printing_filename}.webp'
+        img.save(bio, 'WebP', quality=0, lossless=True)
+        bio.seek(0)
+        img.close()
+        return message, bio
 
     def get_file_info(self, message: str = '') -> (str, BytesIO):
         message = self.get_print_stats(message)
-        if self._thumbnail_path:
-            return self._populate_with_thumb(self._thumbnail_path, message)
-        else:
-            return message, None
+        return self._populate_with_thumb(self._thumbnail_path, message)
 
     def _get_printing_file_info(self, message_pre: str = ''):
         message = f'Printing: {self.printing_filename} \n' if not message_pre else f'{message_pre}: {self.printing_filename} \n'
@@ -320,15 +321,15 @@ class Klippy:
         if 'estimated_time' in resp and resp['estimated_time'] > 0.0:
             message += f"\nEstimated printing time: {timedelta(seconds=resp['estimated_time'])}"
 
+        thumb_path = ''
         if 'thumbnails' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             if 'relative_path' in thumb:
-                return self._populate_with_thumb(thumb['relative_path'], message)
+                thumb_path = thumb['relative_path']
             else:
                 logger.error(f"Thumbnail relative_path not found in {resp}")
-                return message, None
-        else:
-            return message, None
+
+        return self._populate_with_thumb(thumb_path, message)
 
     # TOdo: add scrolling
     def get_gcode_files(self):

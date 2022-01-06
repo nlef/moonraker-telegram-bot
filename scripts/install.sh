@@ -38,7 +38,6 @@ create_initial_config() {
 
     report_status "Creating base config file"
     cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${KLIPPER_CONF_DIR}"/telegram.conf
-    cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
 
     sed -i "s+some_log_path+${MOONRAKER_BOT_LOG}+g" "${KLIPPER_CONF_DIR}"/telegram.conf
   fi

@@ -225,7 +225,8 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open(random.choice(glob.glob(f'{self._imgs_path}/imgs/*')))
+                # Todo: resize to cam resolution!
+                img = Image.open('../imgs/nosignal.png')
             else:
                 if self._hw_accel:
                     image_um = cv2.UMat(image)
