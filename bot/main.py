@@ -766,7 +766,7 @@ def websocket_to_message(ws_loc, ws_message):
 
 
 def parselog():
-    with open('../telegram.log') as f:
+    with open('../log_cat.log') as f:
         lines = f.readlines()
 
     wslines = list(filter(lambda it: ' - {' in it, lines))
@@ -787,6 +787,10 @@ if __name__ == '__main__':
         help="Location of moonraker telegram bot configuration file")
     system_args = parser.parse_args()
     conf = configparser.ConfigParser()
+
+    #Todo: os.chdir(Path(sys.path[0]).parent.absolute())
+    os.chdir(sys.path[0])
+
     conf.read(system_args.configfile)
 
     host = conf.get('bot', 'server', fallback='localhost')
