@@ -13,7 +13,6 @@ from pathlib import Path
 from queue import Queue
 from typing import List
 
-from numpy import random
 import cv2
 from PIL import Image, _webp
 from telegram import Message
@@ -62,7 +61,7 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, imgs_path: str = "", logging_handler: logging.Handler = None, debug: bool = False):
+    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler = None, debug: bool = False):
         camera_host = config.get('camera', 'host', fallback=f"http://{klippy.moonraker_host}:8080/?action=stream")  # Todo: remove default host?
         self._host = int(camera_host) if str.isdigit(camera_host) else camera_host
         self.enabled: bool = 'camera' in config
@@ -73,7 +72,6 @@ class Camera:
         self._fourcc: str = config.get('camera', 'fourcc', fallback='x264')
         self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
         self._stream_fps: int = config.getint('camera', 'fps', fallback=0)
-        self._imgs_path: str = imgs_path
         self._klippy: Klippy = klippy
         # Todo: refactor into timelapse class
         self._base_dir: str = config.get('timelapse', 'basedir', fallback='/tmp/timelapse')  # Fixme: relative path failed! ~/timelapse

@@ -479,24 +479,23 @@ def on_error(_, error):
 
 
 def subscribe(websock):
+    subscribe_objects = {
+        'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
+        'display_status': ['progress', 'message'],
+        'toolhead': ['position'],
+        'gcode_move': ['position', 'gcode_position'],
+        'virtual_sdcard': ['progress']
+    }
+
+    sensors = klippy.prepare_sens_dict_subscribe()
+    if sensors:
+        subscribe_objects.update(sensors)
+
     websock.send(
         ujson.dumps({'jsonrpc': '2.0',
                      'method': 'printer.objects.subscribe',
                      'params': {
-                         'objects': {
-                             'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
-                             'display_status': ['progress', 'message'],
-                             'toolhead': ['position'],
-                             'gcode_move': ['position', 'gcode_position'],
-                             'virtual_sdcard': ['progress']
-                         }
-                     },
-                     'id': myId}))
-    websock.send(
-        ujson.dumps({'jsonrpc': '2.0',
-                     'method': 'printer.objects.subscribe',
-                     'params': {
-                         'objects': klippy.prepare_sens_dict_subscribe()
+                         'objects': subscribe_objects
                      },
                      'id': myId}))
 
@@ -787,7 +786,6 @@ if __name__ == '__main__':
         metavar='<configfile>',
         help="Location of moonraker telegram bot configuration file")
     system_args = parser.parse_args()
-    klipper_config_path = system_args.configfile[:system_args.configfile.rfind('/')]
     conf = configparser.ConfigParser()
     conf.read(system_args.configfile)
 
@@ -822,7 +820,7 @@ if __name__ == '__main__':
     psu_power_device = PowerDevice(poweroff_device_name, host)
 
     klippy = Klippy(conf, light_power_device, psu_power_device, rotatingHandler, debug)
-    cameraWrap = Camera(conf, klippy, light_power_device, klipper_config_path, rotatingHandler, debug)
+    cameraWrap = Camera(conf, klippy, light_power_device, rotatingHandler, debug)
     bot_updater = start_bot(token, socks_proxy)
     timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, bot_updater, chatId, rotatingHandler, debug)
     notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
