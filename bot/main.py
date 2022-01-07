@@ -60,6 +60,7 @@ debug: bool = False
 hidden_methods: list = list()
 custom_buttons: list = list()
 require_confirmation_macro: bool = False
+include_macros_in_command_list: bool = False
 
 bot_updater: Updater
 scheduler = BackgroundScheduler({
@@ -77,24 +78,6 @@ ws: websocket.WebSocketApp = None
 klippy: Klippy
 light_power_device: PowerDevice
 psu_power_device: PowerDevice
-
-
-def help_command(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text('The following commands are known:\n\n'
-                              '/status - send klipper status\n'
-                              '/pause - pause printing\n'
-                              '/resume - resume printing\n'
-                              '/cancel - cancel printing\n'
-                              '/files - list last 5 files(you can start printing one from menu)\n'
-                              '/macros - list all visible macros from klipper (macros beginning with _ are exluded)\n'
-                              '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
-                              '/video - will take mp4 video from camera\n'
-                              '/power - toggle moonraker power device from config\n'
-                              '/light - toggle light\n'
-                              '/emergency - emergency stop printing\n'
-                              '/bot_restart - restarts the bot service, useful for config updates\n'
-                              '/shutdown - shutdown Pi gracefully',
-                              quote=True)
 
 
 def echo_unknown(update: Update, _: CallbackContext) -> None:
@@ -116,27 +99,6 @@ def status(update: Update, _: CallbackContext) -> None:
     else:
         message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
         message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
-
-
-def create_keyboard():
-    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/emergency', '/macros', '/shutdown']
-    if cameraWrap.enabled:
-        custom_keyboard.append('/video')
-    if psu_power_device:
-        custom_keyboard.append('/power')
-    if light_power_device:
-        custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in hidden_methods] + custom_buttons
-    keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
-    return keyboard
-
-
-def greeting_message():
-    response = klippy.check_connection()
-    mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
-    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
-    check_unfinished_lapses()
 
 
 def check_unfinished_lapses():
@@ -425,6 +387,67 @@ def bot_restart(update: Update, _: CallbackContext) -> None:
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
+
+
+def create_keyboard():
+    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/emergency', '/macros', '/shutdown']
+    if cameraWrap.enabled:
+        custom_keyboard.append('/video')
+    if psu_power_device:
+        custom_keyboard.append('/power')
+    if light_power_device:
+        custom_keyboard.append('/light')
+    filtered = [key for key in custom_keyboard if key not in hidden_methods] + custom_buttons
+    keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
+    return keyboard
+
+
+def help_command(update: Update, _: CallbackContext) -> None:
+    update.message.reply_text('The following commands are known:\n\n'
+                              '/status - send klipper status\n'
+                              '/pause - pause printing\n'
+                              '/resume - resume printing\n'
+                              '/cancel - cancel printing\n'
+                              '/files - list last 5 files(you can start printing one from menu)\n'
+                              '/macros - list all visible macros from klipper\n'
+                              '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
+                              '/video - will take mp4 video from camera\n'
+                              '/power - toggle moonraker power device from config\n'
+                              '/light - toggle light\n'
+                              '/emergency - emergency stop printing\n'
+                              '/bot_restart - restarts the bot service, useful for config updates\n'
+                              '/shutdown - shutdown Pi gracefully',
+                              quote=True)
+
+
+def greeting_message():
+    response = klippy.check_connection()
+    mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
+    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
+    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
+    commands = [
+        ('help', 'list bot commands'),
+        ('status', 'send klipper status'),
+        ('pause', 'pause printing'),
+        ('resume', 'resume printing'),
+        ('cancel', 'cancel printing'),
+        ('files', "list last 5 files. you can start printing one from menu"),
+        ('macros', 'list all visible macros from klipper'),
+        ('gcode', 'run any gcode command, spaces are supported. "gcode G28 Z"'),
+        ('video', 'will take mp4 video from camera'),
+        ('power', 'toggle moonraker power device from config'),
+        ('light', 'toggle light'),
+        ('emergency', 'emergency stop printing'),
+        ('bot_restart', 'restarts the bot service, useful for config updates'),
+        ('shutdown', 'shutdown Pi gracefully')
+    ]
+    if include_macros_in_command_list:
+        commands += list(map(lambda el: (el.lower(), el), klippy.macros))
+        if len(commands) >= 100:
+            logger.warning("Commands list too large!")
+            commands = commands[0:99]
+    bot_updater.bot.set_my_commands(commands=commands)
+    check_unfinished_lapses()
 
 
 def start_bot(bot_token, socks):
@@ -766,7 +789,7 @@ def websocket_to_message(ws_loc, ws_message):
 
 
 def parselog():
-    with open('../log_cat.log') as f:
+    with open('../telegram.log') as f:
         lines = f.readlines()
 
     wslines = list(filter(lambda it: ' - {' in it, lines))
@@ -788,7 +811,7 @@ if __name__ == '__main__':
     system_args = parser.parse_args()
     conf = configparser.ConfigParser()
 
-    #Todo: os.chdir(Path(sys.path[0]).parent.absolute())
+    # Todo: os.chdir(Path(sys.path[0]).parent.absolute())
     os.chdir(sys.path[0])
 
     conf.read(system_args.configfile)
@@ -805,6 +828,7 @@ if __name__ == '__main__':
     hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
     custom_buttons = [el.strip() for el in conf.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in conf and 'custom_buttons' in conf['telegram_ui'] else list()
     require_confirmation_macro = conf.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
+    include_macros_in_command_list = conf.getboolean('telegram_ui', 'include_macros_in_command_list', fallback=True)
 
     if not log_path == '/tmp':
         Path(log_path).mkdir(parents=True, exist_ok=True)

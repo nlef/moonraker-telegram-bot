@@ -188,6 +188,12 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #	This allows you to hide unused buttons from your bots keyboard. A good example is the bot_restart command - 
 #	after you are finished configuring everything, you propably don't need the command as a key on the keyboard.
 #	This does not disable the command - you can still run the command by typing it into the chat
+#disabled_macros: macro1, macro2
+# Default is not to disable any macro.
+#include_macros_in_command_list: false
+# Default is true.
+#show_hidden_macros: true
+# Default is false.
 #custom_buttons: /my_super_button, /my_second_button
 #	This allows you to add your own custom macros to the bot's keyboard. The macro listed in this section
 #	should be defined in klipper config files, in UPPERCASE. Maximum macro name length is 54 chars.

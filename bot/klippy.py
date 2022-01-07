@@ -17,9 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
+    _DATA_UPDATE_MACRO = 'bot_data_update'
+    _DATA_MACRO = 'bot_data'
+
     def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug: bool = False):
         self._host = config.get('bot', 'server', fallback='localhost')
-        self._disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
+        disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
+        self._disabled_macros = disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
+        self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)
         self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
         self._light_device = light_device
         self._psu_device = psu_device
@@ -158,8 +163,9 @@ class Klippy:
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
         return loaded_macros
 
+    # Todo: filter hidden
     def _get_marco_list(self) -> list:
-        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros]
+        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else "_" not in key)]
 
     def _auth_moonraker(self) -> str:
         if not self._user or not self._passwd:
@@ -377,8 +383,8 @@ class Klippy:
     # macro data section
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
         full_macro_list = self._get_full_marco_list()
-        if 'bot_data_update' in full_macro_list and 'bot_data' in full_macro_list:
+        if self._DATA_UPDATE_MACRO in full_macro_list and self._DATA_MACRO in full_macro_list:
             command = f'bot_data_update VIDEO_SIZE={lapse_size} FILENAME="{filename}" PATH="{path}"'
             self.execute_command(command)
         else:
-            logger.error(f'Marcos "bot_data" and "bot_data_update" not defined')
+            logger.error(f'Marcos "{self._DATA_MACRO}" and "{self._DATA_UPDATE_MACRO}" not defined')
