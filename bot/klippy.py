@@ -285,26 +285,32 @@ class Klippy:
         response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", headers=self._headers)
         resp = response.json()['result']['status']
         print_stats = resp['print_stats']
-        webhook = resp['webhooks']
-        message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
+        # webhook = resp['webhooks']
+        # message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
+        message = ""
 
-        if 'display_status' in resp and 'message' in resp['display_status']:
-            msg = resp['display_status']['message']
-            if msg and msg is not None:
-                message += f"{msg}\n"
-        if 'state_message' in webhook:
-            message += f"State message: {webhook['state_message']}\n"
+        # if 'display_status' in resp and 'message' in resp['display_status']:
+        #     msg = resp['display_status']['message']
+        #     if msg and msg is not None:
+        #         message += f"{msg}\n"
+        # if 'state_message' in webhook:
+        #     message += f"State message: {webhook['state_message']}\n"
 
-        message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
+        # message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
 
         if print_stats['state'] == 'printing':
             if not self.printing_filename:
                 self.printing_filename = print_stats['filename']
-            message += f"Printing filename: {self.printing_filename} \n"
         elif print_stats['state'] == 'paused':
             message += f"Printing paused\n"
         elif print_stats['state'] == 'complete':
-            pass
+            message += f"Printing complete\n"
+        elif print_stats['state'] == 'standby':
+            message += f"Printer standby\n"
+        elif print_stats['state'] == 'error':
+            message += f"Printing error\n"
+            if 'message' in print_stats and print_stats['message']:
+                message += f"{print_stats['message']}\n"
 
         message += '\n'
         if self.printing_filename:

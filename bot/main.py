@@ -503,8 +503,8 @@ def on_error(_, error):
 
 def subscribe(websock):
     subscribe_objects = {
-        'print_stats': ['filename', 'state', 'print_duration', 'filament_used'],
-        'display_status': ['progress', 'message'],
+        'print_stats': None,
+        'display_status': None,
         'toolhead': ['position'],
         'gcode_move': ['position', 'gcode_position'],
         'virtual_sdcard': ['progress']
@@ -692,7 +692,10 @@ def parse_print_stats(message_params):
         klippy.printing = False
         timelapse.running = False
         notifier.remove_notifier_timer()
-        notifier.send_error(f"Printer state change error: {message_params[0]['print_stats']['state']} \n")
+        error_mess = f"Printer state change error: {message_params[0]['print_stats']['state']}\n"
+        if 'message' in message_params[0]['print_stats'] and message_params[0]['print_stats']['message']:
+            error_mess += f"{message_params[0]['print_stats']['message']}\n"
+        notifier.send_error(error_mess)
     elif state == 'standby':
         klippy.printing = False
         notifier.remove_notifier_timer()
