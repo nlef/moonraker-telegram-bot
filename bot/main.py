@@ -577,11 +577,11 @@ def status_response(status_resp):
     # Todo: add sensors & heaters parsing
     for sens in [key for key in status_resp if 'temperature_sensor' in key]:
         if status_resp[sens]:
-            klippy.sensors_dict[sens.replace('temperature_sensor ', '')] = status_resp[sens]
+            klippy.update_sensror(sens.replace('temperature_sensor ', ''), status_resp[sens])
 
-    for heaters in [key for key in status_resp if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
-        if status_resp[heaters]:
-            klippy.sensors_dict[heaters.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', '')] = status_resp[heaters]
+    for heater in [key for key in status_resp if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
+        if status_resp[heater]:
+            klippy.update_sensror(heater.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', ''), status_resp[heater])
 
 
 def notify_gcode_reponse(message_params):
@@ -640,10 +640,10 @@ def notify_status_update(message_params):
         parse_print_stats(message_params)
 
     for sens in [key for key in message_params[0] if 'temperature_sensor' in key]:
-        klippy.sensors_dict[sens.replace('temperature_sensor ', '')] = message_params[0][sens]
+        klippy.update_sensror(sens.replace('temperature_sensor ', ''), message_params[0][sens])
 
-    for heaters in [key for key in message_params[0] if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
-        klippy.sensors_dict[heaters.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', '')] = message_params[0][heaters]
+    for heater in [key for key in message_params[0] if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
+        klippy.update_sensror(heater.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', ''), message_params[0][heater])
 
 
 def parse_print_stats(message_params):

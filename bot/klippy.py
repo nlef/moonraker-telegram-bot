@@ -192,6 +192,16 @@ class Klippy:
             logger.error(ex, exc_info=True)
             return f"Connection failed."
 
+    def update_sensror(self, name: str, value):
+        if name in self.sensors_dict:
+            self.sensors_dict.get(name)['temperature'] = value['temperature']
+            if 'target' in value:
+                self.sensors_dict.get(name)['target'] = value['target']
+            if 'power' in value:
+                self.sensors_dict.get(name)['power'] = value['power']
+        else:
+            self.sensors_dict[name] = value
+
     @staticmethod
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
