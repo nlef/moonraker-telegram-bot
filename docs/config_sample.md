@@ -73,13 +73,14 @@ host: http://localhost:8080/?action=stream
 #	your printers web interface/your player. If you can stream it, the bot supports it, native h264 streams,
 #	for example a vlc stream from a runcam webcam is absolutely possible. Do not feel contstrained by mjpeg streams.
 #fps: 30
-# use this fps instead of stream metadata
+#	If you want to use the "/video" button/command, you should set the camera fps. Not set by default.
 #flipVertically: false
 #	You can flip the camera image vertically, if needed. Disabled by default. Set to true if needed.
 #flipHorizontally: false
 #	You can flip the camera image horizontally, if needed. Disabled by default. Set to true if needed.
 #rotate: 90_cw
-# allowed values: 90_cw, 90_ccw, 180. default is empty, so no rotation performed
+#	You can rotate the camera image, if needed. Disabled by default.
+#	Allowed values: 90_cw, 90_ccw, 180. default is empty, so no rotation performed
 #fourcc: x264
 #	You can change the opencv VideoWriter fourcc codec. The default value is 'x264'.
 # 	An alternative is mp4v for playback on specific apple devices, or if the machine which is going to do
@@ -169,13 +170,13 @@ You can override these parameters with [runtime settings](interacting_with_klipp
 #	This allows you to prevent the timelapse video from ending too abruptly. You can choose a duration for which 
 #	to loop the last picture taken.
 #	Default is 5 seconds. 
+#after_lapse_gcode: /mysuper_macro
+#	You can run a macro after the bot completes building the timelapse
+#send_finished_lapse: true
+#	If you want to build the lapse, but do not want to send it, set this to false. Defaul is true.
 #manual_mode: false
-#	if True, only commands from gcode will manage timelapse.
+#	Ff True, only commands from gcode will manage timelapse.
 #	Default is false.
-#after_lapse_gcode: mysuper_macro
-# 
-#after_lapse_send_video: true
-#
 ```
 
 ## [telegram_ui]
@@ -184,16 +185,12 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 
 ```
 [telegram_ui]
+#status_single_message: true
+#	This lets you revert to old multiple-message notification.
 #hidden_methods: /bot_restart
 #	This allows you to hide unused buttons from your bots keyboard. A good example is the bot_restart command - 
 #	after you are finished configuring everything, you propably don't need the command as a key on the keyboard.
 #	This does not disable the command - you can still run the command by typing it into the chat
-#disabled_macros: macro1, macro2
-# Default is not to disable any macro.
-#include_macros_in_command_list: false
-# Default is true.
-#show_hidden_macros: true
-# Default is false.
 #custom_buttons: /my_super_button, /my_second_button
 #	This allows you to add your own custom macros to the bot's keyboard. The macro listed in this section
 #	should be defined in klipper config files, in UPPERCASE. Maximum macro name length is 54 chars.
@@ -201,21 +198,28 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #require_confirmation_macro: false
 #	This flag makes the bot confirm, if you want to run a macro, similar to the check which happens 
 #	with the "/shutdown" command.
-#silent_progress: true
+#silent_progress: false
 #	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
 #	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
-#silent_commands: true
+#silent_commands: false
 #	Sends all other messages (for example the emergency stop confirmation) without an alert.You still get a "red" notification, 
 #	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
-#silent_status: true
+#silent_status: false
 #	Sendsthe status message (printer status) without an alert. You still get a "red" notification, 
 #	but it does not have sound or vibration.
 #	Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that. 
 #	Default is false.
-#status_single_message: false
-#	Default is true.
+#include_macros_in_command_list: true
+#	This enables in-chat autocomplete for macros. 
+#	Default is true. 
+#disabled_macros: macro1, macro2
+# 	If you have macros displayed in the auto-complete list, you may want to hide specific ones.
+#	Default is not to hide any macros.
+#show_hidden_macros: false
+#	You can decide to show service macros prefaced with a "_" in the autocomplete list.
+#	Default is to hide and not autocomplete these macros.
 ```
