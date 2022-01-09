@@ -64,6 +64,8 @@ class Klippy:
         if debug:
             logger.setLevel(logging.DEBUG)
 
+        self._auth_moonraker()
+
     def prepare_sens_dict_subscribe(self):
         self.sensors_dict = {}
         sens_dict = {}
@@ -163,28 +165,21 @@ class Klippy:
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
         return loaded_macros
 
-    # Todo: filter hidden
     def _get_marco_list(self) -> list:
         return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else "_" not in key)]
 
-    def _auth_moonraker(self) -> str:
+    def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
-            return ''
+            return
 
         res = requests.post(f"http://{self._host}/access/login", json={'username': self._user, 'password': self._passwd})
         if res.ok:
             # Todo: check if token refresh needed
             self._jwt_token = res.json()['result']['token']
-            return ''
         else:
             logger.error(res.reason)
-            return f"Auth failed.\n {res.reason}"
 
     def check_connection(self) -> str:
-        auth = self._auth_moonraker()
-        if auth:
-            return auth
-
         try:
             response = requests.get(f"http://{self._host}/printer/info", headers=self._headers, timeout=2)
             return '' if response.ok else f"Connection failed. {response.reason}"
