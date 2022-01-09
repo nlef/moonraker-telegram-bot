@@ -189,7 +189,8 @@ class Klippy:
 
     def update_sensror(self, name: str, value):
         if name in self.sensors_dict:
-            self.sensors_dict.get(name)['temperature'] = value['temperature']
+            if 'temperature' in value:
+                self.sensors_dict.get(name)['temperature'] = value['temperature']
             if 'target' in value:
                 self.sensors_dict.get(name)['target'] = value['target']
             if 'power' in value:
