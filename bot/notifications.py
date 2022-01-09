@@ -127,10 +127,7 @@ class Notifier:
                     self._bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
                 photo.close()
         else:
-            self._send_message(message, silent)
-
-    def send_status_update(self, message: str):
-        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': self._silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+            self._send_message(message, silent, manual)
 
     # manual notification methods
     def send_error(self, message: str):
@@ -150,6 +147,7 @@ class Notifier:
         self._last_height = 0
         self._klippy.printing_duration = 0
         self._last_message = ''
+        self._status_message = None
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
@@ -223,10 +221,10 @@ class Notifier:
         if self._last_message:
             mess += f"{self._last_message}\n"
         self._notify(mess, self._silent_progress, self._group_only)
+        self.reset_notifications()
 
     def send_print_finish(self):
         self._sched.add_job(self._send_print_finish, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=True)
-        # Todo: reset something?
 
     def parse_notification_params(self, message: str):
         mass_parts = message.split(sep=" ")

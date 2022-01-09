@@ -647,7 +647,6 @@ def notify_status_update(message_params):
 
 
 def parse_print_stats(message_params):
-    message = ""
     state = ""
     # Fixme:  maybe do not parse without state? history data may not be avaliable
     # Message with filename will be sent before printing is started
@@ -701,12 +700,9 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
-
-        message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
+        notifier.send_notification(f"Printer state change: {message_params[0]['print_stats']['state']} \n")
     elif state:
         logger.error(f"Unknown state: {state}")
-    if message:
-        notifier.send_status_update(message)
 
 
 def power_device_state(device):
