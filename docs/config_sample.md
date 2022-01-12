@@ -218,4 +218,6 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #	Default is false.
 #status_single_message: false
 #	Default is true.
+#message_parts: progress, height, filament_length
+# Default: progress, height, filament_length, filament_weight, printing_duration, eta, finish_time, power_devices, display_status, manual_status
 ```

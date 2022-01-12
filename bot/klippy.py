@@ -25,6 +25,8 @@ class Klippy:
         disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
         self._disabled_macros = disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
         self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)
+        self._message_parts: list = [el.strip() for el in config.get('telegram_ui', 'message_parts').split(',')] if 'telegram_ui' in config and 'message_parts' in config['telegram_ui'] else \
+            ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
         self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
         self._light_device = light_device
         self._psu_device = psu_device
@@ -241,6 +243,7 @@ class Klippy:
             eta = 0
         return timedelta(seconds=eta)
 
+    # Todo: remove useless
     def _get_eta_message(self) -> str:
         eta = self._get_eta()
         return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
@@ -272,20 +275,32 @@ class Klippy:
 
     def _get_printing_file_info(self, message_pre: str = ''):
         message = f'Printing: {self.printing_filename} \n' if not message_pre else f'{message_pre}: {self.printing_filename} \n'
-        message += f'Progress {round(self.printing_progress * 100, 0)}%'
-        message += f', height: {self.printing_height}mm\n' if self.printing_height > 0.0 else "\n"
+        if 'progress' in self._message_parts:
+            message += f'Progress {round(self.printing_progress * 100, 0)}%'
+        if 'height' in self._message_parts:
+            message += f', height: {self.printing_height}mm\n' if self.printing_height > 0.0 else "\n"
         if self.filament_total > 0.0:
-            message += f'Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m'
-            if self.filament_weight > 0.0:
+            if 'filament_length' in self._message_parts:
+                message += f'Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m'
+            if self.filament_weight > 0.0 and 'filament_weight' in self._message_parts:
                 message += f', weight: {round(self._filament_weight_used(), 2)}/{self.filament_weight}g'
             message += '\n'
-        message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
+        if 'printing_duration' in self._message_parts:
+            message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
 
-        message += self._get_eta_message()
+        eta = self._get_eta()
+        if 'eta' in self._message_parts:
+            message += f"Estimated time left: {eta}\n"
+        if 'finish_time' in self._message_parts:
+            message += f"Finish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
+
         return message
 
     def get_print_stats(self, message_pre: str = ''):
-        return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
+        message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
+        if 'power_devices' in self._message_parts:
+            message += self._get_power_devices_mess()
+        return message
 
     def get_status(self) -> str:
         response = requests.get(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", headers=self._headers)

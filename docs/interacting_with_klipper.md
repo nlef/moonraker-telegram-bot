@@ -51,6 +51,7 @@ Works exactly the same as the simple notify command, but also takes a photo from
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.
 - `tgalarm_photo` Captures a picture, sends a message with an alert. You get a "red" notification with sound or vibration.
 Works exactly the same as the simple alarm command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.
+- `tgnotify_manual_status` status message, appened to notification message
 
 ## Runtime lapse and notification setting
 If you want to run specific notifications and lapse settings based on criteria from the slicer, you can issue the following command to the bot:
