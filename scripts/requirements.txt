@@ -5,5 +5,5 @@ ujson==5.1.0
 wsaccel==0.6.3
 websocket-client==1.2.3
 Pillow==9.0.0
-emoji==1.6.1
+emoji==1.6.3
 requests==2.27.1
