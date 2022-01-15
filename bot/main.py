@@ -307,7 +307,7 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
 
 def get_macros(update: Update, _: CallbackContext) -> None:
     update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if configWrap.telegramui.require_confirmation_macro else f'macro:{el}'), klippy.macros))))
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if configWrap.telegram_ui.require_confirmation_macro else f'macro:{el}'), klippy.macros))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.effective_message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True)
@@ -316,7 +316,7 @@ def get_macros(update: Update, _: CallbackContext) -> None:
 def macros_handler(update: Update, _: CallbackContext) -> None:
     command = update.effective_message.text.replace('/', '').upper()
     if command in klippy.macros_all:
-        if configWrap.telegramui.require_confirmation_macro:
+        if configWrap.telegram_ui.require_confirmation_macro:
             update.effective_message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands, quote=True)
         else:
             klippy.execute_command(command)
@@ -394,7 +394,7 @@ def create_keyboard():
         custom_keyboard.append('/power')
     if light_power_device:
         custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in configWrap.telegramui.hidden_methods] + configWrap.telegramui.custom_buttons
+    filtered = [key for key in custom_keyboard if key not in configWrap.telegram_ui.hidden_methods] + configWrap.telegram_ui.custom_buttons
     keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
     return keyboard
 
@@ -438,7 +438,7 @@ def greeting_message():
         ('bot_restart', 'restarts the bot service, useful for config updates'),
         ('shutdown', 'shutdown Pi gracefully')
     ]
-    if configWrap.telegramui.include_macros_in_command_list:
+    if configWrap.telegram_ui.include_macros_in_command_list:
         commands += list(map(lambda el: (el.lower(), el), klippy.macros))
         if len(commands) >= 100:
             logger.warning("Commands list too large!")

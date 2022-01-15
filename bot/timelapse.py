@@ -27,7 +27,7 @@ class Timelapse:
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
 
-        self._silent_progress = config.telegramui.silent_progress
+        self._silent_progress = config.telegram_ui.silent_progress
 
         self._klippy = klippy
         self._camera = camera

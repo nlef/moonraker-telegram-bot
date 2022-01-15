@@ -77,8 +77,8 @@ class TelegramUIConfig:
         self.disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
         self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)
         self.eta_source: str = config.get('telegram_ui', 'eta_source', fallback='slicer')
-        self.status_message_sensors: list = [el.strip() for el in config.get('telegram_ui', 'status_message_sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
-        self.status_message_heaters: list = [el.strip() for el in config.get('telegram_ui', 'status_message_heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
+        self.status_message_sensors: list = [el.strip() for el in config.get('telegram_ui', 'status_message_sensors').split(',')] if 'telegram_ui' in config and 'status_message_sensors' in config['telegram_ui'] else []
+        self.status_message_heaters: list = [el.strip() for el in config.get('telegram_ui', 'status_message_heaters').split(',')] if 'telegram_ui' in config and 'status_message_heaters' in config['telegram_ui'] else []
         # Todo: implement
         # status_message_devices:
 
@@ -89,4 +89,4 @@ class ConfigWrapper:
         self.camera = CameraConfig(config)
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
-        self.telegramui = TelegramUIConfig(config)
+        self.telegram_ui = TelegramUIConfig(config)

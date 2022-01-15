@@ -24,12 +24,12 @@ class Notifier:
         self._notify_groups: list = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
 
-        self._silent_progress = config.telegramui.silent_progress
-        self._silent_commands = config.telegramui.silent_commands
-        self._silent_status = config.telegramui.silent_status
-        self._status_single_message = config.telegramui.status_single_message
-        self._pin_status_single_message = config.telegramui.pin_status_single_message  # Todo: implement
-        self._message_parts: list = config.telegramui.status_message_content
+        self._silent_progress = config.telegram_ui.silent_progress
+        self._silent_commands = config.telegram_ui.silent_commands
+        self._silent_status = config.telegram_ui.silent_status
+        self._status_single_message = config.telegram_ui.status_single_message
+        self._pin_status_single_message = config.telegram_ui.pin_status_single_message  # Todo: implement
+        self._message_parts: list = config.telegram_ui.status_message_content
 
         self._last_height: int = 0
         self._last_percent: int = 0

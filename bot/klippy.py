@@ -22,14 +22,14 @@ class Klippy:
 
     def __init__(self, config: ConfigWrapper, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None):
         self._host = config.bot.host
-        self._disabled_macros = config.telegramui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
-        self.show_hidden_macros = config.telegramui.show_hidden_macros
-        self._message_parts: list = config.telegramui.status_message_content
-        self._eta_source: str = config.telegramui.eta_source
+        self._disabled_macros = config.telegram_ui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
+        self.show_hidden_macros = config.telegram_ui.show_hidden_macros
+        self._message_parts: list = config.telegram_ui.status_message_content
+        self._eta_source: str = config.telegram_ui.eta_source
         self._light_device = light_device
         self._psu_device = psu_device
-        self._sensors_list: list = config.telegramui.status_message_sensors
-        self._heates_list: list = config.telegramui.status_message_heaters
+        self._sensors_list: list = config.telegram_ui.status_message_sensors
+        self._heates_list: list = config.telegram_ui.status_message_heaters
         self._user = config.bot.user
         self._passwd = config.bot.passwd
 
