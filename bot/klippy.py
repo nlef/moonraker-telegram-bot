@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class Klippy:
-    _DATA_UPDATE_MACRO = 'bot_data_update'
     _DATA_MACRO = 'bot_data'
 
     def __init__(self, config: ConfigWrapper, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None):
         self._host = config.bot.host
-        self._disabled_macros = config.telegram_ui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
+        self._disabled_macros = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
         self.show_hidden_macros = config.telegram_ui.show_hidden_macros
         self._message_parts: list = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
@@ -232,6 +231,12 @@ class Klippy:
         if not res.ok:
             logger.error(res.reason)
 
+    def execute_commands(self, command: list):
+        data = {'commands': list(map(lambda el: f'{el}', command))}
+        res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
+        if not res.ok:
+            logger.error(res.reason)
+
     def _get_eta(self) -> timedelta:
         if self._eta_source == 'slicer':
             eta = int(self.file_estimated_time - self.printing_duration)
@@ -294,7 +299,7 @@ class Klippy:
 
         return message
 
-    #Fixme: add sensors to get_status()
+    # Fixme: add sensors to get_status()
     def get_print_stats(self, message_pre: str = ''):
         message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
         if 'power_devices' in self._message_parts:
@@ -409,8 +414,11 @@ class Klippy:
     # macro data section
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
         full_macro_list = self._get_full_marco_list()
-        if self._DATA_UPDATE_MACRO in full_macro_list and self._DATA_MACRO in full_macro_list:
-            command = f'bot_data_update VIDEO_SIZE={lapse_size} FILENAME="{filename}" PATH="{path}"'
-            self.execute_command(command)
+        if self._DATA_MACRO in full_macro_list:
+            commands = [f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}',
+                        f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE=\'"{filename}"\'',
+                        f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE=\'"{path}"\'']
+            self.execute_commands(commands)
+
         else:
-            logger.error(f'Marcos "{self._DATA_MACRO}" and "{self._DATA_UPDATE_MACRO}" not defined')
+            logger.error(f'Marco "{self._DATA_MACRO}" not defined')
