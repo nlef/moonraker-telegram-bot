@@ -29,6 +29,7 @@ class Klippy:
         self._psu_device = psu_device
         self._sensors_list: list = config.telegram_ui.status_message_sensors
         self._heates_list: list = config.telegram_ui.status_message_heaters
+        self._devices_list: list = config.telegram_ui.status_message_devices
         self._user = config.bot.user
         self._passwd = config.bot.passwd
 
@@ -219,19 +220,13 @@ class Klippy:
 
     def _get_power_devices_mess(self):
         message = ''
-        if self._light_device:
+        if self._light_device and self._light_device.name in self._devices_list:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
-        if self._psu_device:
+        if self._psu_device and self._psu_device.name in self._devices_list:
             message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
-    def execute_command(self, command: str):
-        data = {'commands': [f'{command}']}
-        res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
-        if not res.ok:
-            logger.error(res.reason)
-
-    def execute_commands(self, command: list):
+    def execute_command(self, *command):
         data = {'commands': list(map(lambda el: f'{el}', command))}
         res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
         if not res.ok:
@@ -245,11 +240,6 @@ class Klippy:
         if eta < 0:
             eta = 0
         return timedelta(seconds=eta)
-
-    # Todo: remove useless
-    def _get_eta_message(self) -> str:
-        eta = self._get_eta()
-        return f"Estimated time left: {eta}\nFinish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
     def _populate_with_thumb(self, thumb_path: str, message: str):
         if not thumb_path:
@@ -415,10 +405,9 @@ class Klippy:
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
         full_macro_list = self._get_full_marco_list()
         if self._DATA_MACRO in full_macro_list:
-            commands = [f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}',
-                        f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE=\'"{filename}"\'',
-                        f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE=\'"{path}"\'']
-            self.execute_commands(commands)
+            self.execute_command(f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}',
+                                 f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE=\'"{filename}"\'',
+                                 f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE=\'"{path}"\'')
 
         else:
             logger.error(f'Marco "{self._DATA_MACRO}" not defined')
