@@ -81,7 +81,8 @@ def echo_unknown(update: Update, _: CallbackContext) -> None:
 
 
 def unknown_chat(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"Unauthorized access: {update.message.text} and {update.message.chat_id}", quote=True)
+    update.message.reply_text(f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\nThis incident will be reported.", quote=True)
+    logger.error(f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}")
 
 
 def status(update: Update, _: CallbackContext) -> None:

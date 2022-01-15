@@ -29,7 +29,7 @@ class Notifier:
         self._silent_status = config.telegramui.silent_status
         self._status_single_message = config.telegramui.status_single_message
         self._pin_status_single_message = config.telegramui.pin_status_single_message  # Todo: implement
-        self._message_parts: list = config.telegramui.message_parts
+        self._message_parts: list = config.telegramui.status_message_content
 
         self._last_height: int = 0
         self._last_percent: int = 0

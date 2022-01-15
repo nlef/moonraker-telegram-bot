@@ -71,7 +71,7 @@ class TelegramUIConfig:
         self.silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=False)
         self.status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
         self.pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
-        self.message_parts: list = [el.strip() for el in config.get('telegram_ui', 'message_parts').split(',')] if 'telegram_ui' in config and 'message_parts' in config['telegram_ui'] else \
+        self.status_message_content: list = [el.strip() for el in config.get('telegram_ui', 'status_message_content').split(',')] if 'telegram_ui' in config and 'status_message_content' in config['telegram_ui'] else \
             ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
         self.hidden_methods = [el.strip() for el in config.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in config and 'hidden_methods' in config['telegram_ui'] else list()
         self.custom_buttons = [el.strip() for el in config.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in config and 'custom_buttons' in config['telegram_ui'] else list()

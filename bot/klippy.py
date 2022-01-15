@@ -24,7 +24,7 @@ class Klippy:
         self._host = config.bot.host
         self._disabled_macros = config.telegramui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
         self.show_hidden_macros = config.telegramui.show_hidden_macros
-        self._message_parts: list = config.telegramui.message_parts
+        self._message_parts: list = config.telegramui.status_message_content
         self._eta_source: str = config.bot.eta_source
         self._light_device = light_device
         self._psu_device = psu_device
