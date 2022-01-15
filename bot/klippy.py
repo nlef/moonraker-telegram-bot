@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 from io import BytesIO
 
-from bot.configuration import ConfigWrapper
+from configuration import ConfigWrapper
 from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)

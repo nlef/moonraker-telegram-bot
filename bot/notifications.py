@@ -3,7 +3,7 @@ import logging
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto
 
-from bot.configuration import ConfigWrapper
+from configuration import ConfigWrapper
 from camera import Camera
 from klippy import Klippy
 

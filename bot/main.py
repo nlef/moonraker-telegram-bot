@@ -17,7 +17,7 @@ from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
-from bot.configuration import ConfigWrapper
+from configuration import ConfigWrapper
 from camera import Camera
 from klippy import Klippy
 from notifications import Notifier
@@ -81,7 +81,8 @@ def echo_unknown(update: Update, _: CallbackContext) -> None:
 
 
 def unknown_chat(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\nThis incident will be reported.", quote=True)
+    message = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n"
+    update.message.reply_text(f"{message}This incident will be reported.", entities=[MessageEntity(type='spoiler', offset=len(message), length=31)], quote=True)
     logger.error(f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}")
 
 

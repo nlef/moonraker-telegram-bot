@@ -17,7 +17,7 @@ import cv2
 from PIL import Image, _webp
 from telegram import Message
 
-from bot.configuration import ConfigWrapper
+from configuration import ConfigWrapper
 from klippy import Klippy
 from power_device import PowerDevice
 

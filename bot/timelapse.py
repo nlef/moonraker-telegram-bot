@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Message, Bot
 
-from bot.configuration import ConfigWrapper
+from configuration import ConfigWrapper
 from camera import Camera
 from klippy import Klippy
 
