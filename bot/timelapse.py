@@ -26,7 +26,7 @@ class Timelapse:
 
         # Todo: add to runtime params section!
         self._after_lapse_gcode: str = config.get('timelapse', 'after_lapse_gcode', fallback='')
-        self._after_lapse_send_video: bool = config.getboolean('timelapse', 'after_lapse_send_video', fallback=True)
+        self._send_finished_lapse: bool = config.getboolean('timelapse', 'send_finished_lapse', fallback=True)
 
         # Todo: use notifier?
         self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=False)
@@ -225,7 +225,7 @@ class Timelapse:
             self._bot_updater.bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (video_bio, thumb_bio, width, height, video_path, gcode_name) = self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
 
-            if self._after_lapse_send_video:
+            if self._send_finished_lapse:
                 info_mess.edit_text(text="Uploading time-lapse")
 
                 if video_bio.getbuffer().nbytes > 52428800:
@@ -241,6 +241,7 @@ class Timelapse:
             thumb_bio.close()
 
             if self._after_lapse_gcode:
+                # Todo: add exception handling
                 self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f'{gcode_name}.mp4')
                 self._klippy.execute_command(self._after_lapse_gcode.strip())
 

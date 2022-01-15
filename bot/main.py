@@ -106,7 +106,7 @@ def check_unfinished_lapses():
     if not files:
         return
     bot_updater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'lapse:{el}'), files))))
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(text=el, callback_data=f'lapse:{hashlib.md5(el.encode()).hexdigest()}'), files))))
     files_keys.append([InlineKeyboardButton(emoji.emojize(':no_entry_sign: ', use_aliases=True), callback_data='do_nothing')])
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
@@ -264,7 +264,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             elif query.message.caption:
                 query.message.edit_caption(caption=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
-        lapse_name = query.data.replace('lapse:', '')
+        lapse_name = next(filter(lambda el: el[0].callback_data == query.data, query.message.reply_markup.inline_keyboard))[0].text
         info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         # Todo: refactor all timelapse cals
@@ -569,7 +569,7 @@ def status_response(status_resp):
             if not timelapse.manual_mode:
                 timelapse.paused = True
     if 'display_status' in status_resp:
-        notifier.message = status_resp['display_status']['message']
+        notifier.display_status_message = status_resp['display_status']['message']
         klippy.printing_progress = status_resp['display_status']['progress']
     if 'virtual_sdcard' in status_resp:
         klippy.vsd_progress = status_resp['virtual_sdcard']['progress']
@@ -584,6 +584,7 @@ def status_response(status_resp):
             klippy.update_sensror(heater.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', ''), status_resp[heater])
 
 
+# Todo: add command for setting status!
 def notify_gcode_reponse(message_params):
     if timelapse.manual_mode:
         if 'timelapse start' in message_params:
@@ -610,6 +611,8 @@ def notify_gcode_reponse(message_params):
         notifier.send_error(message_params[0][8:])
     if message_params[0].startswith('tgalarm_photo '):
         notifier.send_error_with_photo(message_params[0][14:])
+    if message_params[0].startswith('tgnotify_manual_status '):
+        notifier.manual_status_message = message_params[0][23:]
     if message_params[0].startswith('set_timelapse_params '):
         timelapse.parse_timelapse_params(message_params[0])
     if message_params[0].startswith('set_notify_params '):
@@ -619,7 +622,7 @@ def notify_gcode_reponse(message_params):
 def notify_status_update(message_params):
     if 'display_status' in message_params[0]:
         if 'message' in message_params[0]['display_status']:
-            notifier.message = message_params[0]['display_status']['message']
+            notifier.display_status_message = message_params[0]['display_status']['message']
         if 'progress' in message_params[0]['display_status']:
             klippy.printing_progress = message_params[0]['display_status']['progress']
             notifier.schedule_notification(progress=int(message_params[0]['display_status']['progress'] * 100))
@@ -647,7 +650,6 @@ def notify_status_update(message_params):
 
 
 def parse_print_stats(message_params):
-    message = ""
     state = ""
     # Fixme:  maybe do not parse without state? history data may not be avaliable
     # Message with filename will be sent before printing is started
@@ -701,12 +703,9 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
-
-        message += f"Printer state change: {message_params[0]['print_stats']['state']} \n"
+        notifier.send_notification(f"Printer state change: {message_params[0]['print_stats']['state']} \n")
     elif state:
         logger.error(f"Unknown state: {state}")
-    if message:
-        notifier.send_status_update(message)
 
 
 def power_device_state(device):

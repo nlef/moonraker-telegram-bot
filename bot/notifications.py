@@ -31,10 +31,13 @@ class Notifier:
         self._silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=False)
         self._status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
         self._pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
+        self._message_parts: list = [el.strip() for el in config.get('telegram_ui', 'message_parts').split(',')] if 'telegram_ui' in config and 'message_parts' in config['telegram_ui'] else \
+            ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
 
         self._last_height: int = 0
         self._last_percent: int = 0
-        self._last_message: str = ''
+        self._last_display_status_message: str = ''
+        self._last_manual_setted_message: str = ''
 
         self._status_message: Message = None
 
@@ -52,12 +55,20 @@ class Notifier:
         return self._silent_status
 
     @property
-    def message(self):
-        return self._last_message
+    def display_status_message(self):
+        return self._last_display_status_message
 
-    @message.setter
-    def message(self, new_value: str):
-        self._last_message = new_value
+    @display_status_message.setter
+    def display_status_message(self, new_value: str):
+        self._last_display_status_message = new_value
+
+    @property
+    def manual_status_message(self):
+        return self._last_manual_setted_message
+
+    @manual_status_message.setter
+    def manual_status_message(self, new_value: str):
+        self._last_manual_setted_message = new_value
 
     @property
     def percent(self):
@@ -127,10 +138,7 @@ class Notifier:
                     self._bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
                 photo.close()
         else:
-            self._send_message(message, silent)
-
-    def send_status_update(self, message: str):
-        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': self._silent_status}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+            self._send_message(message, silent, manual)
 
     # manual notification methods
     def send_error(self, message: str):
@@ -149,7 +157,9 @@ class Notifier:
         self._last_percent = 0
         self._last_height = 0
         self._klippy.printing_duration = 0
-        self._last_message = ''
+        self._last_display_status_message = ''
+        self._last_manual_setted_message = ''
+        self._status_message = None
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
@@ -172,8 +182,10 @@ class Notifier:
 
         if notify:
             mess = self._klippy.get_print_stats()
-            if self._last_message:
-                mess += f"{self._last_message}\n"
+            if self._last_display_status_message and 'display_status' in self._message_parts:
+                mess += f"{self._last_display_status_message}\n"
+            if self._last_manual_setted_message and 'manual_status' in self._message_parts:
+                mess += f"{self._last_manual_setted_message}\n"
 
             self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
                                 replace_existing=False)
@@ -183,8 +195,10 @@ class Notifier:
             return
 
         mess = self._klippy.get_print_stats()
-        if self._last_message:
-            mess += f"{self._last_message}\n"
+        if self._last_display_status_message and 'display_status' in self._message_parts:
+            mess += f"{self._last_display_status_message}\n"
+        if self._last_manual_setted_message and 'manual_status' in self._message_parts:
+            mess += f"{self._last_manual_setted_message}\n"
         self._notify(mess, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):
@@ -220,13 +234,15 @@ class Notifier:
 
     def _send_print_finish(self):
         mess = self._klippy.get_print_stats('Finished printing')
-        if self._last_message:
-            mess += f"{self._last_message}\n"
+        if self._last_display_status_message and 'display_status' in self._message_parts:
+            mess += f"{self._last_display_status_message}\n"
+        if self._last_manual_setted_message and 'manual_status' in self._message_parts:
+            mess += f"{self._last_manual_setted_message}\n"
         self._notify(mess, self._silent_progress, self._group_only)
+        self.reset_notifications()
 
     def send_print_finish(self):
         self._sched.add_job(self._send_print_finish, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=True)
-        # Todo: reset something?
 
     def parse_notification_params(self, message: str):
         mass_parts = message.split(sep=" ")

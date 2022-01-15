@@ -222,4 +222,6 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #show_hidden_macros: false
 #	You can decide to show service macros prefaced with a "_" in the autocomplete list.
 #	Default is to hide and not autocomplete these macros.
+#message_parts: progress, height, filament_length
+# Default: progress, height, filament_length, filament_weight, printing_duration, eta, finish_time, power_devices, display_status, manual_status
 ```
