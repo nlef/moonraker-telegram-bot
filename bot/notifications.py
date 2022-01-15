@@ -33,8 +33,8 @@ class Notifier:
 
         self._last_height: int = 0
         self._last_percent: int = 0
-        self._last_display_status_message: str = ''
-        self._last_manual_setted_message: str = ''
+        self._last_m117_status: str = ''
+        self._last_tgnotify_status: str = ''
 
         self._status_message: Message = None
 
@@ -52,20 +52,20 @@ class Notifier:
         return self._silent_status
 
     @property
-    def display_status_message(self):
-        return self._last_display_status_message
+    def m117_status(self):
+        return self._last_m117_status
 
-    @display_status_message.setter
-    def display_status_message(self, new_value: str):
-        self._last_display_status_message = new_value
+    @m117_status.setter
+    def m117_status(self, new_value: str):
+        self._last_m117_status = new_value
 
     @property
-    def manual_status_message(self):
-        return self._last_manual_setted_message
+    def tgnotify_status(self):
+        return self._last_tgnotify_status
 
-    @manual_status_message.setter
-    def manual_status_message(self, new_value: str):
-        self._last_manual_setted_message = new_value
+    @tgnotify_status.setter
+    def tgnotify_status(self, new_value: str):
+        self._last_tgnotify_status = new_value
 
     @property
     def percent(self):
@@ -154,8 +154,8 @@ class Notifier:
         self._last_percent = 0
         self._last_height = 0
         self._klippy.printing_duration = 0
-        self._last_display_status_message = ''
-        self._last_manual_setted_message = ''
+        self._last_m117_status = ''
+        self._last_tgnotify_status = ''
         self._status_message = None
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
@@ -179,10 +179,10 @@ class Notifier:
 
         if notify:
             mess = self._klippy.get_print_stats()
-            if self._last_display_status_message and 'display_status' in self._message_parts:
-                mess += f"{self._last_display_status_message}\n"
-            if self._last_manual_setted_message and 'manual_status' in self._message_parts:
-                mess += f"{self._last_manual_setted_message}\n"
+            if self._last_m117_status and 'm117_status' in self._message_parts:
+                mess += f"{self._last_m117_status}\n"
+            if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
+                mess += f"{self._last_tgnotify_status}\n"
 
             self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
                                 replace_existing=False)
@@ -192,10 +192,10 @@ class Notifier:
             return
 
         mess = self._klippy.get_print_stats()
-        if self._last_display_status_message and 'display_status' in self._message_parts:
-            mess += f"{self._last_display_status_message}\n"
-        if self._last_manual_setted_message and 'manual_status' in self._message_parts:
-            mess += f"{self._last_manual_setted_message}\n"
+        if self._last_m117_status and 'm117_status' in self._message_parts:
+            mess += f"{self._last_m117_status}\n"
+        if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
+            mess += f"{self._last_tgnotify_status}\n"
         self._notify(mess, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):
@@ -231,10 +231,10 @@ class Notifier:
 
     def _send_print_finish(self):
         mess = self._klippy.get_print_stats('Finished printing')
-        if self._last_display_status_message and 'display_status' in self._message_parts:
-            mess += f"{self._last_display_status_message}\n"
-        if self._last_manual_setted_message and 'manual_status' in self._message_parts:
-            mess += f"{self._last_manual_setted_message}\n"
+        if self._last_m117_status and 'm117_status' in self._message_parts:
+            mess += f"{self._last_m117_status}\n"
+        if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
+            mess += f"{self._last_tgnotify_status}\n"
         self._notify(mess, self._silent_progress, self._group_only)
         self.reset_notifications()
 

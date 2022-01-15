@@ -566,7 +566,7 @@ def status_response(status_resp):
             if not timelapse.manual_mode:
                 timelapse.paused = True
     if 'display_status' in status_resp:
-        notifier.display_status_message = status_resp['display_status']['message']
+        notifier.m117_status = status_resp['display_status']['message']
         klippy.printing_progress = status_resp['display_status']['progress']
     if 'virtual_sdcard' in status_resp:
         klippy.vsd_progress = status_resp['virtual_sdcard']['progress']
@@ -608,8 +608,8 @@ def notify_gcode_reponse(message_params):
         notifier.send_error(message_params[0][8:])
     if message_params[0].startswith('tgalarm_photo '):
         notifier.send_error_with_photo(message_params[0][14:])
-    if message_params[0].startswith('tgnotify_manual_status '):
-        notifier.manual_status_message = message_params[0][23:]
+    if message_params[0].startswith('tgnotify_status '):
+        notifier.tgnotify_status = message_params[0][16:]
     if message_params[0].startswith('set_timelapse_params '):
         timelapse.parse_timelapse_params(message_params[0])
     if message_params[0].startswith('set_notify_params '):
@@ -619,7 +619,7 @@ def notify_gcode_reponse(message_params):
 def notify_status_update(message_params):
     if 'display_status' in message_params[0]:
         if 'message' in message_params[0]['display_status']:
-            notifier.display_status_message = message_params[0]['display_status']['message']
+            notifier.m117_status = message_params[0]['display_status']['message']
         if 'progress' in message_params[0]['display_status']:
             klippy.printing_progress = message_params[0]['display_status']['progress']
             notifier.schedule_notification(progress=int(message_params[0]['display_status']['progress'] * 100))

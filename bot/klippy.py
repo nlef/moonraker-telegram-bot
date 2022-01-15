@@ -25,11 +25,11 @@ class Klippy:
         self._disabled_macros = config.telegramui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
         self.show_hidden_macros = config.telegramui.show_hidden_macros
         self._message_parts: list = config.telegramui.status_message_content
-        self._eta_source: str = config.bot.eta_source
+        self._eta_source: str = config.telegramui.eta_source
         self._light_device = light_device
         self._psu_device = psu_device
-        self._sensors_list: list = config.bot.sensors_list
-        self._heates_list: list = config.bot.heates_list
+        self._sensors_list: list = config.telegramui.status_message_sensors
+        self._heates_list: list = config.telegramui.status_message_heaters
         self._user = config.bot.user
         self._passwd = config.bot.passwd
 
@@ -283,7 +283,7 @@ class Klippy:
             if self.filament_weight > 0.0 and 'filament_weight' in self._message_parts:
                 message += f', weight: {round(self._filament_weight_used(), 2)}/{self.filament_weight}g'
             message += '\n'
-        if 'printing_duration' in self._message_parts:
+        if 'print_duration' in self._message_parts:
             message += f'Printing for {timedelta(seconds=round(self.printing_duration))}\n'
 
         eta = self._get_eta()
@@ -294,6 +294,7 @@ class Klippy:
 
         return message
 
+    #Fixme: add sensors to get_status()
     def get_print_stats(self, message_pre: str = ''):
         message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
         if 'power_devices' in self._message_parts:

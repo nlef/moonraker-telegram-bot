@@ -8,14 +8,11 @@ class BotConfig:
         self.socks_proxy = config.get('bot', 'socks_proxy', fallback='')
         self.token = config.get('bot', 'bot_token')
         self.chat_id = config.getint('bot', 'chat_id')
-        self.eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
         self.debug = config.getboolean('bot', 'debug', fallback=False)
         self.log_parser = config.getboolean('bot', 'log_parser', fallback=False)
         self.log_path = config.get('bot', 'log_path', fallback='/tmp')
         self.poweroff_device_name = config.get('bot', 'power_device', fallback='')
         self.light_device_name = config.get('bot', 'light_device', fallback="")
-        self.sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
-        self.heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
         self.user = config.get('bot', 'user', fallback='')
         self.passwd = config.get('bot', 'password', fallback='')
 
@@ -72,13 +69,18 @@ class TelegramUIConfig:
         self.status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
         self.pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
         self.status_message_content: list = [el.strip() for el in config.get('telegram_ui', 'status_message_content').split(',')] if 'telegram_ui' in config and 'status_message_content' in config['telegram_ui'] else \
-            ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
-        self.hidden_methods = [el.strip() for el in config.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in config and 'hidden_methods' in config['telegram_ui'] else list()
+            ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status']
+        self.hidden_methods = [el.strip() for el in config.get('telegram_ui', 'hidden_buttons').split(',')] if 'telegram_ui' in config and 'hidden_buttons' in config['telegram_ui'] else list()
         self.custom_buttons = [el.strip() for el in config.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in config and 'custom_buttons' in config['telegram_ui'] else list()
         self.require_confirmation_macro = config.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
         self.include_macros_in_command_list = config.getboolean('telegram_ui', 'include_macros_in_command_list', fallback=True)
         self.disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
         self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)
+        self.eta_source: str = config.get('telegram_ui', 'eta_source', fallback='slicer')
+        self.status_message_sensors: list = [el.strip() for el in config.get('telegram_ui', 'status_message_sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
+        self.status_message_heaters: list = [el.strip() for el in config.get('telegram_ui', 'status_message_heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
+        # Todo: implement
+        # status_message_devices:
 
 
 class ConfigWrapper:
