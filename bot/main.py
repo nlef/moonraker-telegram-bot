@@ -106,7 +106,7 @@ def check_unfinished_lapses():
     if not files:
         return
     bot_updater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'lapse:{el}'), files))))
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(text=el, callback_data=f'lapse:{hashlib.md5(el.encode()).hexdigest()}'), files))))
     files_keys.append([InlineKeyboardButton(emoji.emojize(':no_entry_sign: ', use_aliases=True), callback_data='do_nothing')])
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
@@ -264,7 +264,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             elif query.message.caption:
                 query.message.edit_caption(caption=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
-        lapse_name = query.data.replace('lapse:', '')
+        lapse_name = next(filter(lambda el: el[0].callback_data == query.data, query.message.reply_markup.inline_keyboard))[0].text
         info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
         query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
         # Todo: refactor all timelapse cals
