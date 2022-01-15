@@ -17,6 +17,7 @@ import cv2
 from PIL import Image, _webp
 from telegram import Message
 
+from bot.configuration import ConfigWrapper
 from klippy import Klippy
 from power_device import PowerDevice
 
@@ -61,22 +62,21 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(self, config: configparser.ConfigParser, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler = None, debug: bool = False):
-        camera_host = config.get('camera', 'host', fallback=f"http://{klippy.moonraker_host}:8080/?action=stream")  # Todo: remove default host?
-        self._host = int(camera_host) if str.isdigit(camera_host) else camera_host
-        self.enabled: bool = 'camera' in config
-        self._threads: int = config.getint('camera', 'threads', fallback=int(os.cpu_count() / 2))
-        self._flipVertically: bool = config.getboolean('camera', 'flipVertically', fallback=False)
-        self._flipHorizontally: bool = config.getboolean('camera', 'flipHorizontally', fallback=False)
-        rotate: str = config.get('camera', 'rotate', fallback='')
-        self._fourcc: str = config.get('camera', 'fourcc', fallback='x264')
-        self._videoDuration: int = config.getint('camera', 'videoDuration', fallback=5)
-        self._stream_fps: int = config.getint('camera', 'fps', fallback=0)
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler = None):
+        self.enabled: bool = config.camera.enabled
+        self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
+        self._threads: int = config.camera.threads
+        self._flipVertically: bool = config.camera.flipVertically
+        self._flipHorizontally: bool = config.camera.flipHorizontally
+        self._fourcc: str = config.camera.fourcc
+        self._videoDuration: int = config.camera.videoDuration
+        self._stream_fps: int = config.camera.stream_fps
         self._klippy: Klippy = klippy
+
         # Todo: refactor into timelapse class
-        self._base_dir: str = config.get('timelapse', 'basedir', fallback='/tmp/timelapse')  # Fixme: relative path failed! ~/timelapse
-        self._ready_dir: str = config.get('timelapse', 'copy_finished_timelapse_dir', fallback='')  # Fixme: relative path failed! ~/timelapse
-        self._cleanup: bool = config.getboolean('timelapse', 'cleanup', fallback=True)
+        self._base_dir: str = config.timelapse.base_dir
+        self._ready_dir: str = config.timelapse.ready_dir
+        self._cleanup: bool = config.timelapse.cleanup
 
         self._target_fps: int = 15
         self._min_lapse_duration: int = 0
@@ -86,7 +86,7 @@ class Camera:
         self._light_need_off: bool = False
         self._light_need_off_lock = threading.Lock()
 
-        self.light_timeout: int = config.getint('camera', 'light_control_timeout', fallback=0)
+        self.light_timeout: int = config.camera.light_timeout
         self.light_device: PowerDevice = light_device
         self._camera_lock = threading.Lock()
         self.light_lock = threading.Lock()
@@ -95,13 +95,12 @@ class Camera:
 
         self._hw_accel: bool = False
 
-        picture_quality = config.get('camera', 'picture_quality', fallback='high')
-        if picture_quality == 'low':
+        if config.camera.picture_quality == 'low':
             self._img_extension: str = 'jpeg'
-        elif picture_quality == 'high':
+        elif config.camera.picture_quality == 'high':
             self._img_extension: str = 'webp'
         else:
-            self._img_extension: str = picture_quality
+            self._img_extension: str = config.camera.picture_quality
 
         self._light_requests: int = 0
         self._light_request_lock = threading.Lock()
@@ -113,18 +112,18 @@ class Camera:
         elif self._flipVertically:
             self._flip = 0
 
-        if rotate == '90_cw':
+        if config.camera.rotate == '90_cw':
             self._rotate_code = cv2.ROTATE_90_CLOCKWISE
-        elif rotate == '90_ccw':
+        elif config.camera.rotate == '90_ccw':
             self._rotate_code = cv2.ROTATE_90_COUNTERCLOCKWISE
-        elif rotate == '180':
+        elif config.camera.rotate == '180':
             self._rotate_code = cv2.ROTATE_180
         else:
             self._rotate_code = -10
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug:
+        if config.bot.debug:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"

@@ -1,5 +1,4 @@
 # Todo: class for printer states!
-import configparser
 import logging
 import re
 import time
@@ -11,6 +10,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 from io import BytesIO
 
+from bot.configuration import ConfigWrapper
 from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)
@@ -20,20 +20,18 @@ class Klippy:
     _DATA_UPDATE_MACRO = 'bot_data_update'
     _DATA_MACRO = 'bot_data'
 
-    def __init__(self, config: configparser.ConfigParser, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None, debug: bool = False):
-        self._host = config.get('bot', 'server', fallback='localhost')
-        disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
-        self._disabled_macros = disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
-        self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)
-        self._message_parts: list = [el.strip() for el in config.get('telegram_ui', 'message_parts').split(',')] if 'telegram_ui' in config and 'message_parts' in config['telegram_ui'] else \
-            ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
-        self._eta_source: str = config.get('bot', 'eta_source', fallback='slicer')
+    def __init__(self, config: ConfigWrapper, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None):
+        self._host = config.bot.host
+        self._disabled_macros = config.telegramui.disabled_macros + [self._DATA_MACRO, self._DATA_UPDATE_MACRO]
+        self.show_hidden_macros = config.telegramui.show_hidden_macros
+        self._message_parts: list = config.telegramui.message_parts
+        self._eta_source: str = config.bot.eta_source
         self._light_device = light_device
         self._psu_device = psu_device
-        self._sensors_list: list = [el.strip() for el in config.get('bot', 'sensors').split(',')] if 'bot' in config and 'sensors' in config['bot'] else []
-        self._heates_list: list = [el.strip() for el in config.get('bot', 'heaters').split(',')] if 'bot' in config and 'heaters' in config['bot'] else []
-        self._user = config.get('bot', 'user', fallback='')
-        self._passwd = config.get('bot', 'password', fallback='')
+        self._sensors_list: list = config.bot.sensors_list
+        self._heates_list: list = config.bot.heates_list
+        self._user = config.bot.user
+        self._passwd = config.bot.passwd
 
         self._dbname = 'telegram-bot'
 
@@ -63,7 +61,7 @@ class Klippy:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug:
+        if config.bot.debug:
             logger.setLevel(logging.DEBUG)
 
         self._auth_moonraker()
@@ -173,7 +171,7 @@ class Klippy:
     def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
             return
-
+        # TOdo: add try catch
         res = requests.post(f"http://{self._host}/access/login", json={'username': self._user, 'password': self._passwd})
         if res.ok:
             # Todo: check if token refresh needed

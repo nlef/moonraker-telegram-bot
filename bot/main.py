@@ -17,6 +17,7 @@ from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
 
+from bot.configuration import ConfigWrapper
 from camera import Camera
 from klippy import Klippy
 from notifications import Notifier
@@ -54,14 +55,6 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 # some global params
-myId = random.randint(300000)
-chatId: int = 12341234
-debug: bool = False
-hidden_methods: list = list()
-custom_buttons: list = list()
-require_confirmation_macro: bool = False
-include_macros_in_command_list: bool = False
-
 bot_updater: Updater
 scheduler = BackgroundScheduler({
     'apscheduler.executors.default': {
@@ -71,6 +64,9 @@ scheduler = BackgroundScheduler({
     'apscheduler.job_defaults.coalesce': 'false',
     'apscheduler.job_defaults.max_instances': '1',
 }, daemon=True)
+
+configWrap: ConfigWrapper = None
+myId = random.randint(300000)
 cameraWrap: Camera
 timelapse: Timelapse
 notifier: Notifier
@@ -93,11 +89,11 @@ def status(update: Update, _: CallbackContext) -> None:
     mess = klippy.get_status()
     if cameraWrap.enabled:
         with cameraWrap.take_photo() as bio:
-            message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_PHOTO)
+            message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
             message_to_reply.reply_photo(photo=bio, caption=mess, disable_notification=notifier.silent_commands)
             bio.close()
     else:
-        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+        message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
         message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
 
 
@@ -105,11 +101,11 @@ def check_unfinished_lapses():
     files = cameraWrap.detect_unfinished_lapses()
     if not files:
         return
-    bot_updater.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    bot_updater.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(text=el, callback_data=f'lapse:{hashlib.md5(el.encode()).hexdigest()}'), files))))
     files_keys.append([InlineKeyboardButton(emoji.emojize(':no_entry_sign: ', use_aliases=True), callback_data='do_nothing')])
     reply_markup = InlineKeyboardMarkup(files_keys)
-    bot_updater.bot.send_message(chatId, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
+    bot_updater.bot.send_message(configWrap.bot.chat_id, text='Unfinished timelapses found\nBuild unfinished timelapse?', reply_markup=reply_markup, disable_notification=notifier.silent_status)
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
@@ -118,14 +114,14 @@ def get_video(update: Update, _: CallbackContext) -> None:
         message_to_reply.reply_text("camera is disabled", quote=True)
     else:
         info_reply: Message = message_to_reply.reply_text(text=f"Starting video recording", disable_notification=notifier.silent_commands, quote=True)
-        message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
             info_reply.edit_text(text="Uploading video")
             if video_bio.getbuffer().nbytes > 52428800:
                 info_reply.edit_text(text='Telegram has a 50mb restriction...')
             else:
                 message_to_reply.reply_video(video=video_bio, thumb=thumb_bio, width=width, height=height, caption='', timeout=120, disable_notification=notifier.silent_commands, quote=True)
-                message_to_reply.bot.delete_message(chat_id=chatId, message_id=info_reply.message_id)
+                message_to_reply.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_reply.message_id)
 
             video_bio.close()
             thumb_bio.close()
@@ -154,7 +150,7 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
 
 
 def pause_printing(update: Update, __: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
@@ -163,23 +159,23 @@ def resume_printing(_: Update, __: CallbackContext) -> None:
 
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Cancel printing?', reply_markup=confirm_keyboard('cancel_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def emergency_stop(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Execute emergency stop?', reply_markup=confirm_keyboard('emergency_stop'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def shutdown_host(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def power(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    message_to_reply.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     if psu_power_device:
         if psu_power_device.device_state:
             message_to_reply.reply_text('Power Off printer?', reply_markup=confirm_keyboard('power_off_printer'), disable_notification=notifier.silent_commands, quote=True)
@@ -198,7 +194,7 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
-    context.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     query = update.callback_query
     query.answer()
     # Todo: maybe regex check?
@@ -265,17 +261,17 @@ def button_handler(update: Update, context: CallbackContext) -> None:
                 query.message.edit_caption(caption=f"Failed start printing file {filename}")
     elif 'lapse:' in query.data:
         lapse_name = next(filter(lambda el: el[0].callback_data == query.data, query.message.reply_markup.inline_keyboard))[0].text
-        info_mess: Message = query.bot.send_message(chat_id=chatId, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
-        query.bot.send_chat_action(chat_id=chatId, action=ChatAction.RECORD_VIDEO)
+        info_mess: Message = query.bot.send_message(chat_id=configWrap.bot.chat_id, text=f"Starting time-lapse assembly for {lapse_name}", disable_notification=notifier.silent_commands)
+        query.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
         # Todo: refactor all timelapse cals
         (video_bio, thumb_bio, width, height, video_path, gcode_name) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
         info_mess.edit_text(text="Uploading time-lapse")
         if video_bio.getbuffer().nbytes > 52428800:
             info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
         else:
-            query.bot.send_video(chatId, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {lapse_name}', timeout=120,
+            query.bot.send_video(configWrap.bot.chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {lapse_name}', timeout=120,
                                  disable_notification=notifier.silent_commands)
-            query.bot.delete_message(chat_id=chatId, message_id=info_mess.message_id)
+            query.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_mess.message_id)
 
         video_bio.close()
         thumb_bio.close()
@@ -291,7 +287,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
         filename = element['path'] if 'path' in element else element['filename']
         return InlineKeyboardButton(filename, callback_data=hashlib.md5(filename.encode()).hexdigest() + '.gcode')
 
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     files_keys = list(map(list, zip(map(create_file_button, klippy.get_gcode_files()))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
@@ -309,8 +305,8 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
 
 
 def get_macros(update: Update, _: CallbackContext) -> None:
-    update.effective_message.bot.send_chat_action(chat_id=chatId, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if require_confirmation_macro else f'macro:{el}'), klippy.macros))))
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    files_keys = list(map(list, zip(map(lambda el: InlineKeyboardButton(el, callback_data=f'macroc:{el}' if configWrap.telegramui.require_confirmation_macro else f'macro:{el}'), klippy.macros))))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.effective_message.reply_text('Gcode macros:', reply_markup=reply_markup, disable_notification=notifier.silent_commands, quote=True)
@@ -319,7 +315,7 @@ def get_macros(update: Update, _: CallbackContext) -> None:
 def macros_handler(update: Update, _: CallbackContext) -> None:
     command = update.effective_message.text.replace('/', '').upper()
     if command in klippy.macros_all:
-        if require_confirmation_macro:
+        if configWrap.telegramui.require_confirmation_macro:
             update.effective_message.reply_text(f"Execute marco {command}?", reply_markup=confirm_keyboard(f'macro:{command}'), disable_notification=notifier.silent_commands, quote=True)
         else:
             klippy.execute_command(command)
@@ -329,7 +325,7 @@ def macros_handler(update: Update, _: CallbackContext) -> None:
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=chatId, action=ChatAction.UPLOAD_DOCUMENT)
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.message.document
     if not doc.file_name.endswith(('.gcode', '.zip')):
         update.message.reply_text(f"unknown filetype in {doc.file_name}", disable_notification=notifier.silent_commands, quote=True)
@@ -397,7 +393,7 @@ def create_keyboard():
         custom_keyboard.append('/power')
     if light_power_device:
         custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in hidden_methods] + custom_buttons
+    filtered = [key for key in custom_keyboard if key not in configWrap.telegramui.hidden_methods] + configWrap.telegramui.custom_buttons
     keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
     return keyboard
 
@@ -424,7 +420,7 @@ def greeting_message():
     response = klippy.check_connection()
     mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    bot_updater.bot.send_message(chatId, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
+    bot_updater.bot.send_message(configWrap.bot.chat_id, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     commands = [
         ('help', 'list bot commands'),
         ('status', 'send klipper status'),
@@ -441,7 +437,7 @@ def greeting_message():
         ('bot_restart', 'restarts the bot service, useful for config updates'),
         ('shutdown', 'shutdown Pi gracefully')
     ]
-    if include_macros_in_command_list:
+    if configWrap.telegramui.include_macros_in_command_list:
         commands += list(map(lambda el: (el.lower(), el), klippy.macros))
         if len(commands) >= 100:
             logger.warning("Commands list too large!")
@@ -459,7 +455,7 @@ def start_bot(bot_token, socks):
 
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(MessageHandler(~Filters.chat(chatId), unknown_chat))
+    dispatcher.add_handler(MessageHandler(~Filters.chat(configWrap.bot.chat_id), unknown_chat))
 
     dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
@@ -817,52 +813,37 @@ if __name__ == '__main__':
     os.chdir(sys.path[0])
 
     conf.read(system_args.configfile)
+    configWrap = ConfigWrapper(conf)
 
-    host = conf.get('bot', 'server', fallback='localhost')
-    socks_proxy = conf.get('bot', 'socks_proxy', fallback='')
-    token = conf.get('bot', 'bot_token')
-    chatId = conf.getint('bot', 'chat_id')
+    if not configWrap.bot.log_path == '/tmp':
+        Path(configWrap.bot.log_path).mkdir(parents=True, exist_ok=True)
 
-    debug = conf.getboolean('bot', 'debug', fallback=False)
-    log_parser = conf.getboolean('bot', 'log_parser', fallback=False)
-    log_path = conf.get('bot', 'log_path', fallback='/tmp')
-
-    hidden_methods = [el.strip() for el in conf.get('telegram_ui', 'hidden_methods').split(',')] if 'telegram_ui' in conf and 'hidden_methods' in conf['telegram_ui'] else list()
-    custom_buttons = [el.strip() for el in conf.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in conf and 'custom_buttons' in conf['telegram_ui'] else list()
-    require_confirmation_macro = conf.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
-    include_macros_in_command_list = conf.getboolean('telegram_ui', 'include_macros_in_command_list', fallback=True)
-
-    if not log_path == '/tmp':
-        Path(log_path).mkdir(parents=True, exist_ok=True)
-
-    rotatingHandler = RotatingFileHandler(os.path.join(f'{log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3)
+    rotatingHandler = RotatingFileHandler(os.path.join(f'{configWrap.bot.log_path}/', 'telegram.log'), maxBytes=26214400, backupCount=3)
     rotatingHandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(rotatingHandler)
 
-    if debug:
+    if configWrap.bot.debug:
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
         logging.getLogger('apscheduler').addHandler(rotatingHandler)
 
-    poweroff_device_name = conf.get('bot', 'power_device', fallback='')
-    light_device_name = conf.get('bot', 'light_device', fallback="")
-    light_power_device = PowerDevice(light_device_name, host)
-    psu_power_device = PowerDevice(poweroff_device_name, host)
+    light_power_device = PowerDevice(configWrap.bot.light_device_name, configWrap.bot.host)
+    psu_power_device = PowerDevice(configWrap.bot.poweroff_device_name, configWrap.bot.host)
 
-    klippy = Klippy(conf, light_power_device, psu_power_device, rotatingHandler, debug)
-    cameraWrap = Camera(conf, klippy, light_power_device, rotatingHandler, debug)
-    bot_updater = start_bot(token, socks_proxy)
-    timelapse = Timelapse(conf, klippy, cameraWrap, scheduler, bot_updater, chatId, rotatingHandler, debug)
-    notifier = Notifier(conf, bot_updater, chatId, klippy, cameraWrap, scheduler, rotatingHandler, debug)
+    klippy = Klippy(configWrap, light_power_device, psu_power_device, rotatingHandler)
+    cameraWrap = Camera(configWrap, klippy, light_power_device, rotatingHandler)
+    bot_updater = start_bot(configWrap.bot.token, configWrap.bot.socks_proxy)
+    timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
+    notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)
 
     scheduler.start()
 
     greeting_message()
 
-    ws = websocket.WebSocketApp(f"ws://{host}/websocket{klippy.one_shot_token}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
+    ws = websocket.WebSocketApp(f"ws://{configWrap.bot.host}/websocket{klippy.one_shot_token}", on_message=websocket_to_message, on_open=on_open, on_error=on_error, on_close=on_close)
 
     # debug reasons only
-    if log_parser:
+    if configWrap.bot.log_parser:
         parselog()
 
     scheduler.add_job(reshedule, 'interval', seconds=2, id='ws_reschedule', replace_existing=True)

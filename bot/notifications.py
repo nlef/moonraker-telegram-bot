@@ -1,10 +1,9 @@
-import configparser
 import logging
 
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto
-from telegram.ext import Updater
 
+from bot.configuration import ConfigWrapper
 from camera import Camera
 from klippy import Klippy
 
@@ -12,27 +11,25 @@ logger = logging.getLogger(__name__)
 
 
 class Notifier:
-    def __init__(self, config: configparser.ConfigParser, bot_updater: Updater, chat_id: int, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler, logging_handler: logging.Handler = None,
-                 debug: bool = False):
-        self._bot: Bot = bot_updater.bot
-        self._chat_id: int = chat_id
+    def __init__(self, config: ConfigWrapper, bot: Bot, klippy: Klippy, camera_wrapper: Camera, scheduler: BaseScheduler, logging_handler: logging.Handler = None):
+        self._bot: Bot = bot
+        self._chat_id: int = config.bot.chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._sched = scheduler
         self._klippy: Klippy = klippy
 
-        self._percent: int = config.getint('progress_notification', 'percent', fallback=0)
-        self._height: int = config.getint('progress_notification', 'height', fallback=0)
-        self._interval: int = config.getint('progress_notification', 'time', fallback=0)
-        self._notify_groups: list = [el.strip() for el in config.get('progress_notification', 'groups').split(',')] if 'progress_notification' in config and 'groups' in config['progress_notification'] else list()
-        self._group_only: bool = config.getboolean('progress_notification', 'group_only', fallback=False)
+        self._percent: int = config.notifications.percent
+        self._height: int = config.notifications.height
+        self._interval: int = config.notifications.interval
+        self._notify_groups: list = config.notifications.notify_groups
+        self._group_only: bool = config.notifications.group_only
 
-        self._silent_progress = config.getboolean('telegram_ui', 'silent_progress', fallback=False)
-        self._silent_commands = config.getboolean('telegram_ui', 'silent_commands', fallback=False)
-        self._silent_status = config.getboolean('telegram_ui', 'silent_status', fallback=False)
-        self._status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
-        self._pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
-        self._message_parts: list = [el.strip() for el in config.get('telegram_ui', 'message_parts').split(',')] if 'telegram_ui' in config and 'message_parts' in config['telegram_ui'] else \
-            ['progress', 'height', 'filament_length', 'filament_weight', 'printing_duration', 'eta', 'finish_time', 'power_devices', 'display_status', 'manual_status']
+        self._silent_progress = config.telegramui.silent_progress
+        self._silent_commands = config.telegramui.silent_commands
+        self._silent_status = config.telegramui.silent_status
+        self._status_single_message = config.telegramui.status_single_message
+        self._pin_status_single_message = config.telegramui.pin_status_single_message  # Todo: implement
+        self._message_parts: list = config.telegramui.message_parts
 
         self._last_height: int = 0
         self._last_percent: int = 0
@@ -43,7 +40,7 @@ class Notifier:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if debug:
+        if config.bot.debug:
             logger.setLevel(logging.DEBUG)
 
     @property
