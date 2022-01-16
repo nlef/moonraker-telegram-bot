@@ -16,15 +16,10 @@ server: localhost
 #	In most cases it will be 'localhost'. Alternatively, an ip:port, as in 192.168.0.19:7125 can be entered, 
 #	if you are running multiple moonraker instances on the machine, or if the bot is located not on the printer itself.
 bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#	This is the bot token, the most important part of every bot. 
-#	You get it when you create a new bot. To create a new bot, you have to talk to @BotFather in telegram. 
-#	The only thing you need is the token, the rest is taken care of by the chat_id.
-#	Only the chat with the correct chat_id can send/receive commands to the bot.
+#	This is the bot token. Please keep it safe and do not post it online.
+#	Only the chat with the correct chat_id can send/receive commands to/from the bot.
 chat_id: xxxxxxxxx
 #	This is the ID of the chat, where the bot is supposed to be able to send updates to. 
-#	To get the ID, after creating a new bot write something to this bot, then navigate to 
-#	https://api.telegram.org/bot<bot_token>/getUpdates you will see json with information about your message, sent to the bot. 
-#	Find chat_id there.
 #socks_proxy: 192.168.0.22:1080
 #	If needed, you can configure the bot to use a socks5 proxy. 
 #user: root
@@ -48,18 +43,6 @@ chat_id: xxxxxxxxx
 #	You can change the path for the logfiles. The default behaviour is to place them under /tmp.
 #	On a typical installation this would mean, that logs get cleared on a reboot.
 #	You can choose another location, if needed.
-#eta_source: slicer
-#	You can choose, which value to use for remaining time estimation.
-#	Values avaliable: slicer, file
-#	Default value is slicer.
-#sensors: mcu, ..., ...
-#	You can add temperature sensors, like the "mcu" sensor to be displayed in the status message. 
-#	Simply enter the names from your klipper config, separated by commas.
-#	Default is not to display any additional temperature sensors.
-#heaters: extruder, heater_bed
-#	You can add heaters, like the extruder, or the bed to be displayed in the status message. 
-#	Simply enter the names from your klipper config, separated by commas.
-#	Default is not to display any additional heaters. 
 ```
 
 ## [camera]
@@ -187,7 +170,11 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 [telegram_ui]
 #status_single_message: true
 #	This lets you revert to old multiple-message notification.
-#hidden_methods: /bot_restart
+#eta_source: slicer
+#	You can choose, which value to use for remaining time estimation.
+#	Values avaliable: slicer, file
+#	Default value is slicer.
+#hidden_buttons: /bot_restart
 #	This allows you to hide unused buttons from your bots keyboard. A good example is the bot_restart command - 
 #	after you are finished configuring everything, you propably don't need the command as a key on the keyboard.
 #	This does not disable the command - you can still run the command by typing it into the chat
@@ -222,6 +209,23 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #show_hidden_macros: false
 #	You can decide to show service macros prefaced with a "_" in the autocomplete list.
 #	Default is to hide and not autocomplete these macros.
-#message_parts: progress, height, filament_length
-# Default: progress, height, filament_length, filament_weight, printing_duration, eta, finish_time, power_devices, display_status, manual_status
+
+
+#status_message_content: progress, height, filament_length, filament_weight, print_duration, eta, finish_time, m117_status, tgnotify_status
+
+
+#status_message_sensors: mcu, ..., ...
+#	You can add temperature sensors, like the "mcu" sensor to be displayed in the status message. 
+#	Simply enter the names from your klipper config, separated by commas.
+#	Default is not to display any additional temperature sensors.
+
+#status_message_heaters: extruder, heater_bed
+#	You can add heaters, like the extruder, or the bed to be displayed in the status message. 
+#	Simply enter the names from your klipper config, separated by commas.
+#	Default is not to display any additional heaters. 
+
+#status_message_devices: light, psu
+#
+#
+# 
 ```

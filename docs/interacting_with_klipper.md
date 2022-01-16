@@ -5,16 +5,6 @@ This document is a reference for available interactions between klipper and moon
 
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
-## m117 gcode
-```
-Printed 20mm
-Layer 99/120
-Estimated time left: 0:11:35
-Finish at 2021-12-10 15:28
-```
-`Layer 99/120` is message fom m117 gcode. 
-
-
 # RESPOND commands for bot interaction
 
 ## Running macros from the chat window
@@ -29,6 +19,11 @@ This might not seem useful on first sight, but opens up some interesting possibi
 You have the possibility to run any gcode directly from the chat interface.
 Simply type `/gcode %your gcode here%` into the chat. Spaces are supported.
 Example usage would be typing `/gcode G28 X Y` into the chat.
+
+## Status message contents
+You can add custom information to your status message. The bot automatically 
+
+
 
 
 ## Manual timelapse modes
@@ -51,7 +46,10 @@ Works exactly the same as the simple notify command, but also takes a photo from
 An example command, to be sent from gcode or from a macro would be `RESPOND PREFIX=tgalarm MSG=my_message` or `RESPOND PREFIX=tgalarm MSG="my message with spaces"` if you need spaces.
 - `tgalarm_photo` Captures a picture, sends a message with an alert. You get a "red" notification with sound or vibration.
 Works exactly the same as the simple alarm command, but also takes a photo from the camera. It respects all the settings from the ```[camera]``` config section.
-- `tgnotify_manual_status` status message, appened to notification message
+
+
+
+- `tgnotify_status`   status message, appened to notification message
 
 ## Runtime lapse and notification setting
 If you want to run specific notifications and lapse settings based on criteria from the slicer, you can issue the following command to the bot:
@@ -65,29 +63,3 @@ Parameters for the notifications give you the option to control settings similar
 `RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"`
 
 This run-time setting behaves similarly to klipper - the requested parameters remain consistent until the next restart of the bot.
-
-## Macro for storing finished timelapse variables
-```
-# lapse_duration, lapse_video_size, lapse_path, lapse_filename
-[gcode_macro bot_data]
-variable_lapse_video_size: 0
-variable_lapse_filename: 'None'
-variable_lapse_path: 'None'
-gcode:
-    M118 Setting bot lapse variables
-    M118 lapse_filename {lapse_filename}
-    M118 lapse_path {lapse_path}
-    M118 lapse_video_size {lapse_video_size}
-
-
-[gcode_macro bot_data_update]
-gcode:
-    # M118 { rawparams }
-    {% set lapse_video_size = params.VIDEO_SIZE|default(0)|int %} # size in bites
-    {% set lapse_filename = params.FILENAME|default('None')|string %}
-    {% set lapse_path = params.PATH|default('None')|string %}
-    # M118 lapse_filename {lapse_filename} lapse_path {lapse_path_full}
-    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_video_size}
-    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='"{lapse_filename}"'
-    SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='"{lapse_path}"'
-```
