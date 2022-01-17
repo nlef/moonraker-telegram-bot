@@ -38,8 +38,8 @@ Copy this id to the `telegram.conf` in the `[bot]` section.
 Restart the bot with `sudo systemctl restart moonraker-telegram-bot`.  
 
 You should get a response from the bot in chat, and base functionality should be accessible.
-If you are not getting any meaningful responses from the bot, or no response at all, you propably have made mistakes while installing it have a corrupted installation, or the bot is not able to reach telegram servers.
-Try checking the logs in `/tmp` or a clean reinstall. 
+If you are not getting any meaningful responses from the bot, or no response at all, you propably have made mistakes while installing it and have a corrupted installation, or the bot is not able to reach telegram servers.
+Try checking the logs in (default would be `~/klipper_logs/`) or do a clean reinstall. 
 
 **After step 3 the bot should be running properly and respond to commands, as well as present you with buttons. You can restart the bot directly with /bot_restart after this for any config changes.**
 

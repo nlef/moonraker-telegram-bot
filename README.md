@@ -18,16 +18,17 @@ As always with solutions like these, we kindly remind you not to print unattende
 - Configurable timelapsing (https://youtu.be/gzbzW7Vv2cs)
 - Configurable keyboard for easy control without command typing in the bot
 - Macro/gcode execution via the bot chat
-- Moonraker power device control for PSU/MCU control
+- Moonraker power device control for PSU/MCU
 - Sampling of photos/videos on request at any time
-- Pause, Cancel, Resume with a double confirmation 
-- Emergency stop with a double confirmation
+- Pause, Cancel, Resume
+- Emergency stop
 
 
-## Currently available commands:
+## Sample commands available:
 
-These are the commands, which are currently available in the bot. Most of them are configurable according to the informations provided in the [config_sample](docs/config_sample.md).  
-All commands are available on the bot keyboard, unused commands can be hidden via config.
+This is a basic overview of different commands available "out of the box" after installation.
+To get an indepth overview over available functionality you can check out the [config_sample](docs/config_sample.md).  
+Commands can be entered directly in chat, suggested by telegram hightlightning or placed as buttons.
 
 ```
 	/status			- get the status (printing, paused, error) of the printer
