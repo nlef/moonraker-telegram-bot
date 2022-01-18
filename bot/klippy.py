@@ -271,7 +271,7 @@ class Klippy:
         if 'progress' in self._message_parts:
             message += f'Progress {round(self.printing_progress * 100, 0)}%'
         if 'height' in self._message_parts:
-            message += f', height: {self.printing_height}mm\n' if self.printing_height > 0.0 else "\n"
+            message += f', height: {round(self.printing_height, 2)}mm\n' if self.printing_height > 0.0 else "\n"
         if self.filament_total > 0.0:
             if 'filament_length' in self._message_parts:
                 message += f'Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m'
@@ -289,7 +289,6 @@ class Klippy:
 
         return message
 
-    # Fixme: add sensors to get_status()
     def get_print_stats(self, message_pre: str = ''):
         message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
         if 'power_devices' in self._message_parts:

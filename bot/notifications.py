@@ -58,6 +58,7 @@ class Notifier:
     @m117_status.setter
     def m117_status(self, new_value: str):
         self._last_m117_status = new_value
+        self._schedule_notification()
 
     @property
     def tgnotify_status(self):
@@ -66,6 +67,7 @@ class Notifier:
     @tgnotify_status.setter
     def tgnotify_status(self, new_value: str):
         self._last_tgnotify_status = new_value
+        self._schedule_notification()
 
     @property
     def percent(self):
@@ -158,6 +160,16 @@ class Notifier:
         self._last_tgnotify_status = ''
         self._status_message = None
 
+    def _schedule_notification(self):
+        mess = self._klippy.get_print_stats()
+        if self._last_m117_status and 'm117_status' in self._message_parts:
+            mess += f"{self._last_m117_status}\n"
+        if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
+            mess += f"{self._last_tgnotify_status}\n"
+
+        self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
+                            replace_existing=False)
+
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
             return
@@ -178,14 +190,7 @@ class Notifier:
                 notify = True
 
         if notify:
-            mess = self._klippy.get_print_stats()
-            if self._last_m117_status and 'm117_status' in self._message_parts:
-                mess += f"{self._last_m117_status}\n"
-            if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-                mess += f"{self._last_tgnotify_status}\n"
-
-            self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
-                                replace_existing=False)
+            self._schedule_notification()
 
     def _notify_by_time(self):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
