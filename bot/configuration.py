@@ -69,7 +69,7 @@ class TelegramUIConfig:
         self.status_single_message = config.getboolean('telegram_ui', 'status_single_message', fallback=True)
         self.pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
         self.status_message_content: list = [el.strip() for el in config.get('telegram_ui', 'status_message_content').split(',')] if 'telegram_ui' in config and 'status_message_content' in config['telegram_ui'] else \
-            ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status']
+            ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status', 'last_update_time']
         self.hidden_methods = [el.strip() for el in config.get('telegram_ui', 'hidden_buttons').split(',')] if 'telegram_ui' in config and 'hidden_buttons' in config['telegram_ui'] else list()
         self.custom_buttons = [el.strip() for el in config.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in config and 'custom_buttons' in config['telegram_ui'] else list()
         self.require_confirmation_macro = config.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)

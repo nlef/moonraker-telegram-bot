@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto
@@ -166,7 +167,8 @@ class Notifier:
             mess += f"{self._last_m117_status}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
             mess += f"{self._last_tgnotify_status}\n"
-
+        if 'last_update_time' in self._message_parts:
+            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
         self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
                             replace_existing=False)
 
@@ -201,6 +203,8 @@ class Notifier:
             mess += f"{self._last_m117_status}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
             mess += f"{self._last_tgnotify_status}\n"
+        if 'last_update_time' in self._message_parts:
+            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
         self._notify(mess, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):
@@ -240,6 +244,8 @@ class Notifier:
             mess += f"{self._last_m117_status}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
             mess += f"{self._last_tgnotify_status}\n"
+        if 'last_update_time' in self._message_parts:
+            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
         self._notify(mess, self._silent_progress, self._group_only)
         self.reset_notifications()
 
