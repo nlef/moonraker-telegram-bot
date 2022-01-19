@@ -402,17 +402,17 @@ def create_keyboard():
 
 def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('The following commands are known:\n\n'
-                              '/status - send klipper status\n'
-                              '/pause - pause printing\n'
-                              '/resume - resume printing\n'
-                              '/cancel - cancel printing\n'
-                              '/files - list last 5 files(you can start printing one from menu)\n'
+                              '/status - get printer status\n'
+                              '/pause - run PAUSE in klipper\n'
+                              '/resume -  run RESUME in klipper\n'
+                              '/cancel - run CANCEL_PRINT in klipper\n'
+                              '/files - list last 10 files to select for printing\n'
                               '/macros - list all visible macros from klipper\n'
                               '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
-                              '/video - will take mp4 video from camera\n'
+                              '/video - record a short videoclip and send it to telegram\n'
                               '/power - toggle moonraker power device from config\n'
-                              '/light - toggle light\n'
-                              '/emergency - emergency stop printing\n'
+                              '/light - toggle moonraker device specified in "light"in the config\n'
+                              '/emergency - emergency stop in klipper\n'
                               '/bot_restart - restarts the bot service, useful for config updates\n'
                               '/shutdown - shutdown Pi gracefully',
                               quote=True)
@@ -424,18 +424,18 @@ def greeting_message():
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(configWrap.bot.chat_id, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     commands = [
-        ('help', 'list bot commands'),
-        ('status', 'send klipper status'),
-        ('pause', 'pause printing'),
-        ('resume', 'resume printing'),
-        ('cancel', 'cancel printing'),
-        ('files', "list last 5 files. you can start printing one from menu"),
+        ('help', 'list available bot commands'),
+        ('status', 'get printer status'),
+        ('pause', 'run PAUSE in klipper'),
+        ('resume', 'run RESUME in klipper'),
+        ('cancel', 'run CANCEL_PRINT in klipper'),
+        ('files', 'list last 10 files to select for printing'),
         ('macros', 'list all visible macros from klipper'),
-        ('gcode', 'run any gcode command, spaces are supported. "gcode G28 Z"'),
-        ('video', 'will take mp4 video from camera'),
-        ('power', 'toggle moonraker power device from config'),
-        ('light', 'toggle light'),
-        ('emergency', 'emergency stop printing'),
+        ('gcode', 'run any gcode command, spaces are supported. "(gcode G28 Z)"'),
+        ('video', 'record a short videoclip and send it to telegram'),
+        ('power', 'toggle moonraker device specified in "power"in the config'),
+        ('light', 'toggle moonraker device specified in "light"in the config'),
+        ('emergency', 'emergency stop in klipper'),
         ('bot_restart', 'restarts the bot service, useful for config updates'),
         ('shutdown', 'shutdown Pi gracefully')
     ]
