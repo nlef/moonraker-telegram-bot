@@ -39,9 +39,8 @@ chat_id: xxxxxxxxx
 #debug: false
 #	This enables extensive logging. Only use it for debugging/troubleshooting.
 #	Default is to omit this/false.
-#log_path: /tmp
-#	You can change the path for the logfiles. The default behaviour is to place them under /tmp.
-#	On a typical installation this would mean, that logs get cleared on a reboot.
+#log_path: /klipper_logs
+#	You can change the path for the logfiles. The default behaviour is to place them under /klipper_logs.
 #	You can choose another location, if needed.
 ```
 
@@ -161,7 +160,7 @@ You can override these parameters with [runtime settings](interacting_with_klipp
 #send_finished_lapse: true
 #	If you want to build the lapse, but do not want to send it, set this to false. Default is true.
 #manual_mode: false
-#	Ff True, only commands from gcode will manage timelapse.
+#	If True, only commands from gcode will manage timelapse.
 #	Default is false.
 ```
 
