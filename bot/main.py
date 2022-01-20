@@ -388,31 +388,33 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:
 
 
 def create_keyboard():
-    custom_keyboard = ['/status', '/pause', '/cancel', '/resume', '/files', '/emergency', '/macros', '/shutdown']
+    custom_keyboard = []
     if cameraWrap.enabled:
         custom_keyboard.append('/video')
     if psu_power_device:
         custom_keyboard.append('/power')
     if light_power_device:
         custom_keyboard.append('/light')
-    filtered = [key for key in custom_keyboard if key not in configWrap.telegram_ui.hidden_methods] + configWrap.telegram_ui.custom_buttons
-    keyboard = [filtered[i:i + 4] for i in range(0, len(filtered), 4)]
+
+    keyboard = configWrap.telegram_ui.buttons
+    if len(custom_keyboard) > 0:
+        keyboard.append(custom_keyboard)
     return keyboard
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text('The following commands are known:\n\n'
-                              '/status - get printer status\n'
-                              '/pause - run PAUSE in klipper\n'
-                              '/resume -  run RESUME in klipper\n'
-                              '/cancel - run CANCEL_PRINT in klipper\n'
-                              '/files - list last 10 files to select for printing\n'
+                              '/status - send klipper status\n'
+                              '/pause - pause printing\n'
+                              '/resume - resume printing\n'
+                              '/cancel - cancel printing\n'
+                              '/files - list last 5 files(you can start printing one from menu)\n'
                               '/macros - list all visible macros from klipper\n'
                               '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
-                              '/video - record a short videoclip and send it to telegram\n'
+                              '/video - will take mp4 video from camera\n'
                               '/power - toggle moonraker power device from config\n'
-                              '/light - toggle moonraker device specified in "light"in the config\n'
-                              '/emergency - emergency stop in klipper\n'
+                              '/light - toggle light\n'
+                              '/emergency - emergency stop printing\n'
                               '/bot_restart - restarts the bot service, useful for config updates\n'
                               '/shutdown - shutdown Pi gracefully',
                               quote=True)
@@ -424,18 +426,18 @@ def greeting_message():
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(configWrap.bot.chat_id, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     commands = [
-        ('help', 'list available bot commands'),
-        ('status', 'get printer status'),
-        ('pause', 'run PAUSE in klipper'),
-        ('resume', 'run RESUME in klipper'),
-        ('cancel', 'run CANCEL_PRINT in klipper'),
-        ('files', 'list last 10 files to select for printing'),
+        ('help', 'list bot commands'),
+        ('status', 'send klipper status'),
+        ('pause', 'pause printing'),
+        ('resume', 'resume printing'),
+        ('cancel', 'cancel printing'),
+        ('files', "list last 5 files. you can start printing one from menu"),
         ('macros', 'list all visible macros from klipper'),
-        ('gcode', 'run any gcode command, spaces are supported. "(gcode G28 Z)"'),
-        ('video', 'record a short videoclip and send it to telegram'),
-        ('power', 'toggle moonraker device specified in "power"in the config'),
-        ('light', 'toggle moonraker device specified in "light"in the config'),
-        ('emergency', 'emergency stop in klipper'),
+        ('gcode', 'run any gcode command, spaces are supported. "gcode G28 Z"'),
+        ('video', 'will take mp4 video from camera'),
+        ('power', 'toggle moonraker power device from config'),
+        ('light', 'toggle light'),
+        ('emergency', 'emergency stop printing'),
         ('bot_restart', 'restarts the bot service, useful for config updates'),
         ('shutdown', 'shutdown Pi gracefully')
     ]

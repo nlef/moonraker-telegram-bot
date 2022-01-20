@@ -164,7 +164,7 @@ class Notifier:
     def _schedule_notification(self):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
             return
-        
+
         mess = self._klippy.get_print_stats()
         if self._last_m117_status and 'm117_status' in self._message_parts:
             mess += f"{self._last_m117_status}\n"

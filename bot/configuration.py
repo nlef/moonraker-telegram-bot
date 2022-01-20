@@ -1,5 +1,6 @@
 import configparser
 import os
+import re
 
 
 class BotConfig:
@@ -70,9 +71,11 @@ class TelegramUIConfig:
         self.pin_status_single_message = config.getboolean('telegram_ui', 'pin_status_single_message', fallback=False)  # Todo: implement
         self.status_message_content: list = [el.strip() for el in config.get('telegram_ui', 'status_message_content').split(',')] if 'telegram_ui' in config and 'status_message_content' in config['telegram_ui'] else \
             ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status', 'last_update_time']
-        self.hidden_methods = [el.strip() for el in config.get('telegram_ui', 'hidden_buttons').split(',')] if 'telegram_ui' in config and 'hidden_buttons' in config['telegram_ui'] else list()
-        self.custom_buttons = [el.strip() for el in config.get('telegram_ui', 'custom_buttons').split(',')] if 'telegram_ui' in config and 'custom_buttons' in config['telegram_ui'] else list()
-        self.require_confirmation_macro = config.getboolean('telegram_ui', 'require_confirmation_macro', fallback=False)
+
+        buttons_string = config.get('telegram_ui', 'buttons') if 'telegram_ui' in config and 'buttons' in config['telegram_ui'] else '[status,pause,cancel,resume],[files,emergency,macros,shutdown]'
+        # Todo: cleanup with trim  & etc
+        self.buttons = list(map(lambda el: list(map(lambda iel: f'/{iel}', el.replace('[', '').replace(']', '').split(','))), re.findall(r'\[.[^\]]*\]', buttons_string)))
+        self.require_confirmation_macro = config.getboolean('telegram_ui', 'require_confirmation_macro', fallback=True)
         self.include_macros_in_command_list = config.getboolean('telegram_ui', 'include_macros_in_command_list', fallback=True)
         self.disabled_macros = [el.strip() for el in config.get('telegram_ui', 'disabled_macros').split(',')] if 'telegram_ui' in config and 'disabled_macros' in config['telegram_ui'] else list()
         self.show_hidden_macros = config.getboolean('telegram_ui', 'show_hidden_macros', fallback=False)

@@ -177,16 +177,16 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #	You can choose, which value to use for remaining time estimation.
 #	Values avaliable: slicer, file
 #	Default value is slicer.
-#buttons: 
+#buttons: [status,pause,cancel,resume],[files,emergency,macros,shutdown]
 #	You can redefine, which buttons and in which position you want displayed.
 #	If this is not defined, the default order is used. Buttons are defined per row, each row separated.
 #	This allows you to add your own custom macros to the bot's keyboard as well. 
 #	Add or replace default bot commands with "/%macro_name%. The macro listed in this section
 #	should be defined in klipper config files, in UPPERCASE. Maximum macro name length is 54 chars.
-#require_confirmation_macro: false
+#require_confirmation_macro: true
 #	This parameter makes the bot confirm, if you want to run a macro, similar to the check which happens 
 #	with the "/shutdown" command.
-#	Default is false.
+#	Default is true.
 #silent_progress: false
 #	Sends the progress message (%/mm if configured) without an alert. You still get a "red" notification, 
 #	but it does not have sound or vibration.
