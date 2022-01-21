@@ -423,6 +423,8 @@ def help_command(update: Update, _: CallbackContext) -> None:
 def greeting_message():
     response = klippy.check_connection()
     mess = f'Bot online, no moonraker connection!\n {response} \nFailing...' if response else 'Printer online'
+    if configWrap.unknown_fields:
+        mess += f"\n{configWrap.unknown_fields}"
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(configWrap.bot.chat_id, text=mess, reply_markup=reply_markup, disable_notification=notifier.silent_status)
     commands = [

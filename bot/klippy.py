@@ -166,7 +166,7 @@ class Klippy:
         return loaded_macros
 
     def _get_marco_list(self) -> list:
-        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else "_" not in key)]
+        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))]
 
     def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
