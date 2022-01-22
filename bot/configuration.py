@@ -4,12 +4,12 @@ import re
 from typing import List
 
 
-def _check_config(config: configparser.ConfigParser, section_name: str, known_items: List[str]):
+def _check_config(config: configparser.ConfigParser, section_name: str, known_items: List[str]) -> str:
     if not config.has_section(section_name):
         return ''
     unknwn = list(map(lambda fil: f"    {fil[0]}: {fil[1]}\n", filter(lambda el: el[0] not in known_items, config.items(section_name))))
     if unknwn:
-        return f"[bot] unknown/bad items\n{''.join(unknwn)}\n"
+        return f"Unknown/bad items in [{section_name}] section:\n{''.join(unknwn)}\n"
     else:
         return ''
 
@@ -19,19 +19,19 @@ class BotConfig:
     _KNOWN_ITEMS = ['server', 'socks_proxy', 'bot_token', 'chat_id', 'debug', 'log_parser', 'log_path', 'power_device', 'light_device', 'user', 'password']
 
     def __init__(self, config: configparser.ConfigParser):
-        self.host = config.get(self._SECTION, 'server', fallback='localhost')
-        self.socks_proxy = config.get(self._SECTION, 'socks_proxy', fallback='')
-        self.token = config.get(self._SECTION, 'bot_token')
-        self.chat_id = config.getint(self._SECTION, 'chat_id')
-        self.debug = config.getboolean(self._SECTION, 'debug', fallback=False)
-        self.log_parser = config.getboolean(self._SECTION, 'log_parser', fallback=False)
-        self.log_path = config.get(self._SECTION, 'log_path', fallback='/tmp')
-        self.poweroff_device_name = config.get(self._SECTION, 'power_device', fallback='')
-        self.light_device_name = config.get(self._SECTION, 'light_device', fallback="")
-        self.user = config.get(self._SECTION, 'user', fallback='')
-        self.passwd = config.get(self._SECTION, 'password', fallback='')
+        self.host: str = config.get(self._SECTION, 'server', fallback='localhost')
+        self.socks_proxy: str = config.get(self._SECTION, 'socks_proxy', fallback='')
+        self.token: str = config.get(self._SECTION, 'bot_token')
+        self.chat_id: int = config.getint(self._SECTION, 'chat_id')
+        self.debug: bool = config.getboolean(self._SECTION, 'debug', fallback=False)
+        self.log_parser: bool = config.getboolean(self._SECTION, 'log_parser', fallback=False)
+        self.log_path: str = config.get(self._SECTION, 'log_path', fallback='/tmp')
+        self.poweroff_device_name: str = config.get(self._SECTION, 'power_device', fallback='')
+        self.light_device_name: str = config.get(self._SECTION, 'light_device', fallback="")
+        self.user: str = config.get(self._SECTION, 'user', fallback='')
+        self.passwd: str = config.get(self._SECTION, 'password', fallback='')
 
-        self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 
 class CameraConfig:
@@ -40,7 +40,7 @@ class CameraConfig:
 
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
-        self.host = config.get(self._SECTION, 'host', fallback=f"")  # Todo: remove default host?
+        self.host: str = config.get(self._SECTION, 'host', fallback=f"")  # Todo: remove default host?
         self.threads: int = config.getint(self._SECTION, 'threads', fallback=int(os.cpu_count() / 2))
         self.flipVertically: bool = config.getboolean(self._SECTION, 'flip_vertically', fallback=False)
         self.flipHorizontally: bool = config.getboolean(self._SECTION, 'flip_horizontally', fallback=False)
@@ -49,8 +49,8 @@ class CameraConfig:
         self.videoDuration: int = config.getint(self._SECTION, 'video_duration', fallback=5)
         self.stream_fps: int = config.getint(self._SECTION, 'fps', fallback=0)
         self.light_timeout: int = config.getint(self._SECTION, 'light_control_timeout', fallback=0)
-        self.picture_quality = config.get(self._SECTION, 'picture_quality', fallback='high')
-        self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.picture_quality: str = config.get(self._SECTION, 'picture_quality', fallback='high')
+        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 
 class NotifierConfig:
@@ -61,9 +61,9 @@ class NotifierConfig:
         self.percent: int = config.getint(self._SECTION, 'percent', fallback=0)
         self.height: int = config.getint(self._SECTION, 'height', fallback=0)
         self.interval: int = config.getint(self._SECTION, 'time', fallback=0)
-        self.notify_groups: list = [el.strip() for el in config.get(self._SECTION, 'groups').split(',')] if config.has_option(self._SECTION, 'groups') else list()
+        self.notify_groups: list = [el.strip() for el in config.get(self._SECTION, 'groups').split(',')] if config.has_option(self._SECTION, 'groups') else []
         self.group_only: bool = config.getboolean(self._SECTION, 'group_only', fallback=False)
-        self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 
 class TimelapseConfig:
@@ -88,7 +88,7 @@ class TimelapseConfig:
         self.after_lapse_gcode: str = config.get(self._SECTION, 'after_lapse_gcode', fallback='')
         self.send_finished_lapse: bool = config.getboolean(self._SECTION, 'send_finished_lapse', fallback=True)
 
-        self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 
 class TelegramUIConfig:
@@ -107,17 +107,17 @@ class TelegramUIConfig:
                                                                                                                                                             'status_message_content') else self._MESSAGE_CONTENT
 
         buttons_string = config.get(self._SECTION, 'buttons') if config.has_option(self._SECTION, 'buttons') else '[status,pause,cancel,resume],[files,emergency,macros,shutdown]'
-        self.buttons = list(map(lambda el: list(map(lambda iel: f'/{iel.strip()}', el.replace('[', '').replace(']', '').split(','))), re.findall(r'\[.[^\]]*\]', buttons_string)))
+        self.buttons: List[List[str]] = list(map(lambda el: list(map(lambda iel: f'/{iel.strip()}', el.replace('[', '').replace(']', '').split(','))), re.findall(r'\[.[^\]]*\]', buttons_string)))
         self.buttons_default: bool = False if config.has_option(self._SECTION, 'buttons') else True
         self.require_confirmation_macro: bool = config.getboolean(self._SECTION, 'require_confirmation_macro', fallback=True)
         self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, 'include_macros_in_command_list', fallback=True)
-        self.disabled_macros = [el.strip() for el in config.get(self._SECTION, 'disabled_macros').split(',')] if config.has_option(self._SECTION, 'disabled_macros') else list()
+        self.disabled_macros: List[str] = [el.strip() for el in config.get(self._SECTION, 'disabled_macros').split(',')] if config.has_option(self._SECTION, 'disabled_macros') else []
         self.show_hidden_macros: bool = config.getboolean(self._SECTION, 'show_hidden_macros', fallback=False)
         self.eta_source: str = config.get(self._SECTION, 'eta_source', fallback='slicer')
         self.status_message_sensors: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_sensors').split(',')] if config.has_option(self._SECTION, 'status_message_sensors') else []
         self.status_message_heaters: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_heaters').split(',')] if config.has_option(self._SECTION, 'status_message_heaters') else []
         self.status_message_devices: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_devices').split(',')] if config.has_option(self._SECTION, 'status_message_devices') else []
-        self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 
 class ConfigWrapper:
