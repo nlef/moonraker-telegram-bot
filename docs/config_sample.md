@@ -56,9 +56,9 @@ host: http://localhost:8080/?action=stream
 #	for example a vlc stream from a runcam webcam is absolutely possible. Do not feel contstrained by mjpeg streams.
 #fps: 30
 #	If you want to use the "/video" button/command, you should set the camera fps. Not set by default.
-#flipVertically: false
+#flip_vertically: false
 #	You can flip the camera image vertically, if needed. Disabled by default. Set to true if needed.
-#flipHorizontally: false
+#flip_horizontally: false
 #	You can flip the camera image horizontally, if needed. Disabled by default. Set to true if needed.
 #rotate: 90_cw
 #	You can rotate the camera image, if needed. Disabled by default.
@@ -69,7 +69,7 @@ host: http://localhost:8080/?action=stream
 #	the encoding is very weak.
 #threads: 2 
 #	You may limit the threads used for image processing. Default value is calculalated, (os.cpu_count() / 2)
-#videoDuration: 5
+#video_duration: 5
 #	This is the length in seconds of the video, which is sent when requested with /video command. 
 #	Default length of a video is 5 seconds
 #light_control_timeout: 0
