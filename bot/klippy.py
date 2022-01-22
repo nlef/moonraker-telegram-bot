@@ -36,7 +36,7 @@ class Klippy:
 
         self._dbname = 'telegram-bot'
 
-        self.connected: bool = False
+        self._connected: bool = False
         self.printing: bool = False
         self.paused: bool = False
         self.state: str = ''
@@ -82,6 +82,17 @@ class Klippy:
 
     def _filament_weight_used(self) -> float:
         return self.filament_weight * (self.filament_used / self.filament_total)
+
+    @property
+    def connected(self) -> bool:
+        return self._connected
+
+    @connected.setter
+    def connected(self, new_value: bool):
+        self._connected = new_value
+        self.printing = False
+        self.paused = False
+        self._reset_file_info()
 
     # Todo: save macros list until klippy restart
     @property

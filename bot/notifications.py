@@ -149,16 +149,18 @@ class Notifier:
 
     # manual notification methods
     def send_error(self, message: str):
-        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': False, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._send_message, kwargs={'message': escape_markdown(message, version=2), 'silent': False, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_error_with_photo(self, message: str):
-        self._sched.add_job(self._notify, kwargs={'message': message, 'silent': False, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._notify, kwargs={'message': escape_markdown(message, version=2), 'silent': False, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
 
     def send_notification(self, message: str):
-        self._sched.add_job(self._send_message, kwargs={'message': message, 'silent': self._silent_status, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._send_message, kwargs={'message': escape_markdown(message, version=2), 'silent': self._silent_status, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6,
+                            replace_existing=False)
 
     def send_notification_with_photo(self, message: str):
-        self._sched.add_job(self._notify, kwargs={'message': message, 'silent': self._silent_status, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        self._sched.add_job(self._notify, kwargs={'message': escape_markdown(message, version=2), 'silent': self._silent_status, 'manual': True}, misfire_grace_time=None, coalesce=False, max_instances=6,
+                            replace_existing=False)
 
     def reset_notifications(self) -> None:
         self._last_percent = 0
@@ -231,6 +233,7 @@ class Notifier:
         self.reset_notifications()
         self.remove_notifier_timer()
 
+    # Fixme: send print start to groups
     def _send_print_start_info(self):
         message, bio = self._klippy.get_file_info('Printer started printing')
         if bio is not None:
@@ -245,6 +248,7 @@ class Notifier:
         self._sched.add_job(self._send_print_start_info, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=True)
         # Todo: reset something?
 
+    # Fixme: send print finish to groups
     def _send_print_finish(self):
         mess = escape_markdown(self._klippy.get_print_stats('Finished printing'), version=2)
         if self._last_m117_status and 'm117_status' in self._message_parts:
