@@ -92,9 +92,11 @@ def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
     if klippy.printing:
         notifier.update_status()
+        import time
+        time.sleep(configWrap.camera.light_timeout + 3)
         message_to_reply.delete()
     else:
-        mess = klippy.get_status()
+        mess = escape_markdown(klippy.get_status(), version=2)
         if cameraWrap.enabled:
             with cameraWrap.take_photo() as bio:
                 message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
