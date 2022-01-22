@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import List
 
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto
@@ -20,17 +21,17 @@ class Notifier:
         self._klippy: Klippy = klippy
 
         self._percent: int = config.notifications.percent
-        self._height: int = config.notifications.height
+        self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
         self._notify_groups: list = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
 
-        self._silent_progress = config.telegram_ui.silent_progress
-        self._silent_commands = config.telegram_ui.silent_commands
-        self._silent_status = config.telegram_ui.silent_status
-        self._status_single_message = config.telegram_ui.status_single_message
-        self._pin_status_single_message = config.telegram_ui.pin_status_single_message  # Todo: implement
-        self._message_parts: list = config.telegram_ui.status_message_content
+        self._silent_progress: bool = config.telegram_ui.silent_progress
+        self._silent_commands: bool = config.telegram_ui.silent_commands
+        self._silent_status: bool = config.telegram_ui.silent_status
+        self._status_single_message: bool = config.telegram_ui.status_single_message
+        self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
+        self._message_parts: List[str] = config.telegram_ui.status_message_content
 
         self._last_height: int = 0
         self._last_percent: int = 0
@@ -45,15 +46,15 @@ class Notifier:
             logger.setLevel(logging.DEBUG)
 
     @property
-    def silent_commands(self):
+    def silent_commands(self) -> bool:
         return self._silent_commands
 
     @property
-    def silent_status(self):
+    def silent_status(self) -> bool:
         return self._silent_status
 
     @property
-    def m117_status(self):
+    def m117_status(self) -> str:
         return self._last_m117_status
 
     @m117_status.setter
@@ -62,7 +63,7 @@ class Notifier:
         self._schedule_notification()
 
     @property
-    def tgnotify_status(self):
+    def tgnotify_status(self) -> str:
         return self._last_tgnotify_status
 
     @tgnotify_status.setter
@@ -71,7 +72,7 @@ class Notifier:
         self._schedule_notification()
 
     @property
-    def percent(self):
+    def percent(self) -> int:
         return self._percent
 
     @percent.setter
@@ -80,8 +81,8 @@ class Notifier:
             self._percent = new_value
 
     @property
-    def height(self):
-        return self._percent
+    def height(self) -> float:
+        return self._height
 
     @height.setter
     def height(self, new_value: float):
@@ -89,7 +90,7 @@ class Notifier:
             self._height = new_value
 
     @property
-    def interval(self):
+    def interval(self) -> int:
         return self._interval
 
     @interval.setter

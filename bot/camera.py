@@ -113,13 +113,13 @@ class Camera:
             self._flip = 0
 
         if config.camera.rotate == '90_cw':
-            self._rotate_code = cv2.ROTATE_90_CLOCKWISE
+            self._rotate_code: int = cv2.ROTATE_90_CLOCKWISE
         elif config.camera.rotate == '90_ccw':
-            self._rotate_code = cv2.ROTATE_90_COUNTERCLOCKWISE
+            self._rotate_code: int = cv2.ROTATE_90_COUNTERCLOCKWISE
         elif config.camera.rotate == '180':
-            self._rotate_code = cv2.ROTATE_180
+            self._rotate_code: int = cv2.ROTATE_180
         else:
-            self._rotate_code = -10
+            self._rotate_code: int = -10
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -165,7 +165,7 @@ class Camera:
             self._light_requests -= 1
 
     @property
-    def target_fps(self):
+    def target_fps(self) -> int:
         return self._target_fps
 
     @target_fps.setter
@@ -173,7 +173,7 @@ class Camera:
         self._target_fps = new_value
 
     @property
-    def min_lapse_duration(self):
+    def min_lapse_duration(self) -> int:
         return self._min_lapse_duration
 
     @min_lapse_duration.setter
@@ -182,7 +182,7 @@ class Camera:
             self._min_lapse_duration = new_value
 
     @property
-    def max_lapse_duration(self):
+    def max_lapse_duration(self) -> int:
         return self._max_lapse_duration
 
     @max_lapse_duration.setter
@@ -191,7 +191,7 @@ class Camera:
             self._max_lapse_duration = new_value
 
     @property
-    def last_frame_duration(self):
+    def last_frame_duration(self) -> int:
         return self._last_frame_duration
 
     @last_frame_duration.setter

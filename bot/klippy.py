@@ -2,6 +2,7 @@
 import logging
 import re
 import time
+from typing import List
 
 import emoji
 import requests
@@ -20,18 +21,18 @@ class Klippy:
     _DATA_MACRO = 'bot_data'
 
     def __init__(self, config: ConfigWrapper, light_device: PowerDevice, psu_device: PowerDevice, logging_handler: logging.Handler = None):
-        self._host = config.bot.host
-        self._disabled_macros = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
-        self.show_hidden_macros = config.telegram_ui.show_hidden_macros
-        self._message_parts: list = config.telegram_ui.status_message_content
+        self._host: str = config.bot.host
+        self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
+        self.show_hidden_macros: List[str] = config.telegram_ui.show_hidden_macros
+        self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
         self._light_device = light_device
         self._psu_device = psu_device
-        self._sensors_list: list = config.telegram_ui.status_message_sensors
-        self._heates_list: list = config.telegram_ui.status_message_heaters
-        self._devices_list: list = config.telegram_ui.status_message_devices
-        self._user = config.bot.user
-        self._passwd = config.bot.passwd
+        self._sensors_list: List[str] = config.telegram_ui.status_message_sensors
+        self._heates_list: List[str] = config.telegram_ui.status_message_heaters
+        self._devices_list: List[str] = config.telegram_ui.status_message_devices
+        self._user: str = config.bot.user
+        self._passwd: str = config.bot.passwd
 
         self._dbname = 'telegram-bot'
 
@@ -84,15 +85,15 @@ class Klippy:
 
     # Todo: save macros list until klippy restart
     @property
-    def macros(self):
+    def macros(self) -> List[str]:
         return self._get_marco_list()
 
     @property
-    def macros_all(self):
+    def macros_all(self) -> List[str]:
         return self._get_full_marco_list()
 
     @property
-    def moonraker_host(self):
+    def moonraker_host(self) -> str:
         return self._host
 
     @property
@@ -131,11 +132,11 @@ class Klippy:
         self._thumbnail_path = ''
 
     @property
-    def printing_filename(self):
+    def printing_filename(self) -> str:
         return self._printing_filename
 
     @property
-    def printing_filename_with_time(self):
+    def printing_filename_with_time(self) -> str:
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     @printing_filename.setter
@@ -157,15 +158,15 @@ class Klippy:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
             self._thumbnail_path = thumb['relative_path']
 
-    def _get_full_marco_list(self) -> list:
+    def _get_full_marco_list(self) -> List[str]:
         resp = requests.get(f'http://{self._host}/printer/objects/list', headers=self._headers)
         if not resp.ok:
-            return list()
+            return []
         macro_lines = list(filter(lambda it: 'gcode_macro' in it, resp.json()['result']['objects']))
         loaded_macros = list(map(lambda el: el.split(' ')[1], macro_lines))
         return loaded_macros
 
-    def _get_marco_list(self) -> list:
+    def _get_marco_list(self) -> List[str]:
         return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))]
 
     def _auth_moonraker(self) -> None:
@@ -187,7 +188,7 @@ class Klippy:
             logger.error(ex, exc_info=True)
             return f"Connection failed."
 
-    def update_sensror(self, name: str, value):
+    def update_sensror(self, name: str, value) -> None:
         if name in self.sensors_dict:
             if 'temperature' in value:
                 self.sensors_dict.get(name)['temperature'] = value['temperature']
@@ -212,13 +213,13 @@ class Klippy:
         message += '\n'
         return message
 
-    def _get_sensors_message(self):
+    def _get_sensors_message(self) -> str:
         message = ''
         for name, value in self.sensors_dict.items():
             message += self.sensor_message(name, value)
         return message
 
-    def _get_power_devices_mess(self):
+    def _get_power_devices_mess(self) -> str:
         message = ''
         if self._light_device and self._light_device.name in self._devices_list:
             message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
@@ -226,7 +227,7 @@ class Klippy:
             message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
-    def execute_command(self, *command):
+    def execute_command(self, *command) -> None:
         data = {'commands': list(map(lambda el: f'{el}', command))}
         res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
         if not res.ok:
@@ -266,7 +267,7 @@ class Klippy:
         message = self.get_print_stats(message)
         return self._populate_with_thumb(self._thumbnail_path, message)
 
-    def _get_printing_file_info(self, message_pre: str = ''):
+    def _get_printing_file_info(self, message_pre: str = '') -> str:
         message = f'Printing: {self.printing_filename} \n' if not message_pre else f'{message_pre}: {self.printing_filename} \n'
         if 'progress' in self._message_parts:
             message += f'Progress {round(self.printing_progress * 100, 0)}%'
@@ -289,7 +290,7 @@ class Klippy:
 
         return message
 
-    def get_print_stats(self, message_pre: str = ''):
+    def get_print_stats(self, message_pre: str = '') -> str:
         message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
         if 'power_devices' in self._message_parts:
             message += self._get_power_devices_mess()
@@ -385,7 +386,7 @@ class Klippy:
             # Fixme: return default value? check for 404!
             return None
 
-    def save_param_to_db(self, param_name: str, value):
+    def save_param_to_db(self, param_name: str, value) -> None:
         data = {
             "namespace": self._dbname,
             "key": param_name,
@@ -395,13 +396,13 @@ class Klippy:
         if not res.ok:
             logger.error(f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}")
 
-    def delete_param_from_db(self, param_name: str):
+    def delete_param_from_db(self, param_name: str) -> None:
         res = requests.delete(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", headers=self._headers)
         if not res.ok:
             logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
 
     # macro data section
-    def save_data_to_marco(self, lapse_size: int, filename: str, path: str):
+    def save_data_to_marco(self, lapse_size: int, filename: str, path: str) -> None:
         full_macro_list = self._get_full_marco_list()
         if self._DATA_MACRO in full_macro_list:
             self.execute_command(f'SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}',

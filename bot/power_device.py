@@ -14,7 +14,7 @@ class PowerDevice(object):
             return None
 
     def __init__(self, name: str, moonraker_host: str):
-        self.name = name
+        self.name: str = name
         self._moonraker_host = moonraker_host
         self._state_lock = threading.Lock()
         self._device_on: bool = False

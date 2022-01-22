@@ -27,7 +27,7 @@ class Timelapse:
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
 
-        self._silent_progress = config.telegram_ui.silent_progress
+        self._silent_progress: bool = config.telegram_ui.silent_progress
 
         self._klippy = klippy
         self._camera = camera
@@ -54,7 +54,7 @@ class Timelapse:
             logger.setLevel(logging.DEBUG)
 
     @property
-    def enabled(self):
+    def enabled(self) -> bool:
         return self._enabled
 
     @enabled.setter
@@ -62,7 +62,7 @@ class Timelapse:
         self._enabled = new_value
 
     @property
-    def manual_mode(self):
+    def manual_mode(self) -> bool:
         return self._mode_manual
 
     @manual_mode.setter
@@ -70,7 +70,7 @@ class Timelapse:
         self._mode_manual = new_value
 
     @property
-    def interval(self):
+    def interval(self) -> int:
         return self._interval
 
     @interval.setter
@@ -83,16 +83,16 @@ class Timelapse:
             self._reschedule_timelapse_timer()
 
     @property
-    def height(self):
+    def height(self) -> float:
         return self._height
 
     @height.setter
-    def height(self, new_value):
+    def height(self, new_value: float):
         if new_value >= 0:
             self._height = new_value
 
     @property
-    def target_fps(self):
+    def target_fps(self) -> int:
         return self._target_fps
 
     @target_fps.setter
@@ -102,7 +102,7 @@ class Timelapse:
             self._camera.target_fps = new_value
 
     @property
-    def min_lapse_duration(self):
+    def min_lapse_duration(self) -> int:
         return self._min_lapse_duration
 
     @min_lapse_duration.setter
@@ -114,7 +114,7 @@ class Timelapse:
             self._camera.min_lapse_duration = new_value
 
     @property
-    def max_lapse_duration(self):
+    def max_lapse_duration(self) -> int:
         return self._max_lapse_duration
 
     @max_lapse_duration.setter
@@ -126,7 +126,7 @@ class Timelapse:
             self._camera.max_lapse_duration = new_value
 
     @property
-    def last_frame_duration(self):
+    def last_frame_duration(self) -> int:
         return self._last_frame_duration
 
     @last_frame_duration.setter
@@ -136,7 +136,7 @@ class Timelapse:
             self._camera.last_frame_duration = new_value
 
     @property
-    def running(self):
+    def running(self) -> bool:
         return self._running
 
     @running.setter
@@ -149,7 +149,7 @@ class Timelapse:
             self._remove_timelapse_timer()
 
     @property
-    def paused(self):
+    def paused(self) -> bool:
         return self._paused
 
     @paused.setter
