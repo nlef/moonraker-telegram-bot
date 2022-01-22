@@ -98,23 +98,25 @@ class TelegramUIConfig:
     _MESSAGE_CONTENT = ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status', 'last_update_time']
 
     def __init__(self, config: configparser.ConfigParser):
-        self.silent_progress = config.getboolean(self._SECTION, 'silent_progress', fallback=False)
-        self.silent_commands = config.getboolean(self._SECTION, 'silent_commands', fallback=False)
-        self.silent_status = config.getboolean(self._SECTION, 'silent_status', fallback=False)
-        self.status_single_message = config.getboolean(self._SECTION, 'status_single_message', fallback=True)
-        self.pin_status_single_message = config.getboolean(self._SECTION, 'pin_status_single_message', fallback=False)  # Todo: implement
-        self.status_message_content: list = [el.strip() for el in config.get(self._SECTION, 'status_message_content').split(',')] if config.has_option(self._SECTION, 'status_message_content') else self._MESSAGE_CONTENT
+        self.silent_progress: bool = config.getboolean(self._SECTION, 'silent_progress', fallback=False)
+        self.silent_commands: bool = config.getboolean(self._SECTION, 'silent_commands', fallback=False)
+        self.silent_status: bool = config.getboolean(self._SECTION, 'silent_status', fallback=False)
+        self.status_single_message: bool = config.getboolean(self._SECTION, 'status_single_message', fallback=True)
+        self.pin_status_single_message: bool = config.getboolean(self._SECTION, 'pin_status_single_message', fallback=False)  # Todo: implement
+        self.status_message_content: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_content').split(',')] if config.has_option(self._SECTION,
+                                                                                                                                                            'status_message_content') else self._MESSAGE_CONTENT
 
         buttons_string = config.get(self._SECTION, 'buttons') if config.has_option(self._SECTION, 'buttons') else '[status,pause,cancel,resume],[files,emergency,macros,shutdown]'
         self.buttons = list(map(lambda el: list(map(lambda iel: f'/{iel.strip()}', el.replace('[', '').replace(']', '').split(','))), re.findall(r'\[.[^\]]*\]', buttons_string)))
-        self.require_confirmation_macro = config.getboolean(self._SECTION, 'require_confirmation_macro', fallback=True)
-        self.include_macros_in_command_list = config.getboolean(self._SECTION, 'include_macros_in_command_list', fallback=True)
+        self.buttons_default: bool = False if config.has_option(self._SECTION, 'buttons') else True
+        self.require_confirmation_macro: bool = config.getboolean(self._SECTION, 'require_confirmation_macro', fallback=True)
+        self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, 'include_macros_in_command_list', fallback=True)
         self.disabled_macros = [el.strip() for el in config.get(self._SECTION, 'disabled_macros').split(',')] if config.has_option(self._SECTION, 'disabled_macros') else list()
-        self.show_hidden_macros = config.getboolean(self._SECTION, 'show_hidden_macros', fallback=False)
+        self.show_hidden_macros: bool = config.getboolean(self._SECTION, 'show_hidden_macros', fallback=False)
         self.eta_source: str = config.get(self._SECTION, 'eta_source', fallback='slicer')
-        self.status_message_sensors: list = [el.strip() for el in config.get(self._SECTION, 'status_message_sensors').split(',')] if config.has_option(self._SECTION, 'status_message_sensors') else []
-        self.status_message_heaters: list = [el.strip() for el in config.get(self._SECTION, 'status_message_heaters').split(',')] if config.has_option(self._SECTION, 'status_message_heaters') else []
-        self.status_message_devices: list = [el.strip() for el in config.get(self._SECTION, 'status_message_devices').split(',')] if config.has_option(self._SECTION, 'status_message_devices') else []
+        self.status_message_sensors: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_sensors').split(',')] if config.has_option(self._SECTION, 'status_message_sensors') else []
+        self.status_message_heaters: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_heaters').split(',')] if config.has_option(self._SECTION, 'status_message_heaters') else []
+        self.status_message_devices: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_devices').split(',')] if config.has_option(self._SECTION, 'status_message_devices') else []
         self.unknown_fields = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 

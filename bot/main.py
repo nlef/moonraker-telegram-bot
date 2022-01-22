@@ -388,6 +388,9 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:
 
 
 def create_keyboard():
+    if not configWrap.telegram_ui.buttons_default:
+        return configWrap.telegram_ui.buttons
+
     custom_keyboard = []
     if cameraWrap.enabled:
         custom_keyboard.append('/video')
