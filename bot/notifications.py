@@ -2,8 +2,11 @@ import logging
 from datetime import datetime
 from typing import List
 
+import telegram
 from apscheduler.schedulers.base import BaseScheduler
 from telegram import ChatAction, Bot, Message, InputMediaPhoto
+from telegram.constants import PARSEMODE_MARKDOWN_V2
+from telegram.utils.helpers import escape_markdown
 
 from configuration import ConfigWrapper
 from camera import Camera
@@ -109,17 +112,17 @@ class Notifier:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_single_message and not manual:
                 if not self._status_message:
-                    self._status_message = self._bot.send_message(self._chat_id, text=message, disable_notification=silent)
+                    self._status_message = self._bot.send_message(self._chat_id, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
                 else:
                     if self._status_message.caption:
-                        self._status_message.edit_caption(caption=message)
+                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
-                        self._status_message.edit_text(text=message)
+                        self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
             else:
-                self._bot.send_message(self._chat_id, text=message, disable_notification=silent)
+                self._bot.send_message(self._chat_id, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
         for group in self._notify_groups:
             self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-            self._bot.send_message(group, text=message, disable_notification=silent)
+            self._bot.send_message(group, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
 
     def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
         if self._cam_wrap.enabled:
@@ -128,17 +131,18 @@ class Notifier:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
                         if not self._status_message:
-                            self._status_message = self._bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
+                            self._status_message = self._bot.send_photo(self._chat_id, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2,
+                                                                        disable_notification=silent)
                         else:
                             # Fixme: check if media in message!
                             self._status_message.edit_media(media=InputMediaPhoto(photo))
-                            self._status_message.edit_caption(caption=message)
+                            self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
-                        self._bot.send_photo(self._chat_id, photo=photo, caption=message, disable_notification=silent)
+                        self._bot.send_photo(self._chat_id, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
                 for group_ in self._notify_groups:
                     photo.seek(0)
                     self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    self._bot.send_photo(group_, photo=photo, caption=message, disable_notification=silent)
+                    self._bot.send_photo(group_, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
                 photo.close()
         else:
             self._send_message(message, silent, manual)
@@ -165,13 +169,13 @@ class Notifier:
         self._status_message = None
 
     def _schedule_notification(self):
-        mess = self._klippy.get_print_stats()
+        mess = escape_markdown(self._klippy.get_print_stats(), version=2)
         if self._last_m117_status and 'm117_status' in self._message_parts:
-            mess += f"{self._last_m117_status}\n"
+            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-            mess += f"{self._last_tgnotify_status}\n"
+            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
         if 'last_update_time' in self._message_parts:
-            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
+            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
         self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
                             replace_existing=False)
 
@@ -201,13 +205,13 @@ class Notifier:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
             return
 
-        mess = self._klippy.get_print_stats()
+        mess = escape_markdown(self._klippy.get_print_stats(), version=2)
         if self._last_m117_status and 'm117_status' in self._message_parts:
-            mess += f"{self._last_m117_status}\n"
+            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-            mess += f"{self._last_tgnotify_status}\n"
+            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
         if 'last_update_time' in self._message_parts:
-            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
+            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
         self._notify(mess, self._silent_progress, self._group_only)
 
     def add_notifier_timer(self):
@@ -242,18 +246,21 @@ class Notifier:
         # Todo: reset something?
 
     def _send_print_finish(self):
-        mess = self._klippy.get_print_stats('Finished printing')
+        mess = escape_markdown(self._klippy.get_print_stats('Finished printing'), version=2)
         if self._last_m117_status and 'm117_status' in self._message_parts:
-            mess += f"{self._last_m117_status}\n"
+            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-            mess += f"{self._last_tgnotify_status}\n"
+            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
         if 'last_update_time' in self._message_parts:
-            mess += f"Last update at {datetime.now():%Y-%m-%d %H:%M}"
+            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
         self._notify(mess, self._silent_progress, self._group_only)
         self.reset_notifications()
 
     def send_print_finish(self):
         self._sched.add_job(self._send_print_finish, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=True)
+
+    def update_status(self):
+        self._schedule_notification()
 
     def parse_notification_params(self, message: str):
         mass_parts = message.split(sep=" ")

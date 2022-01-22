@@ -13,9 +13,11 @@ from zipfile import ZipFile
 import ujson
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity
+from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import websocket
+from telegram.utils.helpers import escape_markdown
 
 from configuration import ConfigWrapper
 from camera import Camera
@@ -88,15 +90,19 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
 
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    mess = klippy.get_status()
-    if cameraWrap.enabled:
-        with cameraWrap.take_photo() as bio:
-            message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
-            message_to_reply.reply_photo(photo=bio, caption=mess, disable_notification=notifier.silent_commands)
-            bio.close()
+    if klippy.printing:
+        notifier.update_status()
+        message_to_reply.delete()
     else:
-        message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-        message_to_reply.reply_text(mess, disable_notification=notifier.silent_commands, quote=True)
+        mess = klippy.get_status()
+        if cameraWrap.enabled:
+            with cameraWrap.take_photo() as bio:
+                message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
+                message_to_reply.reply_photo(photo=bio, caption=mess, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=notifier.silent_commands)
+                bio.close()
+        else:
+            message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+            message_to_reply.reply_text(mess, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=notifier.silent_commands, quote=True)
 
 
 def check_unfinished_lapses():
