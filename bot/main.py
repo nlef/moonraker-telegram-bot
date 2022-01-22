@@ -164,8 +164,9 @@ def pause_printing(update: Update, __: CallbackContext) -> None:
     update.message.reply_text('Pause printing?', reply_markup=confirm_keyboard('pause_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
-def resume_printing(_: Update, __: CallbackContext) -> None:
-    manage_printing('resume')
+def resume_printing(update: Update, __: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.message.reply_text('Resume printing?', reply_markup=confirm_keyboard('resume_printing'), disable_notification=notifier.silent_commands, quote=True)
 
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
@@ -181,6 +182,17 @@ def emergency_stop(update: Update, _: CallbackContext) -> None:
 def shutdown_host(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Shutdown host?', reply_markup=confirm_keyboard('shutdown_host'), disable_notification=notifier.silent_commands, quote=True)
+
+
+def bot_restart(update: Update, _: CallbackContext) -> None:
+    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.message.reply_text('Restart bot?', reply_markup=confirm_keyboard('bot_restart'), disable_notification=notifier.silent_commands, quote=True)
+
+
+def restart_bot() -> None:
+    if ws:
+        ws.close()
+    os._exit(1)
 
 
 def power(update: Update, _: CallbackContext) -> None:
@@ -216,13 +228,19 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         emergency_stop_printer()
         query.delete_message()
     elif query.data == 'shutdown_host':
+        update.effective_message.reply_text("Shutting down bot", quote=True)
         shutdown_pi_host()
-        query.delete_message()
+    elif query.data == 'bot_restart':
+        update.effective_message.reply_text("Restarting bot", quote=True)
+        restart_bot()
     elif query.data == 'cancel_printing':
         manage_printing('cancel')
         query.delete_message()
     elif query.data == 'pause_printing':
         manage_printing('pause')
+        query.delete_message()
+    elif query.data == 'resume_printing':
+        manage_printing('resume')
         query.delete_message()
     elif query.data == 'power_off_printer':
         psu_power_device.switch_device(False)
@@ -244,7 +262,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         keyboard = [
             [
                 InlineKeyboardButton(emoji.emojize(':robot: print file', use_aliases=True), callback_data=f'print_file:{query.data}'),
-                InlineKeyboardButton(emoji.emojize(':cross_mark: cancel printing', use_aliases=True), callback_data='cancel_file'),
+                InlineKeyboardButton(emoji.emojize(':cross_mark: cancel', use_aliases=True), callback_data='cancel_file'),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -382,13 +400,6 @@ def upload_file(update: Update, _: CallbackContext) -> None:
 
     uploaded_bio.close()
     sending_bio.close()
-
-
-def bot_restart(update: Update, _: CallbackContext) -> None:
-    if ws:
-        ws.close()
-    update.message.reply_text("Restarting bot", quote=True)
-    os._exit(1)
 
 
 def bot_error_handler(_: object, context: CallbackContext) -> None:
