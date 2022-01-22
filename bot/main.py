@@ -816,7 +816,7 @@ if __name__ == '__main__':
         metavar='<configfile>',
         help="Location of moonraker telegram bot configuration file")
     system_args = parser.parse_args()
-    conf = configparser.ConfigParser()
+    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(';', '#'))
 
     # Todo: os.chdir(Path(sys.path[0]).parent.absolute())
     os.chdir(sys.path[0])
