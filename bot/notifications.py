@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 
 import telegram
 from apscheduler.schedulers.base import BaseScheduler
@@ -42,6 +42,7 @@ class Notifier:
         self._last_tgnotify_status: str = ''
 
         self._status_message: Message = None
+        self._groups_status_mesages: Dict[str, Message] = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -122,7 +123,17 @@ class Notifier:
                 self._bot.send_message(self._chat_id, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
         for group in self._notify_groups:
             self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-            self._bot.send_message(group, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
+            if self._status_single_message and not manual:
+                if not group in self._groups_status_mesages:
+                    self._groups_status_mesages[group] = self._bot.send_message(group, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
+                else:
+                    mess = self._groups_status_mesages[group]
+                    if mess.caption:
+                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    else:
+                        mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+            else:
+                self._bot.send_message(group, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
 
     def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
         if self._cam_wrap.enabled:
@@ -131,8 +142,7 @@ class Notifier:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
                         if not self._status_message:
-                            self._status_message = self._bot.send_photo(self._chat_id, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2,
-                                                                        disable_notification=silent)
+                            self._status_message = self._bot.send_photo(self._chat_id, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
                         else:
                             # Fixme: check if media in message!
                             self._status_message.edit_media(media=InputMediaPhoto(photo))
@@ -142,7 +152,15 @@ class Notifier:
                 for group_ in self._notify_groups:
                     photo.seek(0)
                     self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    self._bot.send_photo(group_, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
+                    if self._status_single_message and not manual:
+                        if not group_ in self._groups_status_mesages:
+                            self._groups_status_mesages[group_] = self._bot.send_photo(group_, text=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
+                        else:
+                            mess = self._groups_status_mesages[group_]
+                            mess.edit_media(media=InputMediaPhoto(photo))
+                            mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    else:
+                        self._bot.send_photo(group_, photo=photo, caption=message, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=silent)
                 photo.close()
         else:
             self._send_message(message, silent, manual)
@@ -169,6 +187,7 @@ class Notifier:
         self._last_m117_status = ''
         self._last_tgnotify_status = ''
         self._status_message = None
+        self._groups_status_mesages = {}
 
     def _schedule_notification(self):
         mess = escape_markdown(self._klippy.get_print_stats(), version=2)
@@ -233,14 +252,18 @@ class Notifier:
         self.reset_notifications()
         self.remove_notifier_timer()
 
-    # Fixme: send print start to groups
     def _send_print_start_info(self):
         message, bio = self._klippy.get_file_info('Printer started printing')
         if bio is not None:
             status_message = self._bot.send_photo(self._chat_id, photo=bio, caption=message, disable_notification=self.silent_status)
+            for group_ in self._notify_groups:
+                bio.seek(0)
+                self._groups_status_mesages[group_] = self._bot.send_photo(group_, photo=bio, caption=message, disable_notification=self.silent_status)
             bio.close()
         else:
             status_message = self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
+            for group_ in self._notify_groups:
+                self._groups_status_mesages[group_] = self._bot.send_message(group_, message, disable_notification=self.silent_status)
         if self._status_single_message:
             self._status_message = status_message
 
