@@ -228,10 +228,12 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         emergency_stop_printer()
         query.delete_message()
     elif query.data == 'shutdown_host':
-        update.effective_message.reply_text("Shutting down bot", quote=True)
+        update.effective_message.reply_to_message.reply_text("Shutting down bot", quote=True)
+        query.delete_message()
         shutdown_pi_host()
     elif query.data == 'bot_restart':
-        update.effective_message.reply_text("Restarting bot", quote=True)
+        update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
+        query.delete_message()
         restart_bot()
     elif query.data == 'cancel_printing':
         manage_printing('cancel')
