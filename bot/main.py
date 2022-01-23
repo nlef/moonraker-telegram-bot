@@ -11,6 +11,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import ujson
+from apscheduler.events import EVENT_JOB_ERROR
 from numpy import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity
 from telegram.constants import PARSEMODE_MARKDOWN_V2
@@ -56,8 +57,12 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_exception
 
+
 # some global params
-bot_updater: Updater
+def errors_listener(event):
+    logger.error(f'Job {event.job_id} raised {event.exception.message}\n{event.traceback}')
+
+
 scheduler = BackgroundScheduler({
     'apscheduler.executors.default': {
         'class': 'apscheduler.executors.pool:ThreadPoolExecutor',
@@ -66,7 +71,9 @@ scheduler = BackgroundScheduler({
     'apscheduler.job_defaults.coalesce': 'false',
     'apscheduler.job_defaults.max_instances': '1',
 }, daemon=True)
+scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
+bot_updater: Updater
 configWrap: ConfigWrapper = None
 myId = random.randint(300000)
 cameraWrap: Camera
@@ -856,6 +863,7 @@ if __name__ == '__main__':
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
         logging.getLogger('apscheduler').addHandler(rotatingHandler)
+        logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
     light_power_device = PowerDevice(configWrap.bot.light_device_name, configWrap.bot.host)
     psu_power_device = PowerDevice(configWrap.bot.poweroff_device_name, configWrap.bot.host)

@@ -229,8 +229,7 @@ class Timelapse:
                 if video_bio.getbuffer().nbytes > 52428800:
                     info_mess.edit_text(text=f'Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}')
                 else:
-                    self._bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120,
-                                         disable_notification=self._silent_progress)
+                    self._bot.send_video(self._chat_id, video=video_bio, thumb=thumb_bio, width=width, height=height, caption=f'time-lapse of {gcode_name}', timeout=120, disable_notification=self._silent_progress)
                     self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
