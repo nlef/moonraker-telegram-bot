@@ -13,7 +13,6 @@ videoDuration: 15
 percent: 5
 height: 5
 time: 5
-min_delay_between_notifications: 60
 
 
 [timelapse]
