@@ -61,7 +61,7 @@ class NotifierConfig:
         self.percent: int = config.getint(self._SECTION, 'percent', fallback=0)
         self.height: float = config.getfloat(self._SECTION, 'height', fallback=0)
         self.interval: int = config.getint(self._SECTION, 'time', fallback=0)
-        self.notify_groups: list = [el.strip() for el in config.get(self._SECTION, 'groups').split(',')] if config.has_option(self._SECTION, 'groups') else []
+        self.notify_groups: List[int] = [int(el.strip()) for el in config.get(self._SECTION, 'groups').split(',')] if config.has_option(self._SECTION, 'groups') else []
         self.group_only: bool = config.getboolean(self._SECTION, 'group_only', fallback=False)
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 

@@ -91,7 +91,7 @@ def echo_unknown(update: Update, _: CallbackContext) -> None:
 
 def unknown_chat(update: Update, _: CallbackContext) -> None:
     message = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n"
-    update.message.reply_text(f"{message}This incident will be reported.", entities=[MessageEntity(type='spoiler', offset=len(message), length=31)], quote=True)
+    update.effective_message.reply_text(f"{message}This incident will be reported.", entities=[MessageEntity(type='spoiler', offset=len(message), length=31)], quote=True)
     logger.error(f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}")
 
 

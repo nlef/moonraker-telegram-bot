@@ -26,7 +26,7 @@ class Notifier:
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
-        self._notify_groups: list = config.notifications.notify_groups
+        self._notify_groups: List[int] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
@@ -42,7 +42,7 @@ class Notifier:
         self._last_tgnotify_status: str = ''
 
         self._status_message: Message = None
-        self._groups_status_mesages: Dict[str, Message] = {}
+        self._groups_status_mesages: Dict[int, Message] = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
