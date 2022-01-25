@@ -490,7 +490,7 @@ def start_bot(bot_token, socks):
     if socks:
         request_kwargs['proxy_url'] = f'socks5://{socks}'
 
-    updater = Updater(bot_token, workers=4, request_kwargs=request_kwargs)
+    updater = Updater(token=bot_token, base_url=configWrap.bot.api_url, workers=4, request_kwargs=request_kwargs)
 
     dispatcher = updater.dispatcher
 

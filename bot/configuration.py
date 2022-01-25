@@ -22,6 +22,7 @@ class BotConfig:
         self.host: str = config.get(self._SECTION, 'server', fallback='localhost')
         self.socks_proxy: str = config.get(self._SECTION, 'socks_proxy', fallback='')
         self.token: str = config.get(self._SECTION, 'bot_token')
+        self.api_url: str = config.get(self._SECTION, 'api_url', fallback='https://api.telegram.org/bot')
         self.chat_id: int = config.getint(self._SECTION, 'chat_id')
         self.debug: bool = config.getboolean(self._SECTION, 'debug', fallback=False)
         self.log_parser: bool = config.getboolean(self._SECTION, 'log_parser', fallback=False)
