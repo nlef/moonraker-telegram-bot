@@ -99,10 +99,10 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
 
 def status(update: Update, _: CallbackContext) -> None:
     message_to_reply = update.message if update.message else update.effective_message
-    if klippy.printing:
+    if klippy.printing and not configWrap.notifications.group_only:
         notifier.update_status()
         import time
-        time.sleep(configWrap.camera.light_timeout + 3)
+        time.sleep(configWrap.camera.light_timeout + 1.5)
         message_to_reply.delete()
     else:
         mess = escape_markdown(klippy.get_status(), version=2)
@@ -261,7 +261,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif 'macro:' in query.data:
         command = query.data.replace('macro:', '')
-        update.effective_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands, quote=True)
+        update.effective_message.reply_to_message.reply_text(f"Running macro: {command}", disable_notification=notifier.silent_commands, quote=True)
         query.delete_message()
         klippy.execute_command(command)
     elif 'macroc:' in query.data:

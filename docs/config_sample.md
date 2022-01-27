@@ -20,6 +20,7 @@ bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #	Only the chat with the correct chat_id can send/receive commands to/from the bot.
 chat_id: xxxxxxxxx
 #	This is the ID of the chat, where the bot is supposed to be able to send updates to. 
+#api_url: https://api.telegram.org/bot
 #socks_proxy: 192.168.0.22:1080
 #	If needed, you can configure the bot to use a socks5 proxy. 
 #user: root

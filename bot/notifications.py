@@ -189,16 +189,18 @@ class Notifier:
         self._status_message = None
         self._groups_status_mesages = {}
 
-    def _schedule_notification(self):
-        mess = escape_markdown(self._klippy.get_print_stats(), version=2)
+    def _schedule_notification(self, message: str = '', schedule: bool = False):
+        mess = escape_markdown(self._klippy.get_print_stats(message), version=2)
         if self._last_m117_status and 'm117_status' in self._message_parts:
             mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
         if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
             mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
         if 'last_update_time' in self._message_parts:
             mess += f"_Last update at {datetime.now():%H:%M:%S}_"
-        self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6,
-                            replace_existing=False)
+        if schedule:
+            self._sched.add_job(self._notify, kwargs={'message': mess, 'silent': self._silent_progress, 'group_only': self._group_only}, misfire_grace_time=None, coalesce=False, max_instances=6, replace_existing=False)
+        else:
+            self._notify(mess, self._silent_progress, self._group_only)
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
@@ -220,20 +222,12 @@ class Notifier:
                 notify = True
 
         if notify:
-            self._schedule_notification()
+            self._schedule_notification(schedule=True)
 
     def _notify_by_time(self):
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
             return
-
-        mess = escape_markdown(self._klippy.get_print_stats(), version=2)
-        if self._last_m117_status and 'm117_status' in self._message_parts:
-            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
-        if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
-        if 'last_update_time' in self._message_parts:
-            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
-        self._notify(mess, self._silent_progress, self._group_only)
+        self._schedule_notification()
 
     def add_notifier_timer(self):
         if self._interval > 0:
@@ -271,16 +265,8 @@ class Notifier:
         self._sched.add_job(self._send_print_start_info, misfire_grace_time=None, coalesce=False, max_instances=1, replace_existing=True)
         # Todo: reset something?
 
-    # Fixme: send print finish to groups
     def _send_print_finish(self):
-        mess = escape_markdown(self._klippy.get_print_stats('Finished printing'), version=2)
-        if self._last_m117_status and 'm117_status' in self._message_parts:
-            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
-        if self._last_tgnotify_status and 'tgnotify_status' in self._message_parts:
-            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
-        if 'last_update_time' in self._message_parts:
-            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
-        self._notify(mess, self._silent_progress, self._group_only)
+        self._schedule_notification(message='Finished printing')
         self.reset_notifications()
 
     def send_print_finish(self):
