@@ -212,7 +212,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #show_hidden_macros: false
 #	You can decide to show service macros prefaced with a "_" in the autocomplete list.
 #	Default is to hide and not autocomplete these macros.
-#status_message_content: progress, height, filament_length, filament_weight, print_duration, eta, finish_time, m117_status, tgnotify_status
+#status_message_content: progress, height, filament_length, filament_weight, print_duration, eta, finish_time, m117_status, tgnotify_status, last_update_time
 #	This controls the content of the status message. You can choose to delete specific information not relevant to you.
 #	Most of those parameters are self-explanatory. m117_status leaves a line to display text from the M117 gcode.
 #	tgnotify_status is used to display custom information by sending the corresponding G-Code command, refer to interacting_with_klipper.md
