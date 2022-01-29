@@ -217,11 +217,11 @@ def power(update: Update, _: CallbackContext) -> None:
 
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
     if light_power_device:
-        light_power_device.toggle_device()
+        mess = f'Device `{light_power_device.name}` toggled ' + ('on' if light_power_device.toggle_device() else 'off')
+        update.effective_message.reply_text(mess, parse_mode=PARSEMODE_MARKDOWN_V2, disable_notification=notifier.silent_commands, quote=True)
     else:
-        message_to_reply.reply_text("No light device in config!", disable_notification=notifier.silent_commands, quote=True)
+        update.effective_message.reply_text("No light device in config!", disable_notification=notifier.silent_commands, quote=True)
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
@@ -237,7 +237,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         emergency_stop_printer()
         query.delete_message()
     elif query.data == 'shutdown_host':
-        update.effective_message.reply_to_message.reply_text("Shutting down bot", quote=True)
+        update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
         query.delete_message()
         shutdown_pi_host()
     elif query.data == 'bot_restart':
@@ -255,9 +255,11 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif query.data == 'power_off_printer':
         psu_power_device.switch_device(False)
+        update.effective_message.reply_to_message.reply_text(f"Device `{psu_power_device.name}` toggled off", parse_mode=PARSEMODE_MARKDOWN_V2, quote=True)
         query.delete_message()
     elif query.data == 'power_on_printer':
         psu_power_device.switch_device(True)
+        update.effective_message.reply_to_message.reply_text(f"Device `{psu_power_device.name}` toggled on", parse_mode=PARSEMODE_MARKDOWN_V2, quote=True)
         query.delete_message()
     elif 'macro:' in query.data:
         command = query.data.replace('macro:', '')
