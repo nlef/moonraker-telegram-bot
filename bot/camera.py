@@ -70,6 +70,7 @@ class Camera:
         self._flip_horizontally: bool = config.camera.flip_horizontally
         self._fourcc: str = config.camera.fourcc
         self._video_duration: int = config.camera.video_duration
+        self._video_buffer_size: int = config.camera.video_buffer_size
         self._stream_fps: int = config.camera.stream_fps
         self._klippy: Klippy = klippy
 
@@ -293,16 +294,21 @@ class Camera:
             cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
             while video_lock.locked():
-                frame_local = frame_queue.get()
+                try:
+                    frame_local = frame_queue.get(block=False)
+                except Exception as ex:
+                    logger.warning(f'Reading video frames queue exception {ex.with_traceback}')
+                    frame_local = frame_queue.get()
+
                 out.write(process_video_frame(frame_local))
-                frame_local = None
-                del frame_local
+                # frame_local = None
+                # del frame_local
 
             while not frame_queue.empty():
                 frame_local = frame_queue.get()
                 out.write(process_video_frame(frame_local))
-                frame_local = None
-                del frame_local
+                # frame_local = None
+                # del frame_local
 
             out.release()
             video_written_event.set()
@@ -323,9 +329,8 @@ class Camera:
             del frame, channels
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
-            # filepath = os.path.join('/tmp/', 'video.mp4')
-            filepath = os.path.join('./tmp/', 'video.mp4')
-            frame_queue = Queue(fps_cam * 2)
+            filepath = os.path.join('/tmp/', 'video.mp4')
+            frame_queue = Queue(fps_cam * self._video_buffer_size)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
@@ -334,9 +339,13 @@ class Camera:
             t_end = time.time() + self._video_duration
             while success and time.time() <= t_end:
                 success, frame_loc = self.cam_cam.read()
-                frame_queue.put(frame_loc)
-                frame_loc = None
-                del frame_loc
+                try:
+                    frame_queue.put(frame_loc, block=False)
+                except Exception as ex:
+                    logger.warning(f'Writing video frames queue exception {ex.with_traceback}')
+                    frame_queue.put(frame_loc)
+                # frame_loc = None
+                # del frame_loc
 
             video_lock.release()
             video_written_event.wait()
@@ -346,7 +355,7 @@ class Camera:
         video_bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
             video_bio.write(fh.read())
-        # os.remove(filepath)
+        os.remove(filepath)
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 

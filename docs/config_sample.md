@@ -73,6 +73,7 @@ host: http://localhost:8080/?action=stream
 #video_duration: 5
 #	This is the length in seconds of the video, which is sent when requested with /video command. 
 #	Default length of a video is 5 seconds
+#video_buffer_size: 2
 #light_control_timeout: 0
 #	When the bot toggles lights to take a picture, or record a video, most cameras need a couple of seconds to adjust to 
 #	the transition between full darkness and full brightness. This option tells the bot to wait n seconds, before

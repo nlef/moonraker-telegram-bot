@@ -37,7 +37,7 @@ class BotConfig:
 
 class CameraConfig:
     _SECTION = 'camera'
-    _KNOWN_ITEMS = ['host', 'threads', 'flip_vertically', 'flip_horizontally', 'rotate', 'fourcc', 'video_duration', 'fps', 'light_control_timeout', 'picture_quality']
+    _KNOWN_ITEMS = ['host', 'threads', 'flip_vertically', 'flip_horizontally', 'rotate', 'fourcc', 'video_duration', 'video_buffer_size', 'fps', 'light_control_timeout', 'picture_quality']
 
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
@@ -48,6 +48,7 @@ class CameraConfig:
         self.rotate: str = config.get(self._SECTION, 'rotate', fallback='')
         self.fourcc: str = config.get(self._SECTION, 'fourcc', fallback='x264')
         self.video_duration: int = config.getint(self._SECTION, 'video_duration', fallback=5)
+        self.video_buffer_size: int = config.getint(self._SECTION, 'video_buffer_size', fallback=2)
         self.stream_fps: int = config.getint(self._SECTION, 'fps', fallback=0)
         self.light_timeout: int = config.getint(self._SECTION, 'light_control_timeout', fallback=0)
         self.picture_quality: str = config.get(self._SECTION, 'picture_quality', fallback='high')
