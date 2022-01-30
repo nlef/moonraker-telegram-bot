@@ -13,7 +13,7 @@ from zipfile import ZipFile
 import ujson
 from apscheduler.events import EVENT_JOB_ERROR
 from numpy import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ReplyKeyboardMarkup, Message, MessageEntity, InputMediaDocument
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
@@ -197,6 +197,24 @@ def shutdown_host(update: Update, _: CallbackContext) -> None:
 def bot_restart(update: Update, _: CallbackContext) -> None:
     update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     update.message.reply_text('Restart bot?', reply_markup=confirm_keyboard('bot_restart'), disable_notification=notifier.silent_commands, quote=True)
+
+
+def send_logs(update: Update, _: CallbackContext) -> None:
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    logs_list = []
+    if Path(f'{configWrap.bot.log_path}/telegram.log').exists():
+        with open(f'{configWrap.bot.log_path}/telegram.log', 'rb') as fh:
+            logs_list.append(InputMediaDocument(fh.read(), filename='telegram.log'))
+    if Path(f'{configWrap.bot.log_path}/klippy.log').exists():
+        with open(f'{configWrap.bot.log_path}/klippy.log', 'rb') as fh:
+            logs_list.append(InputMediaDocument(fh.read(), filename='klippy.log'))
+    if Path(f'{configWrap.bot.log_path}/moonraker.log').exists():
+        with open(f'{configWrap.bot.log_path}/moonraker.log', 'rb') as fh:
+            logs_list.append(InputMediaDocument(fh.read(), filename='moonraker.log'))
+    if logs_list:
+        update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
+    else:
+        update.effective_message.reply_text(text='No logs found in log_path', disable_notification=notifier.silent_commands, quote=True)
 
 
 def restart_bot() -> None:
@@ -445,6 +463,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
                               '/resume - resume printing\n'
                               '/cancel - cancel printing\n'
                               '/files - list last 5 files(you can start printing one from menu)\n'
+                              '/logs - get klipper, moonraker, bot logs\n'
                               '/macros - list all visible macros from klipper\n'
                               '/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n'
                               '/video - will take mp4 video from camera\n'
@@ -470,6 +489,7 @@ def greeting_message():
         ('resume', 'resume printing'),
         ('cancel', 'cancel printing'),
         ('files', "list last 5 files. you can start printing one from menu"),
+        ('logs', "get klipper, moonraker, bot logs"),
         ('macros', 'list all visible macros from klipper'),
         ('gcode', 'run any gcode command, spaces are supported. "gcode G28 Z"'),
         ('video', 'will take mp4 video from camera'),
@@ -514,6 +534,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
+    dispatcher.add_handler(CommandHandler("logs", send_logs, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.command, macros_handler, run_async=True))
 
