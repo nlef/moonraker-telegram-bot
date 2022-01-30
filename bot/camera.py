@@ -66,10 +66,10 @@ class Camera:
         self.enabled: bool = config.camera.enabled
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
-        self._flipVertically: bool = config.camera.flipVertically
-        self._flipHorizontally: bool = config.camera.flipHorizontally
+        self._flip_vertically: bool = config.camera.flip_vertically
+        self._flip_horizontally: bool = config.camera.flip_horizontally
         self._fourcc: str = config.camera.fourcc
-        self._videoDuration: int = config.camera.videoDuration
+        self._video_duration: int = config.camera.video_duration
         self._stream_fps: int = config.camera.stream_fps
         self._klippy: Klippy = klippy
 
@@ -105,11 +105,11 @@ class Camera:
         self._light_requests: int = 0
         self._light_request_lock = threading.Lock()
 
-        if self._flipVertically and self._flipHorizontally:
+        if self._flip_vertically and self._flip_horizontally:
             self._flip = -1
-        elif self._flipHorizontally:
+        elif self._flip_horizontally:
             self._flip = 1
-        elif self._flipVertically:
+        elif self._flip_vertically:
             self._flip = 0
 
         if config.camera.rotate == '90_cw':
@@ -227,13 +227,13 @@ class Camera:
             else:
                 if self._hw_accel:
                     image_um = cv2.UMat(image)
-                    if self._flipVertically or self._flipHorizontally:
+                    if self._flip_vertically or self._flip_horizontally:
                         image_um = cv2.flip(image_um, self._flip)
                     img = Image.fromarray(cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB)))
                     image_um = None
                     del image_um
                 else:
-                    if self._flipVertically or self._flipHorizontally:
+                    if self._flip_vertically or self._flip_horizontally:
                         image = cv2.flip(image, self._flip)
                     # Todo: check memory leaks
                     if self._rotate_code > -10:
@@ -276,7 +276,7 @@ class Camera:
     @cam_light_toggle
     def take_video(self) -> (BytesIO, BytesIO, int, int):
         def process_video_frame(frame_local):
-            if self._flipVertically or self._flipHorizontally:
+            if self._flip_vertically or self._flip_horizontally:
                 if self._hw_accel:
                     frame_loc_ = cv2.UMat(frame_local)
                     frame_loc_ = cv2.flip(frame_loc_, self._flip)
@@ -323,14 +323,15 @@ class Camera:
             del frame, channels
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
-            filepath = os.path.join('/tmp/', 'video.mp4')
+            # filepath = os.path.join('/tmp/', 'video.mp4')
+            filepath = os.path.join('./tmp/', 'video.mp4')
             frame_queue = Queue(fps_cam * 2)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
             video_lock.acquire()
             threading.Thread(target=write_video, args=()).start()
-            t_end = time.time() + self._videoDuration
+            t_end = time.time() + self._video_duration
             while success and time.time() <= t_end:
                 success, frame_loc = self.cam_cam.read()
                 frame_queue.put(frame_loc)
@@ -345,7 +346,7 @@ class Camera:
         video_bio.name = 'video.mp4'
         with open(filepath, 'rb') as fh:
             video_bio.write(fh.read())
-        os.remove(filepath)
+        # os.remove(filepath)
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
