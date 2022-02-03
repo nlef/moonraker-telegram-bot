@@ -438,7 +438,10 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:
 
 
 def start_bot(bot_token, socks):
-    request_kwargs = {}
+    request_kwargs = {
+        'read_timeout': 15,
+    }
+
     if socks:
         request_kwargs['proxy_url'] = f'socks5://{socks}'
 
