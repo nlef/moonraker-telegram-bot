@@ -17,28 +17,31 @@ report_status() {
 # Main functions
 init_config_path() {
   if [ -z ${klipper_cfg_loc+x} ]; then
-    report_status "Selecting config path"
+    report_status "Telegram bot configuration file location selection"
     echo -e "\n\n\n"
-    read -p "Enter your klipper configs path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
+	echo "Enter the path for the configuration file location."
+	echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
+    read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
     KLIPPER_CONF_DIR=${klip_conf_dir}
   else
     KLIPPER_CONF_DIR=${klipper_cfg_loc}
   fi
-  report_status "Using configs from ${KLIPPER_CONF_DIR}"
+  report_status "Bot configuration file will be located in ${KLIPPER_CONF_DIR}"
 }
 
 create_initial_config() {
   # check in config exists!
   if [[ ! -f "${KLIPPER_CONF_DIR}"/telegram.conf ]]; then
-    report_status "Selecting log path"
+    report_status "Telegram bot log file location selection"
     echo -e "\n\n\n"
-    read -p "Enter your bot log file: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
+	echo "Enter the path for the log file location."
+	echo "Its recommended to store it together with the klipper log files for easier backup and usage."
+    read -p "Enter desired path: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
     MOONRAKER_BOT_LOG=${bot_log_path}
-    report_status "Writing bot logs to ${MOONRAKER_BOT_LOG}"
+    report_status "Bot logs will be located in ${MOONRAKER_BOT_LOG}"
 
     report_status "Creating base config file"
     cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${KLIPPER_CONF_DIR}"/telegram.conf
-    cp -rn "${MOONRAKER_BOT_DIR}"/imgs "${KLIPPER_CONF_DIR}"/
 
     sed -i "s+some_log_path+${MOONRAKER_BOT_LOG}+g" "${KLIPPER_CONF_DIR}"/telegram.conf
   fi
@@ -51,7 +54,7 @@ stop_sevice() {
     report_status "Stopping moonraker-telegram-bot instance ..."
     sudo systemctl stop moonraker-telegram-bot
   else
-    report_status "$serviceName service does not exist or not running."
+    report_status "$serviceName service does not exist or is not running."
   fi
 }
 

@@ -18,23 +18,24 @@ As always with solutions like these, we kindly remind you not to print unattende
 - Configurable timelapsing (https://youtu.be/gzbzW7Vv2cs)
 - Configurable keyboard for easy control without command typing in the bot
 - Macro/gcode execution via the bot chat
-- Power device control for PSU/MCU control via moonraker
+- Moonraker power device control for PSU/MCU
 - Sampling of photos/videos on request at any time
-- Pause, Cancel, Resume with a double confirmation 
-- Emergency stop with a double confirmation
+- Pause, Cancel, Resume
+- Emergency stop
 
 
-## Currently available commands:
+## Sample commands available:
 
-These are the commands, which are currently available in the bot. Most of them are configurable according to the manual.
-All commands are available on the bot keyboard, unused commands can be hidden via config.
+This is a basic overview of different commands available "out of the box" after installation.
+To get an indepth overview over available functionality you can check out the [config_sample](docs/config_sample.md).  
+Commands can be entered directly in chat, suggested by telegram hightlightning or placed as buttons.
 
 ```
 	/status			- get the status (printing, paused, error) of the printer
 	/pause			- pause the current print
 	/resume			- resume the current print
 	/cancel			- cancel the current print
-	/files			- get the last 5 .gcode files, and the option to print them
+	/files			- List available G-code files for printing
 	/macros			- list all available non-hidden macros
 	/gcode %gcode%		- run any gcode command, spaces are supported
 	/photo 			- capture a picture from the webstream/webcam
@@ -49,64 +50,13 @@ All commands are available on the bot keyboard, unused commands can be hidden vi
 
 ## Installation, configuration and updating
 
-**We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.**
-**Moonraker [history] component must be configured.**
-
-You may of course still install the bot manually, see the manual below.
-
-
-When installing the bot for the first time, simply clone this distro. 
-
-```
-cd ~
-git clone https://github.com/nlef/moonraker-telegram-bot.git
-cd moonraker-telegram-bot
-```
-
-When the process is done, run the install script:
-
-```
-./scripts/install.sh
-```
-
-You will get asked, where to place the configuration file to. It is recommended to place it in the same catalog, where klipper configs are located, for ease of access and backup.
-You can check on all the parameters and what they do in the [config_sample](docs/config_sample.md). As with klipper, start with the minimum, and expand the functionality based on your needs.
-
-There are different ways to communicate with the bot via commands in klipper. You can read up on it in [interacting with klipper](docs/interacting_with_klipper.md).
-Ideas on how to extend the capabilities of the bot with macros are in the [macro_sample](docs/macro_sample.md).
-
-
-Before you can start using the bot you will have to create and configure a telegram bot.
-The process is straightforward and is explained in the 'config_sample' in more detail. 
-
-
-
-To update the bot, we recommend simply using the moonraker update manager. This is explained in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager/).
-Here is the section needed:
-
-```
-[update_manager client moonraker-telegram-bot]
-type: git_repo
-path: ~/moonraker-telegram-bot
-origin: https://github.com/nlef/moonraker-telegram-bot.git
-env: ~/moonraker-telegram-bot-env/bin/python
-requirements: scripts/requirements.txt
-install_script: scripts/install.sh
-```
-
-Alternatively you can update by hand at your own risk, by doing a pull and running the install.sh again.
-Please understand, that entering commands into the console takes a certain amount of knowledge and is your own responsibility.
-
-
-When tweaking the bot, remember that you have to **restart the service every time you change the config**:
-You can either do so via the chat command/button `/bot_restart` or via ssh
-`sudo systemctl restart moonraker-telegram-bot`
+Please refer to the [installation instructions](docs/installation.md).
 
 
 ## Issues and bug reports
 
-We will be happy to assist you with any issues that you have, as long as you can form a coherent sentence and are polite in your requests.
-Please write an issue, and we will try our best to reproduce and fix it.
+We will be happy to assist you with any issues that you have, as long as you can form a coherent sentence and are polite in your requests.  
+Please write an issue, and we will try our best to reproduce and fix it.  
 Feature requests and ideas are also more than welcome.
 
 When writing issues/contacting for support please attach the 'telegram.log' as well as the output of `sudo journalctl -r -u moonraker-telegram-bot`
