@@ -418,9 +418,12 @@ class Camera:
             out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=lapse_fps, frameSize=(width, height))
 
             info_mess.edit_text(text=f"Images recoding")
+            last_update_time = time.time()
             for fnum, filename in enumerate(photos):
-                if fnum % lapse_fps == 0:
+                if time.time() >= last_update_time + 3:
                     info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
+                    last_update_time = time.time()
+
                 out.write(cv2.imread(filename))
 
             info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
