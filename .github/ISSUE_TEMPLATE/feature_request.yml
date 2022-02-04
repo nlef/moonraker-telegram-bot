@@ -2,7 +2,6 @@ name: Feature request
 description: You have a good idea for the bot?
 title: "A useful, descriptive title"
 labels: ["Feature Request"]
-assignees: ''
 body:
   - type: markdown
     attributes:
