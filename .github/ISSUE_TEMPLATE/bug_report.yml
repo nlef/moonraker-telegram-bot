@@ -1,0 +1,44 @@
+name: Bug report
+description: Something not working as described?
+title: "[Bug]: A useful, descriptive title"
+labels: ["bug"]
+assignees: ''
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to file a report.
+  - type: textarea
+    id: Problem
+    attributes:
+      label: What happened and in what context?
+      description: |
+        Describe the problem as best as you can:
+        1. What did you do?
+        2. What happened?
+        3. What did you expect to happen instead? It might be obvious to you, but do it anyway!
+        4. **Add your telegram.log as well as well as the output of ** `sudo journalctl -r -u moonraker-telegram-bot`.
+
+
+        - Write down the steps to reproduce the bug if you know them.
+        - Does it happen always, once, or sometimes?
+      placeholder: Don't be shy, tell us!
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: What branch does this occur on?
+      options:
+        - development
+        - master
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Reports only on latest master or development branches!
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com)
+      options:
+        - label: I have updated to latest development/master version before submitting the bug
+          required: true
