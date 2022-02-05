@@ -52,7 +52,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback), stack_info=True)
 
 
 sys.excepthook = handle_exception
@@ -60,7 +60,12 @@ sys.excepthook = handle_exception
 
 # some global params
 def errors_listener(event):
-    logger.error(f'Job {event.job_id} raised {event.exception.message}\n{event.traceback}')
+    exception_info = f'Job {event.job_id} raised'
+    if event.exception.message:
+        exception_info += f'{event.exception.message}\n'
+    else:
+        exception_info += f'{event.exception}\n'
+    logger.error(exception_info, exc_info=True, stack_info=True)
 
 
 scheduler = BackgroundScheduler({
@@ -800,7 +805,9 @@ def websocket_to_message(ws_loc, ws_message):
                 if klippy_state == 'ready':
                     if ws_loc.keep_running:
                         klippy.connected = True
-                        klippy.state_message = ''
+                        if klippy.state_message:
+                            notifier.send_error(f"Klippy changed state to {klippy.state}")
+                            klippy.state_message = ''
                         subscribe(ws_loc)
                         if scheduler.get_job('ws_reschedule'):
                             scheduler.remove_job('ws_reschedule')
