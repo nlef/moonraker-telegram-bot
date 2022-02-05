@@ -401,6 +401,9 @@ class Camera:
         photos.sort(key=os.path.getmtime)
         photo_count = len(photos)
 
+        if photo_count == 0:
+            raise FileNotFoundError
+
         info_mess.edit_text(text=f"Creating thumbnail")
         last_photo = photos[-1]
         img = cv2.imread(last_photo)
