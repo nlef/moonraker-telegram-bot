@@ -96,7 +96,7 @@ class TimelapseConfig:
 class TelegramUIConfig:
     _SECTION = 'telegram_ui'
     _KNOWN_ITEMS = ['silent_progress', 'silent_commands', 'silent_status', 'status_single_message', 'pin_status_single_message', 'status_message_content', 'buttons', 'require_confirmation_macro',
-                    'include_macros_in_command_list', 'disabled_macros', 'show_hidden_macros', 'eta_source', 'status_message_sensors', 'status_message_heaters', 'status_message_devices']
+                    'include_macros_in_command_list', 'disabled_macros', 'show_hidden_macros', 'eta_source', 'status_message_sensors', 'status_message_heaters', 'status_message_devices', 'status_message_temperature_fans']
     _MESSAGE_CONTENT = ['progress', 'height', 'filament_length', 'filament_weight', 'print_duration', 'eta', 'finish_time', 'm117_status', 'tgnotify_status', 'last_update_time']
 
     def __init__(self, config: configparser.ConfigParser):
@@ -118,6 +118,7 @@ class TelegramUIConfig:
         self.eta_source: str = config.get(self._SECTION, 'eta_source', fallback='slicer')
         self.status_message_sensors: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_sensors').split(',')] if config.has_option(self._SECTION, 'status_message_sensors') else []
         self.status_message_heaters: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_heaters').split(',')] if config.has_option(self._SECTION, 'status_message_heaters') else []
+        self.status_message_temp_fans: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_temperature_fans').split(',')] if config.has_option(self._SECTION, 'status_message_temperature_fans') else []
         self.status_message_devices: List[str] = [el.strip() for el in config.get(self._SECTION, 'status_message_devices').split(',')] if config.has_option(self._SECTION, 'status_message_devices') else []
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 

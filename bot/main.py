@@ -646,6 +646,10 @@ def status_response(status_resp):
         if status_resp[sens]:
             klippy.update_sensror(sens.replace('temperature_sensor ', ''), status_resp[sens])
 
+    for sens in [key for key in status_resp if 'temperature_fan' in key]:
+        if status_resp[sens]:
+            klippy.update_sensror(sens.replace('temperature_fan ', ''), status_resp[sens])
+
     for heater in [key for key in status_resp if 'extruder' in key or 'heater_bed' in key or 'heater_generic' in key]:
         if status_resp[heater]:
             klippy.update_sensror(heater.replace('extruder ', '').replace('heater_bed ', '').replace('heater_generic ', ''), status_resp[heater])

@@ -30,6 +30,7 @@ class Klippy:
         self._psu_device = psu_device
         self._sensors_list: List[str] = config.telegram_ui.status_message_sensors
         self._heates_list: List[str] = config.telegram_ui.status_message_heaters
+        self._temp_fans_list: List[str] = config.telegram_ui.status_message_temp_fans
         self._devices_list: List[str] = config.telegram_ui.status_message_devices
         self._user: str = config.bot.user
         self._passwd: str = config.bot.passwd
@@ -78,6 +79,9 @@ class Klippy:
 
         for sens in self._sensors_list:
             sens_dict[f"temperature_sensor {sens}"] = None
+
+        for sens in self._temp_fans_list:
+            sens_dict[f"temperature_fan {sens}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -207,18 +211,26 @@ class Klippy:
                 self.sensors_dict.get(name)['target'] = value['target']
             if 'power' in value:
                 self.sensors_dict.get(name)['power'] = value['power']
+            if 'speed' in value:
+                self.sensors_dict.get(name)['speed'] = value['speed']
         else:
             self.sensors_dict[name] = value
 
     @staticmethod
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
-        if 'target' in value:
+        if 'power' in value:
             message = emoji.emojize(' :hotsprings: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            if value['target'] > 0.0:
+            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
                 message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
             if value['power'] > 0.0:
                 message += emoji.emojize(' :fire: ', use_aliases=True)
+        elif 'speed' in value:
+            message = emoji.emojize(' :tornado: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
+            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
+                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
+            if value['speed'] > 0.0:
+                message += emoji.emojize(' :wind_face: ', use_aliases=True)
         else:
             message = emoji.emojize(' :thermometer: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
         message += '\n'
