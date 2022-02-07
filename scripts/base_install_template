@@ -5,9 +5,7 @@ bot_token: AweSomeBotToken
 log_path: some_log_path
 
 [camera]
-flip_vertically: false
-flip_horizontally: false
-video_duration: 15
+host: http://localhost:8080/?action=stream
 
 [progress_notification]
 percent: 5
@@ -18,4 +16,4 @@ time: 5
 cleanup: true
 height: 0.2
 time: 5
-target_fps: 30	
+target_fps: 30
