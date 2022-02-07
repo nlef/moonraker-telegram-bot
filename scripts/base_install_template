@@ -5,9 +5,9 @@ bot_token: AweSomeBotToken
 log_path: some_log_path
 
 [camera]
-flipVertically: false
-flipHorizontally: false
-videoDuration: 15
+flip_vertically: false
+flip_horizontally: false
+video_duration: 15
 
 [progress_notification]
 percent: 5
