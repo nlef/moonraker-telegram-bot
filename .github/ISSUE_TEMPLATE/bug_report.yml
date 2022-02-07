@@ -16,7 +16,7 @@ body:
         1. What did you do?
         2. What happened?
         3. What did you expect to happen instead? It might be obvious to you, but do it anyway!
-        4. **Add your telegram.log as well as well as the output of ** `sudo journalctl -r -u moonraker-telegram-bot`.
+        4. **Add your telegram.log as well as well as the output of** `sudo journalctl -r -u moonraker-telegram-bot`.
 
 
         - Write down the steps to reproduce the bug if you know them.
@@ -24,6 +24,21 @@ body:
       placeholder: Don't be shy, tell us!
     validations:
       required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: If needed, paste the relevant bot log contents here.
+      description: |
+        If you think your issue is caused by a bug or software errors, please attach the bot log.
+      placeholder: Paste telegram.log contents here.
+  - type: textarea
+    id: journalctl
+    attributes:
+      label: If needed, paste the relevant bot journal contents here.
+      description: |
+        If you think your issue is caused by a bug or software errors, please attach the journal content
+        You can get it by entering `sudo journalctl -r -u moonraker-telegram-bot` into the console.
+      placeholder: Paste journal contents here.
   - type: dropdown
     id: version
     attributes:
