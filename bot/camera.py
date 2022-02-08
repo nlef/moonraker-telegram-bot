@@ -379,13 +379,17 @@ class Camera:
         actual_duration = frames_count / self._target_fps
 
         # Todo: check _max_lapse_duration > _min_lapse_duration
-        if (self._min_lapse_duration == 0 and self._max_lapse_duration == 0) or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0):
+        if (self._min_lapse_duration == 0 and self._max_lapse_duration == 0) or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0) or (
+                actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0):
             return self._target_fps
         elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
             return fps if fps >= 1 else 1
         elif actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
+        else:
+            logger.error(f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}")
+            return self._target_fps
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         if not printing_filename:
