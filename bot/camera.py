@@ -388,6 +388,9 @@ class Camera:
             return math.ceil(frames_count / self._max_lapse_duration)
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+        if not printing_filename:
+            raise ValueError(f'Gcode file name is empty')
+
         while self.light_need_off:
             time.sleep(1)
 
@@ -402,7 +405,7 @@ class Camera:
         photo_count = len(photos)
 
         if photo_count == 0:
-            raise FileNotFoundError
+            raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
         info_mess.edit_text(text=f"Creating thumbnail")
         last_photo = photos[-1]
