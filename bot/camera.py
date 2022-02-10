@@ -54,7 +54,7 @@ def cam_light_toggle(func):
                 logger.debug(f"light requests count: {self.light_requests}")
 
         if self.light_need_off and self.light_requests == 0:
-            threading.Timer(1.5, delayed_light_off).start()
+            threading.Timer(self.light_timeout, delayed_light_off).start()
 
         return result
 
