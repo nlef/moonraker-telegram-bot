@@ -245,9 +245,9 @@ class Klippy:
     def _get_power_devices_mess(self) -> str:
         message = ''
         if self._light_device and self._light_device.name in self._devices_list:
-            message += emoji.emojize(':flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
+            message += emoji.emojize(' :flashlight: Light: ', use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
         if self._psu_device and self._psu_device.name in self._devices_list:
-            message += emoji.emojize(':electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+            message += emoji.emojize(' :electric_plug: PSU: ', use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
     def execute_command(self, *command) -> None:
