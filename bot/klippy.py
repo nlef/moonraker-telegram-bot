@@ -224,16 +224,16 @@ class Klippy:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
         if 'power' in value:
             message = emoji.emojize(' :hotsprings: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
-                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
+            if 'target' in value:
+                if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
+                    message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
             if value['power'] > 0.0:
                 message += emoji.emojize(' :fire: ', use_aliases=True)
         elif 'speed' in value:
             message = emoji.emojize(' :tornado: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
-                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
-            if value['speed'] > 0.0:
-                message += emoji.emojize(' :wind_face: ', use_aliases=True)
+            if 'target' in value:
+                if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
+                    message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
         else:
             message = emoji.emojize(' :thermometer: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
         message += '\n'
