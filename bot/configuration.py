@@ -41,7 +41,7 @@ class CameraConfig:
 
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
-        self.host: str = config.get(self._SECTION, 'host')
+        self.host: str = config.get(self._SECTION, 'host', fallback='')
         self.threads: int = config.getint(self._SECTION, 'threads', fallback=int(os.cpu_count() / 2))
         self.flip_vertically: bool = config.getboolean(self._SECTION, 'flip_vertically', fallback=False)
         self.flip_horizontally: bool = config.getboolean(self._SECTION, 'flip_horizontally', fallback=False)
