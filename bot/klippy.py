@@ -169,9 +169,12 @@ class Klippy:
         self.filament_total = resp['filament_total'] if 'filament_total' in resp else 0.0
         self.filament_weight = resp['filament_weight_total'] if 'filament_weight_total' in resp else 0.0
 
-        if 'thumbnails' in resp:
+        if 'thumbnails' and 'filename' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
-            self._thumbnail_path = thumb['relative_path']
+            file_dir = resp['filename'].rpartition('/')[0]
+            if file_dir:
+                self._thumbnail_path = file_dir + '/'
+            self._thumbnail_path += thumb['relative_path']
 
     def _get_full_marco_list(self) -> List[str]:
         resp = requests.get(f'http://{self._host}/printer/objects/list', headers=self._headers)
@@ -221,16 +224,16 @@ class Klippy:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace('_', '')
         if 'power' in value:
             message = emoji.emojize(' :hotsprings: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
-                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
+            if 'target' in value:
+                if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
+                    message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
             if value['power'] > 0.0:
                 message += emoji.emojize(' :fire: ', use_aliases=True)
         elif 'speed' in value:
             message = emoji.emojize(' :tornado: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
-                message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
-            if value['speed'] > 0.0:
-                message += emoji.emojize(' :wind_face: ', use_aliases=True)
+            if 'target' in value:
+                if value['target'] > 0.0 and abs(value['target'] - value['temperature']) > 2:
+                    message += emoji.emojize(' :arrow_right: ', use_aliases=True) + f"{round(value['target'])}"
         else:
             message = emoji.emojize(' :thermometer: ', use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
         message += '\n'
@@ -374,10 +377,13 @@ class Klippy:
         thumb_path = ''
         if 'thumbnails' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
-            if 'relative_path' in thumb:
-                thumb_path = thumb['relative_path']
+            if 'relative_path' and 'filename' in resp:
+                file_dir = resp['filename'].rpartition('/')[0]
+                if file_dir:
+                    thumb_path = file_dir + '/'
+                thumb_path += thumb['relative_path']
             else:
-                logger.error(f"Thumbnail relative_path not found in {resp}")
+                logger.error(f"Thumbnail relative_path and filename not found in {resp}")
 
         return self._populate_with_thumb(thumb_path, message)
 
