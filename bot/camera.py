@@ -63,7 +63,7 @@ def cam_light_toggle(func):
 
 class Camera:
     def __init__(self, config: ConfigWrapper, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler = None):
-        self.enabled: bool = config.camera.enabled and config.camera.host
+        self.enabled: bool = True if config.camera.enabled and config.camera.host else False
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
         self._flip_vertically: bool = config.camera.flip_vertically
