@@ -12,6 +12,15 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
+def logging_callback(future):
+    exc = future.exception()
+
+    if exc is None:
+        return
+
+    logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
+
+
 class Timelapse:
     def __init__(self, config: ConfigWrapper, klippy: Klippy, camera: Camera, scheduler: BaseScheduler, bot: Bot, logging_handler: logging.Handler = None):
         self._enabled: bool = config.timelapse.enabled and camera.enabled
@@ -47,7 +56,7 @@ class Timelapse:
         self._paused: bool = False
         self._last_height: float = 0.0
 
-        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2)
+        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2, thread_name_prefix='timelapse_pool')
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -184,13 +193,13 @@ class Timelapse:
         gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ''
 
         if self._height > 0.0 and round(position_z * 100) % round(self._height * 100) == 0 and position_z > self._last_height:
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
         elif position_z < -1000:
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
 
     def take_test_lapse_photo(self):
-        self._executors_pool.submit(self._camera.take_lapse_photo)
+        self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
 
     def clean(self):
         self._camera.clean()

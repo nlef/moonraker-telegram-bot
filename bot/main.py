@@ -61,11 +61,12 @@ sys.excepthook = handle_exception
 # some global params
 def errors_listener(event):
     exception_info = f'Job {event.job_id} raised'
-    if event.exception.message:
+    if 'message' in event.exception:
         exception_info += f'{event.exception.message}\n'
     else:
         exception_info += f'{event.exception}\n'
-    logger.error(exception_info, exc_info=True, stack_info=True)
+    logger.error(exception_info, exc_info=(type(event.exception), event.exception, event.exception.__traceback__))
+    # logger.error(exception_info, exc_info=True, stack_info=True)
 
 
 scheduler = BackgroundScheduler({
