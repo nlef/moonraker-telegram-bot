@@ -672,6 +672,8 @@ def notify_gcode_reponse(message_params):
             timelapse.paused = False
         if 'timelapse create' in message_params:
             timelapse.send_timelapse()
+    if 'timelapse photo_and_gcode' in message_params:
+        timelapse.take_lapse_photo(manually=True, gcode=True)
     if 'timelapse photo' in message_params:
         timelapse.take_lapse_photo(manually=True)
     if message_params[0].startswith('tgnotify '):

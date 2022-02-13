@@ -71,7 +71,7 @@ class NotifierConfig:
 class TimelapseConfig:
     _SECTION = 'timelapse'
     _KNOWN_ITEMS = ['basedir', 'copy_finished_timelapse_dir', 'cleanup', 'manual_mode', 'height', 'time', 'target_fps', 'min_lapse_duration', 'max_lapse_duration', 'last_frame_duration', 'after_lapse_gcode',
-                    'send_finished_lapse']
+                    'send_finished_lapse', 'after_photo_gcode']
 
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
@@ -89,6 +89,7 @@ class TimelapseConfig:
         # Todo: add to runtime params section!
         self.after_lapse_gcode: str = config.get(self._SECTION, 'after_lapse_gcode', fallback='')
         self.send_finished_lapse: bool = config.getboolean(self._SECTION, 'send_finished_lapse', fallback=True)
+        self.after_photo_gcode: str = config.get(self._SECTION, 'after_photo_gcode', fallback='')
 
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 

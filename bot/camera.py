@@ -359,7 +359,7 @@ class Camera:
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
-    def take_lapse_photo(self) -> None:
+    def take_lapse_photo(self, gcode: str = '') -> None:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
@@ -368,6 +368,8 @@ class Camera:
             with open(filename, "wb") as outfile:
                 outfile.write(photo.getvalue())
             photo.close()
+        if gcode:
+            self._klippy.execute_command(gcode.strip())
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(printing_filename, gcode_name, info_mess)

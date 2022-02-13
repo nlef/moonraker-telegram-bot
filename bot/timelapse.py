@@ -26,6 +26,7 @@ class Timelapse:
         # Todo: add to runtime params section!
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
+        self._after_photo_gcode: str = config.timelapse.after_photo_gcode
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
 
@@ -160,7 +161,7 @@ class Timelapse:
         elif self._running:
             self._add_timelapse_timer()
 
-    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False):
+    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False):
         if not self._enabled:
             logger.debug(f"lapse is disabled")
             return
@@ -180,11 +181,13 @@ class Timelapse:
         if 0.0 < position_z < self._last_height - self._height:
             self._last_height = position_z
 
+        gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ''
+
         if self._height > 0.0 and round(position_z * 100) % round(self._height * 100) == 0 and position_z > self._last_height:
-            self._executors_pool.submit(self._camera.take_lapse_photo)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command)
             self._last_height = position_z
         elif position_z < -1000:
-            self._executors_pool.submit(self._camera.take_lapse_photo)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command)
 
     def take_test_lapse_photo(self):
         self._executors_pool.submit(self._camera.take_lapse_photo)
