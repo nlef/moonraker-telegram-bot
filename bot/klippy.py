@@ -375,7 +375,7 @@ class Klippy:
         thumb_path = ''
         if 'thumbnails' in resp:
             thumb = max(resp['thumbnails'], key=lambda el: el['size'])
-            if 'relative_path' in resp and 'filename' in resp:
+            if 'relative_path' in thumb and 'filename' in resp:
                 file_dir = resp['filename'].rpartition('/')[0]
                 if file_dir:
                     thumb_path = file_dir + '/'
