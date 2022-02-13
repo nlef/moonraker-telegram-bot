@@ -365,11 +365,14 @@ class Camera:
         # never add self in params there!
         with self.take_photo() as photo:
             filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
+            if gcode:
+                try:
+                    self._klippy.execute_command(gcode.strip())
+                except Exception as ex:
+                    logger.error(ex)
             with open(filename, "wb") as outfile:
                 outfile.write(photo.getvalue())
             photo.close()
-        if gcode:
-            self._klippy.execute_command(gcode.strip())
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
