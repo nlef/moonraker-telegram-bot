@@ -422,7 +422,8 @@ class Camera:
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
-        video_filepath = f'{lapse_dir}/{printing_filename}.mp4'
+        video_filename = Path(printing_filename).name
+        video_filepath = f'{lapse_dir}/{video_filename}.mp4'
         if Path(video_filepath).is_file():
             os.remove(video_filepath)
 
@@ -454,12 +455,14 @@ class Camera:
         # Todo: some error handling?
 
         video_bio = BytesIO()
-        video_bio.name = f'{printing_filename}.mp4'
+        video_bio.name = f'{video_filename}.mp4'
+        target_video_file = f'{self._ready_dir}/{printing_filename}.mp4'
         with open(video_filepath, 'rb') as fh:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
             info_mess.edit_text(text=f"Copy lapse to target ditectory")
-            with open(f"{self._ready_dir}/{printing_filename}.mp4", 'wb') as cpf:
+            Path(target_video_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(target_video_file, 'wb') as cpf:
                 cpf.write(video_bio.getvalue())
         video_bio.seek(0)
 
