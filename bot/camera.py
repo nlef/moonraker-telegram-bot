@@ -1,25 +1,24 @@
 import configparser
+from contextlib import contextmanager
+from functools import wraps
+import glob
+from io import BytesIO
 import logging
 import math
 import os
 import pathlib
-import threading
-import time
-import glob
-from contextlib import contextmanager
-from functools import wraps
-from io import BytesIO
 from pathlib import Path
 from queue import Queue
+import threading
+import time
 from typing import List
 
-import cv2
 from PIL import Image, _webp
-from telegram import Message
-
 from configuration import ConfigWrapper
+import cv2
 from klippy import Klippy
 from power_device import PowerDevice
+from telegram import Message
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,12 @@ def cam_light_toggle(func):
     def wrapper(self, *args, **kwargs):
         self.use_light()
 
-        if self.light_timeout > 0 and self.light_device and not self.light_device.device_state and not self.light_lock.locked():
+        if (
+            self.light_timeout > 0
+            and self.light_device
+            and not self.light_device.device_state
+            and not self.light_lock.locked()
+        ):
             self.light_timer_event.clear()
             self.light_lock.acquire()
             self.light_need_off = True
@@ -62,7 +66,13 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler = None):
+    def __init__(
+        self,
+        config: ConfigWrapper,
+        klippy: Klippy,
+        light_device: PowerDevice,
+        logging_handler: logging.Handler = None,
+    ):
         self.enabled: bool = True if config.camera.enabled and config.camera.host else False
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
@@ -96,10 +106,10 @@ class Camera:
 
         self._hw_accel: bool = False
 
-        if config.camera.picture_quality == 'low':
-            self._img_extension: str = 'jpeg'
-        elif config.camera.picture_quality == 'high':
-            self._img_extension: str = 'webp'
+        if config.camera.picture_quality == "low":
+            self._img_extension: str = "jpeg"
+        elif config.camera.picture_quality == "high":
+            self._img_extension: str = "webp"
         else:
             self._img_extension: str = config.camera.picture_quality
 
@@ -113,11 +123,11 @@ class Camera:
         elif self._flip_vertically:
             self._flip = 0
 
-        if config.camera.rotate == '90_cw':
+        if config.camera.rotate == "90_cw":
             self._rotate_code: int = cv2.ROTATE_90_CLOCKWISE
-        elif config.camera.rotate == '90_ccw':
+        elif config.camera.rotate == "90_ccw":
             self._rotate_code: int = cv2.ROTATE_90_COUNTERCLOCKWISE
-        elif config.camera.rotate == '180':
+        elif config.camera.rotate == "180":
             self._rotate_code: int = cv2.ROTATE_180
         else:
             self._rotate_code: int = -10
@@ -130,9 +140,9 @@ class Camera:
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
-            logger.debug('OpenCL is available')
+            logger.debug("OpenCL is available")
             cv2.ocl.setUseOpenCL(True)
-            logger.debug(f'OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}')
+            logger.debug(f"OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}")
 
         cv2.setNumThreads(self._threads)
         self.cam_cam = cv2.VideoCapture()
@@ -150,7 +160,7 @@ class Camera:
 
     @property
     def lapse_dir(self) -> str:
-        return f'{self._base_dir}/{self._klippy.printing_filename_with_time}'
+        return f"{self._base_dir}/{self._klippy.printing_filename_with_time}"
 
     @property
     def light_requests(self) -> int:
@@ -205,9 +215,9 @@ class Camera:
         # cv2.cvtColor cause segfaults!
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
-        bio.name = 'thumbnail.jpeg'
+        bio.name = "thumbnail.jpeg"
         img.thumbnail((320, 320))
-        img.save(bio, 'JPEG', quality=100, optimize=True)
+        img.save(bio, "JPEG", quality=100, optimize=True)
         bio.seek(0)
         img.close()
         del img
@@ -224,7 +234,7 @@ class Camera:
             if not success:
                 logger.debug("failed to get camera frame for photo")
                 # Todo: resize to cam resolution!
-                img = Image.open('../imgs/nosignal.png')
+                img = Image.open("../imgs/nosignal.png")
             else:
                 if self._hw_accel:
                     image_um = cv2.UMat(image)
@@ -250,15 +260,15 @@ class Camera:
             del image, success
 
         bio = BytesIO()
-        bio.name = f'status.{self._img_extension}'
-        if self._img_extension in ['jpg', 'jpeg']:
-            img.save(bio, 'JPEG', quality=80, subsampling=0)
-        elif self._img_extension == 'webp':
+        bio.name = f"status.{self._img_extension}"
+        if self._img_extension in ["jpg", "jpeg"]:
+            img.save(bio, "JPEG", quality=80, subsampling=0)
+        elif self._img_extension == "webp":
             # https://github.com/python-pillow/Pillow/issues/4364
             _webp.HAVE_WEBPANIM = False
-            img.save(bio, 'WebP', quality=0, lossless=True)
-        elif self._img_extension == 'png':
-            img.save(bio, 'PNG')
+            img.save(bio, "WebP", quality=0, lossless=True)
+        elif self._img_extension == "png":
+            img.save(bio, "PNG")
         bio.seek(0)
 
         img.close()
@@ -292,12 +302,17 @@ class Camera:
 
         def write_video():
             cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=fps_cam, frameSize=(width, height))
+            out = cv2.VideoWriter(
+                filepath,
+                fourcc=cv2.VideoWriter_fourcc(*self._fourcc),
+                fps=fps_cam,
+                frameSize=(width, height),
+            )
             while video_lock.locked():
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as ex:
-                    logger.warning(f'Reading video frames queue exception {ex.with_traceback}')
+                    logger.warning(f"Reading video frames queue exception {ex.with_traceback}")
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))
@@ -329,7 +344,7 @@ class Camera:
             del frame, channels
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
-            filepath = os.path.join('/tmp/', 'video.mp4')
+            filepath = os.path.join("/tmp/", "video.mp4")
             frame_queue = Queue(fps_cam * self._video_buffer_size)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
@@ -342,7 +357,7 @@ class Camera:
                 try:
                     frame_queue.put(frame_loc, block=False)
                 except Exception as ex:
-                    logger.warning(f'Writing video frames queue exception {ex.with_traceback}')
+                    logger.warning(f"Writing video frames queue exception {ex.with_traceback}")
                     frame_queue.put(frame_loc)
                 # frame_loc = None
                 # del frame_loc
@@ -352,19 +367,19 @@ class Camera:
 
         self.cam_cam.release()
         video_bio = BytesIO()
-        video_bio.name = 'video.mp4'
-        with open(filepath, 'rb') as fh:
+        video_bio.name = "video.mp4"
+        with open(filepath, "rb") as fh:
             video_bio.write(fh.read())
         os.remove(filepath)
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
-    def take_lapse_photo(self, gcode: str = '') -> None:
+    def take_lapse_photo(self, gcode: str = "") -> None:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
         with self.take_photo() as photo:
-            filename = f'{self.lapse_dir}/{time.time()}.{self._img_extension}'
+            filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
             if gcode:
                 try:
                     self._klippy.execute_command(gcode.strip())
@@ -374,7 +389,9 @@ class Camera:
                 outfile.write(photo.getvalue())
             photo.close()
 
-    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+    def create_timelapse(
+        self, printing_filename: str, gcode_name: str, info_mess: Message
+    ) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
 
     def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
@@ -384,8 +401,13 @@ class Camera:
         actual_duration = frames_count / self._target_fps
 
         # Todo: check _max_lapse_duration > _min_lapse_duration
-        if (self._min_lapse_duration == 0 and self._max_lapse_duration == 0) or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0) or (
-                actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0):
+        if (
+            (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
+            or (
+                self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0
+            )
+            or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
+        ):
             return self._target_fps
         elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
@@ -393,23 +415,27 @@ class Camera:
         elif actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
         else:
-            logger.error(f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}")
+            logger.error(
+                f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}"
+            )
             return self._target_fps
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(
+        self, printing_filename: str, gcode_name: str, info_mess: Message
+    ) -> (BytesIO, BytesIO, int, int, str, str):
         if not printing_filename:
-            raise ValueError(f'Gcode file name is empty')
+            raise ValueError(f"Gcode file name is empty")
 
         while self.light_need_off:
             time.sleep(1)
 
-        lapse_dir = f'{self._base_dir}/{printing_filename}'
+        lapse_dir = f"{self._base_dir}/{printing_filename}"
 
-        if not Path(f'{lapse_dir}/lapse.lock').is_file():
-            open(f'{lapse_dir}/lapse.lock', mode='a').close()
+        if not Path(f"{lapse_dir}/lapse.lock").is_file():
+            open(f"{lapse_dir}/lapse.lock", mode="a").close()
 
         # Todo: check for nonempty photos!
-        photos = glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}')
+        photos = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}")
         photos.sort(key=os.path.getmtime)
         photo_count = len(photos)
 
@@ -423,7 +449,7 @@ class Camera:
         thumb_bio = self._create_thumb(img)
 
         video_filename = Path(printing_filename).name
-        video_filepath = f'{lapse_dir}/{video_filename}.mp4'
+        video_filepath = f"{lapse_dir}/{video_filename}.mp4"
         if Path(video_filepath).is_file():
             os.remove(video_filepath)
 
@@ -431,7 +457,12 @@ class Camera:
 
         with self._camera_lock:
             cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
-            out = cv2.VideoWriter(video_filepath, fourcc=cv2.VideoWriter_fourcc(*self._fourcc), fps=lapse_fps, frameSize=(width, height))
+            out = cv2.VideoWriter(
+                video_filepath,
+                fourcc=cv2.VideoWriter_fourcc(*self._fourcc),
+                fps=lapse_fps,
+                frameSize=(width, height),
+            )
 
             info_mess.edit_text(text=f"Images recoding")
             last_update_time = time.time()
@@ -455,25 +486,25 @@ class Camera:
         # Todo: some error handling?
 
         video_bio = BytesIO()
-        video_bio.name = f'{video_filename}.mp4'
-        target_video_file = f'{self._ready_dir}/{printing_filename}.mp4'
-        with open(video_filepath, 'rb') as fh:
+        video_bio.name = f"{video_filename}.mp4"
+        target_video_file = f"{self._ready_dir}/{printing_filename}.mp4"
+        with open(video_filepath, "rb") as fh:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
             info_mess.edit_text(text=f"Copy lapse to target ditectory")
             Path(target_video_file).parent.mkdir(parents=True, exist_ok=True)
-            with open(target_video_file, 'wb') as cpf:
+            with open(target_video_file, "wb") as cpf:
                 cpf.write(video_bio.getvalue())
         video_bio.seek(0)
 
-        os.remove(f'{lapse_dir}/lapse.lock')
+        os.remove(f"{lapse_dir}/lapse.lock")
 
         if self._cleanup:
             info_mess.edit_text(text=f"Performing cleanups")
-            for filename in glob.glob(f'{glob.escape(lapse_dir)}/*.{self._img_extension}'):
+            for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
                 os.remove(filename)
             if video_bio.getbuffer().nbytes < 52428800:
-                for filename in glob.glob(f'{glob.escape(lapse_dir)}/*'):
+                for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
                     os.remove(filename)
                 Path(lapse_dir).rmdir()
 
@@ -481,11 +512,16 @@ class Camera:
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
-            for filename in glob.glob(f'{glob.escape(self.lapse_dir)}/*'):
+            for filename in glob.glob(f"{glob.escape(self.lapse_dir)}/*"):
                 os.remove(filename)
 
     # Todo: refactor into timelapse class
     # Todo: check for 64 symbols length in lapse names
     def detect_unfinished_lapses(self) -> List[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
-        return list(map(lambda el: pathlib.PurePath(el).parent.name, glob.glob(f'{self._base_dir}/*/*.lock')))
+        return list(
+            map(
+                lambda el: pathlib.PurePath(el).parent.name,
+                glob.glob(f"{self._base_dir}/*/*.lock"),
+            )
+        )

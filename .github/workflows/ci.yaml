@@ -1,0 +1,30 @@
+name: Linting
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  pre-commit:
+    name: Pre-commit
+    strategy:
+      matrix:
+        python-version: [3.8]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2.4.0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2.3.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.dev.txt
+
+      - name: Run pre-commit on all files
+        run: |
+          pre-commit run --all-files --show-diff-on-failure --color=always

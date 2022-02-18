@@ -7,16 +7,16 @@ The general idea of this project is to provide you with a way to control and mon
 In addition you get the benefits of push-style notifications always in your pocket, and a bandwidth-friendly way to check up on your print progress, when not near the printer.
 
 As always with solutions like these, we kindly remind you not to print unattended, and always to take all necessary precautions against fire hazards.
-  
-  
+
+
 ## Features and Installation:
 
 Please check out our [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for installation instructions and detailed feature descriptions.
-  
+
 ## Issues and bug reports
 
-We will be happy to assist you with any issues that you have, as long as you can form a coherent sentence and are polite in your requests.  
-Please open an issue, and we will try our best to reproduce and fix it.  
+We will be happy to assist you with any issues that you have, as long as you can form a coherent sentence and are polite in your requests.
+Please open an issue, and we will try our best to reproduce and fix it.
 Feature requests and ideas are also more than welcome.
 
 When writing issues/contacting for support please attach the 'telegram.log' as well as the output of `sudo journalctl -r -u moonraker-telegram-bot`.

@@ -1,0 +1,28 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: black
+        language: system
+        types: [python]
+        require_serial: true
+      - id: isort
+        name: isort
+        entry: isort
+        language: system
+        types: [python]
+        require_serial: true
+      # TODO: fix typing errors
+      # - id: mypy
+      #   name: mypy
+      #   entry: mypy
+      #   language: system
+      #   types: [python]
