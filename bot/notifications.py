@@ -40,9 +40,7 @@ class Notifier:
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
         self._status_single_message: bool = config.telegram_ui.status_single_message
-        self._pin_status_single_message: bool = (
-            config.telegram_ui.pin_status_single_message
-        )  # Todo: implement
+        self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
         self._message_parts: List[str] = config.telegram_ui.status_message_content
 
         self._last_height: int = 0
@@ -117,9 +115,7 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
-    def _send_message(
-        self, message: str, silent: bool, group_only: bool = False, manual: bool = False
-    ):
+    def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_single_message and not manual:
@@ -132,13 +128,9 @@ class Notifier:
                     )
                 else:
                     if self._status_message.caption:
-                        self._status_message.edit_caption(
-                            caption=message, parse_mode=PARSEMODE_MARKDOWN_V2
-                        )
+                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
-                        self._status_message.edit_text(
-                            text=message, parse_mode=PARSEMODE_MARKDOWN_V2
-                        )
+                        self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
             else:
                 self._bot.send_message(
                     self._chat_id,
@@ -159,9 +151,7 @@ class Notifier:
                 else:
                     mess = self._groups_status_mesages[group]
                     if mess.caption:
-                        mess.edit_caption(
-                            caption=message, parse_mode=PARSEMODE_MARKDOWN_V2
-                        )
+                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
                         mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
             else:
@@ -172,15 +162,11 @@ class Notifier:
                     disable_notification=silent,
                 )
 
-    def _notify(
-        self, message: str, silent: bool, group_only: bool = False, manual: bool = False
-    ):
+    def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
         if self._cam_wrap.enabled:
             with self._cam_wrap.take_photo() as photo:
                 if not group_only:
-                    self._bot.send_chat_action(
-                        chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO
-                    )
+                    self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
                         if not self._status_message:
                             self._status_message = self._bot.send_photo(
@@ -192,12 +178,8 @@ class Notifier:
                             )
                         else:
                             # Fixme: check if media in message!
-                            self._status_message.edit_media(
-                                media=InputMediaPhoto(photo)
-                            )
-                            self._status_message.edit_caption(
-                                caption=message, parse_mode=PARSEMODE_MARKDOWN_V2
-                            )
+                            self._status_message.edit_media(media=InputMediaPhoto(photo))
+                            self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
                         self._bot.send_photo(
                             self._chat_id,
@@ -208,9 +190,7 @@ class Notifier:
                         )
                 for group_ in self._notify_groups:
                     photo.seek(0)
-                    self._bot.send_chat_action(
-                        chat_id=group_, action=ChatAction.UPLOAD_PHOTO
-                    )
+                    self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
                         if not group_ in self._groups_status_mesages:
                             self._groups_status_mesages[group_] = self._bot.send_photo(
@@ -222,9 +202,7 @@ class Notifier:
                         else:
                             mess = self._groups_status_mesages[group_]
                             mess.edit_media(media=InputMediaPhoto(photo))
-                            mess.edit_caption(
-                                caption=message, parse_mode=PARSEMODE_MARKDOWN_V2
-                            )
+                            mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
                         self._bot.send_photo(
                             group_,
@@ -406,9 +384,7 @@ class Notifier:
                 )
             bio.close()
         else:
-            status_message = self._bot.send_message(
-                self._chat_id, message, disable_notification=self.silent_status
-            )
+            status_message = self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
             for group_ in self._notify_groups:
                 self._groups_status_mesages[group_] = self._bot.send_message(
                     group_, message, disable_notification=self.silent_status
@@ -466,9 +442,7 @@ class Notifier:
                     f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"'
                 )
         if response:
-            full_conf = (
-                f"percent={self.percent} height={self.height} time={self.interval} "
-            )
+            full_conf = f"percent={self.percent} height={self.height} time={self.interval} "
             self._klippy.execute_command(
                 f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"'
             )

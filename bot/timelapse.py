@@ -63,9 +63,7 @@ class Timelapse:
         self._paused: bool = False
         self._last_height: float = 0.0
 
-        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(
-            2, thread_name_prefix="timelapse_pool"
-        )
+        self._executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2, thread_name_prefix="timelapse_pool")
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -183,9 +181,7 @@ class Timelapse:
         elif self._running:
             self._add_timelapse_timer()
 
-    def take_lapse_photo(
-        self, position_z: float = -1001, manually: bool = False, gcode: bool = False
-    ):
+    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False):
         if not self._enabled:
             logger.debug(f"lapse is disabled")
             return
@@ -205,28 +201,24 @@ class Timelapse:
         if 0.0 < position_z < self._last_height - self._height:
             self._last_height = position_z
 
-        gcode_command = (
-            self._after_photo_gcode if gcode and self._after_photo_gcode else ""
-        )
+        gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
 
         if (
             self._height > 0.0
             and round(position_z * 100) % round(self._height * 100) == 0
             and position_z > self._last_height
         ):
-            self._executors_pool.submit(
-                self._camera.take_lapse_photo, gcode=gcode_command
-            ).add_done_callback(logging_callback)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(
+                logging_callback
+            )
             self._last_height = position_z
         elif position_z < -1000:
-            self._executors_pool.submit(
-                self._camera.take_lapse_photo, gcode=gcode_command
-            ).add_done_callback(logging_callback)
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(
+                logging_callback
+            )
 
     def take_test_lapse_photo(self):
-        self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(
-            logging_callback
-        )
+        self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
 
     def clean(self):
         self._camera.clean()
@@ -256,9 +248,7 @@ class Timelapse:
 
     def _send_lapse(self):
         if not self._enabled or not self._klippy.printing_filename:
-            logger.debug(
-                f"lapse is inactive for enabled {self.enabled} or file undefined"
-            )
+            logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
         else:
             lapse_filename = self._klippy.printing_filename_with_time
             gcode_name = self._klippy.printing_filename
@@ -270,17 +260,13 @@ class Timelapse:
             )
 
             if self._executors_pool._work_queue.qsize() > 0:
-                info_mess.edit_text(
-                    text="Waiting for the completion of tasks for photographing"
-                )
+                info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
             time.sleep(5)
             while self._executors_pool._work_queue.qsize() > 0:
                 time.sleep(1)
 
-            self._bot.send_chat_action(
-                chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO
-            )
+            self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
             (
                 video_bio,
                 thumb_bio,
@@ -308,9 +294,7 @@ class Timelapse:
                         timeout=120,
                         disable_notification=self._silent_progress,
                     )
-                    self._bot.delete_message(
-                        self._chat_id, message_id=info_mess.message_id
-                    )
+                    self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
 
@@ -319,9 +303,7 @@ class Timelapse:
 
             if self._after_lapse_gcode:
                 # Todo: add exception handling
-                self._klippy.save_data_to_marco(
-                    video_bio.getbuffer().nbytes, video_path, f"{gcode_name}.mp4"
-                )
+                self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f"{gcode_name}.mp4")
                 self._klippy.execute_command(self._after_lapse_gcode.strip())
 
     def send_timelapse(self):
@@ -391,6 +373,4 @@ class Timelapse:
             self._klippy.execute_command(
                 f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"'
             )
-            self._klippy.execute_command(
-                f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"'
-            )
+            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

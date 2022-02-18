@@ -73,14 +73,8 @@ class Camera:
         light_device: PowerDevice,
         logging_handler: logging.Handler = None,
     ):
-        self.enabled: bool = (
-            True if config.camera.enabled and config.camera.host else False
-        )
-        self._host = (
-            int(config.camera.host)
-            if str.isdigit(config.camera.host)
-            else config.camera.host
-        )
+        self.enabled: bool = True if config.camera.enabled and config.camera.host else False
+        self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
         self._flip_vertically: bool = config.camera.flip_vertically
         self._flip_horizontally: bool = config.camera.flip_horizontally
@@ -246,9 +240,7 @@ class Camera:
                     image_um = cv2.UMat(image)
                     if self._flip_vertically or self._flip_horizontally:
                         image_um = cv2.flip(image_um, self._flip)
-                    img = Image.fromarray(
-                        cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB))
-                    )
+                    img = Image.fromarray(cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB)))
                     image_um = None
                     del image_um
                 else:
@@ -320,9 +312,7 @@ class Camera:
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as ex:
-                    logger.warning(
-                        f"Reading video frames queue exception {ex.with_traceback}"
-                    )
+                    logger.warning(f"Reading video frames queue exception {ex.with_traceback}")
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))
@@ -352,11 +342,7 @@ class Camera:
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
             del frame, channels
-            fps_cam = (
-                self.cam_cam.get(cv2.CAP_PROP_FPS)
-                if self._stream_fps == 0
-                else self._stream_fps
-            )
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
             filepath = os.path.join("/tmp/", "video.mp4")
             frame_queue = Queue(fps_cam * self._video_buffer_size)
@@ -371,9 +357,7 @@ class Camera:
                 try:
                     frame_queue.put(frame_loc, block=False)
                 except Exception as ex:
-                    logger.warning(
-                        f"Writing video frames queue exception {ex.with_traceback}"
-                    )
+                    logger.warning(f"Writing video frames queue exception {ex.with_traceback}")
                     frame_queue.put(frame_loc)
                 # frame_loc = None
                 # del frame_loc
@@ -410,9 +394,7 @@ class Camera:
     ) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
 
-    def create_timelapse_for_file(
-        self, filename: str, info_mess: Message
-    ) -> (BytesIO, BytesIO, int, int, str, str):
+    def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(filename, filename, info_mess)
 
     def _calculate_fps(self, frames_count: int) -> int:
@@ -422,18 +404,12 @@ class Camera:
         if (
             (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
             or (
-                self._min_lapse_duration <= actual_duration <= self._max_lapse_duration
-                and self._max_lapse_duration > 0
+                self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0
             )
-            or (
-                actual_duration > self._min_lapse_duration
-                and self._max_lapse_duration == 0
-            )
+            or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
         ):
             return self._target_fps
-        elif (
-            actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0
-        ):
+        elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
             return fps if fps >= 1 else 1
         elif actual_duration > self._max_lapse_duration > 0:
@@ -464,9 +440,7 @@ class Camera:
         photo_count = len(photos)
 
         if photo_count == 0:
-            raise ValueError(
-                f"Empty photos list for {printing_filename} in lapse path {lapse_dir}"
-            )
+            raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
         info_mess.edit_text(text=f"Creating thumbnail")
         last_photo = photos[-1]
@@ -499,9 +473,7 @@ class Camera:
 
                 out.write(cv2.imread(filename))
 
-            info_mess.edit_text(
-                text=f"Repeating last image for {self._last_frame_duration} seconds"
-            )
+            info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
             for _ in range(lapse_fps * self._last_frame_duration):
                 out.write(img)
 
@@ -529,9 +501,7 @@ class Camera:
 
         if self._cleanup:
             info_mess.edit_text(text=f"Performing cleanups")
-            for filename in glob.glob(
-                f"{glob.escape(lapse_dir)}/*.{self._img_extension}"
-            ):
+            for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
                 os.remove(filename)
             if video_bio.getbuffer().nbytes < 52428800:
                 for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
@@ -541,11 +511,7 @@ class Camera:
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
     def clean(self) -> None:
-        if (
-            self._cleanup
-            and self._klippy.printing_filename
-            and os.path.isdir(self.lapse_dir)
-        ):
+        if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
             for filename in glob.glob(f"{glob.escape(self.lapse_dir)}/*"):
                 os.remove(filename)
 

@@ -27,9 +27,7 @@ class Klippy:
         logging_handler: logging.Handler = None,
     ):
         self._host: str = config.bot.host
-        self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [
-            self._DATA_MACRO
-        ]
+        self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
         self.show_hidden_macros: List[str] = config.telegram_ui.show_hidden_macros
         self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
@@ -131,9 +129,7 @@ class Klippy:
         if not self._user and not self._jwt_token:
             return ""
 
-        resp = requests.get(
-            f"http://{self._host}/access/oneshot_token", headers=self._headers
-        )
+        resp = requests.get(f"http://{self._host}/access/oneshot_token", headers=self._headers)
         if resp.ok:
             res = f"?token={resp.json()['result']}"
         else:
@@ -177,15 +173,9 @@ class Klippy:
         resp = response.json()["result"]
         self._printing_filename = new_value
         self.file_estimated_time = resp["estimated_time"]
-        self.file_print_start_time = (
-            resp["print_start_time"] if resp["print_start_time"] else time.time()
-        )
-        self.filament_total = (
-            resp["filament_total"] if "filament_total" in resp else 0.0
-        )
-        self.filament_weight = (
-            resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
-        )
+        self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
+        self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
+        self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
 
         if "thumbnails" in resp and "filename" in resp:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
@@ -195,14 +185,10 @@ class Klippy:
             self._thumbnail_path += thumb["relative_path"]
 
     def _get_full_marco_list(self) -> List[str]:
-        resp = requests.get(
-            f"http://{self._host}/printer/objects/list", headers=self._headers
-        )
+        resp = requests.get(f"http://{self._host}/printer/objects/list", headers=self._headers)
         if not resp.ok:
             return []
-        macro_lines = list(
-            filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"])
-        )
+        macro_lines = list(filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"]))
         loaded_macros = list(map(lambda el: el.split(" ")[1], macro_lines))
         return loaded_macros
 
@@ -210,8 +196,7 @@ class Klippy:
         return [
             key
             for key in self._get_full_marco_list()
-            if key not in self._disabled_macros
-            and (True if self.show_hidden_macros else not key.startswith("_"))
+            if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))
         ]
 
     def _auth_moonraker(self) -> None:
@@ -230,9 +215,7 @@ class Klippy:
 
     def check_connection(self) -> str:
         try:
-            response = requests.get(
-                f"http://{self._host}/printer/info", headers=self._headers, timeout=2
-            )
+            response = requests.get(f"http://{self._host}/printer/info", headers=self._headers, timeout=2)
             return "" if response.ok else f"Connection failed. {response.reason}"
         except Exception as ex:
             logger.error(ex, exc_info=True)
@@ -259,31 +242,16 @@ class Klippy:
                 emoji.emojize(" :hotsprings: ", use_aliases=True)
                 + f"{sens_name.title()}: {round(value['temperature'])}"
             )
-            if (
-                "target" in value
-                and value["target"] > 0.0
-                and abs(value["target"] - value["temperature"]) > 2
-            ):
-                message += (
-                    emoji.emojize(" :arrow_right: ", use_aliases=True)
-                    + f"{round(value['target'])}"
-                )
+            if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
+                message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
             if value["power"] > 0.0:
                 message += emoji.emojize(" :fire: ", use_aliases=True)
         elif "speed" in value:
             message = (
-                emoji.emojize(" :tornado: ", use_aliases=True)
-                + f"{sens_name.title()}: {round(value['temperature'])}"
+                emoji.emojize(" :tornado: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
             )
-            if (
-                "target" in value
-                and value["target"] > 0.0
-                and abs(value["target"] - value["temperature"]) > 2
-            ):
-                message += (
-                    emoji.emojize(" :arrow_right: ", use_aliases=True)
-                    + f"{round(value['target'])}"
-                )
+            if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
+                message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
         else:
             message = (
                 emoji.emojize(" :thermometer: ", use_aliases=True)
@@ -314,9 +282,7 @@ class Klippy:
 
     def execute_command(self, *command) -> None:
         data = {"commands": list(map(lambda el: f"{el}", command))}
-        res = requests.post(
-            f"http://{self._host}/api/printer/command", json=data, headers=self._headers
-        )
+        res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
         if not res.ok:
             logger.error(res.reason)
 
@@ -324,9 +290,7 @@ class Klippy:
         if self._eta_source == "slicer":
             eta = int(self.file_estimated_time - self.printing_duration)
         else:  # eta by file
-            eta = int(
-                self.printing_duration / self.vsd_progress - self.printing_duration
-            )
+            eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
         if eta < 0:
             eta = 0
         return timedelta(seconds=eta)
@@ -345,9 +309,7 @@ class Klippy:
                 response.raw.decode_content = True
                 img = Image.open(response.raw).convert("RGB")
             else:
-                logger.error(
-                    f"Thumbnail download failed for {thumb_path} \n\n{response.reason}"
-                )
+                logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
                 # Todo: resize?
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
@@ -371,11 +333,7 @@ class Klippy:
         if "progress" in self._message_parts:
             message += f"Progress {round(self.printing_progress * 100, 0)}%"
         if "height" in self._message_parts:
-            message += (
-                f", height: {round(self.printing_height, 2)}mm\n"
-                if self.printing_height > 0.0
-                else "\n"
-            )
+            message += f", height: {round(self.printing_height, 2)}mm\n" if self.printing_height > 0.0 else "\n"
         if self.filament_total > 0.0:
             if "filament_length" in self._message_parts:
                 message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m"
@@ -383,9 +341,7 @@ class Klippy:
                 message += f", weight: {round(self._filament_weight_used(), 2)}/{self.filament_weight}g"
             message += "\n"
         if "print_duration" in self._message_parts:
-            message += (
-                f"Printing for {timedelta(seconds=round(self.printing_duration))}\n"
-            )
+            message += f"Printing for {timedelta(seconds=round(self.printing_duration))}\n"
 
         eta = self._get_eta()
         if "eta" in self._message_parts:
@@ -396,9 +352,7 @@ class Klippy:
         return message
 
     def get_print_stats(self, message_pre: str = "") -> str:
-        message = (
-            self._get_printing_file_info(message_pre) + self._get_sensors_message()
-        )
+        message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
         if "power_devices" in self._message_parts:
             message += self._get_power_devices_mess()
         return message
@@ -470,21 +424,15 @@ class Klippy:
                     thumb_path = file_dir + "/"
                 thumb_path += thumb["relative_path"]
             else:
-                logger.error(
-                    f"Thumbnail relative_path and filename not found in {resp}"
-                )
+                logger.error(f"Thumbnail relative_path and filename not found in {resp}")
 
         return self._populate_with_thumb(thumb_path, message)
 
     # TOdo: add scrolling
     def get_gcode_files(self):
-        response = requests.get(
-            f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers
-        )
+        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers)
         resp = response.json()
-        files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[
-            :10
-        ]
+        files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
         return files
 
     def upload_file(self, file: BytesIO) -> bool:
@@ -514,9 +462,7 @@ class Klippy:
         if res.ok:
             return res.json()["result"]["value"]
         else:
-            logger.error(
-                f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}"
-            )
+            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
             # Fixme: return default value? check for 404!
             return None
 
@@ -528,9 +474,7 @@ class Klippy:
             headers=self._headers,
         )
         if not res.ok:
-            logger.error(
-                f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}"
-            )
+            logger.error(f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}")
 
     def delete_param_from_db(self, param_name: str) -> None:
         res = requests.delete(
@@ -538,9 +482,7 @@ class Klippy:
             headers=self._headers,
         )
         if not res.ok:
-            logger.error(
-                f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}"
-            )
+            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
 
     # macro data section
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str) -> None:
