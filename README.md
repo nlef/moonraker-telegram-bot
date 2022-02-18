@@ -43,14 +43,20 @@ https://github.com/Arksine/moonraker
 
 ---
 
-**Fluidd Webinterface** by [cadriel](https://github.com/cadriel) :
-
-https://github.com/cadriel/fluidd
-
----
-
 **KIAUH - Klipper Installation And Update Helper** by [th33xitus](https://github.com/th33xitus) :
 
 https://github.com/th33xitus/KIAUH
+
+---
+
+**Mainsail Webinterface** by [meteyou](https://github.com/meteyou) :
+
+https://github.com/meteyou/mainsail
+
+---
+
+**Fluidd Webinterface** by [cadriel](https://github.com/cadriel) :
+
+https://github.com/cadriel/fluidd
 
 ---

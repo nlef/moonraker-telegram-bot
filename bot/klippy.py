@@ -28,7 +28,7 @@ class Klippy:
     ):
         self._host: str = config.bot.host
         self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
-        self.show_hidden_macros: List[str] = config.telegram_ui.show_hidden_macros
+        self.show_hidden_macros: bool = config.telegram_ui.show_hidden_macros
         self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
         self._light_device = light_device
@@ -138,17 +138,17 @@ class Klippy:
         return res
 
     def _reset_file_info(self) -> None:
-        self.printing_duration: float = 0.0
-        self.printing_progress: float = 0.0
-        self.printing_height: float = 0.0
-        self._printing_filename: str = ""
-        self.file_estimated_time: float = 0.0
-        self.file_print_start_time: float = 0.0
-        self.vsd_progress: float = 0.0
+        self.printing_duration = 0.0
+        self.printing_progress = 0.0
+        self.printing_height = 0.0
+        self._printing_filename = ""
+        self.file_estimated_time = 0.0
+        self.file_print_start_time = 0.0
+        self.vsd_progress = 0.0
 
-        self.filament_used: float = 0.0
-        self.filament_total: float = 0.0
-        self.filament_weight: float = 0.0
+        self.filament_used = 0.0
+        self.filament_total = 0.0
+        self.filament_weight = 0.0
         self._thumbnail_path = ""
 
     @property
