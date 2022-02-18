@@ -93,9 +93,7 @@ class NotifierConfig:
         self.height: float = config.getfloat(self._SECTION, "height", fallback=0)
         self.interval: int = config.getint(self._SECTION, "time", fallback=0)
         self.notify_groups: List[int] = (
-            [int(el.strip()) for el in config.get(self._SECTION, "groups").split(",")]
-            if config.has_option(self._SECTION, "groups")
-            else []
+            [int(el.strip()) for el in config.get(self._SECTION, "groups").split(",")] if config.has_option(self._SECTION, "groups") else []
         )
         self.group_only: bool = config.getboolean(self._SECTION, "group_only", fallback=False)
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
@@ -121,12 +119,8 @@ class TimelapseConfig:
 
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
-        self.base_dir: str = config.get(
-            self._SECTION, "basedir", fallback="/tmp/timelapse"
-        )  # Fixme: relative path failed! ~/timelapse
-        self.ready_dir: str = config.get(
-            self._SECTION, "copy_finished_timelapse_dir", fallback=""
-        )  # Fixme: relative path failed! ~/timelapse
+        self.base_dir: str = config.get(self._SECTION, "basedir", fallback="/tmp/timelapse")  # Fixme: relative path failed! ~/timelapse
+        self.ready_dir: str = config.get(self._SECTION, "copy_finished_timelapse_dir", fallback="")  # Fixme: relative path failed! ~/timelapse
         self.cleanup: bool = config.getboolean(self._SECTION, "cleanup", fallback=True)
         self.mode_manual: bool = config.getboolean(self._SECTION, "manual_mode", fallback=False)
         self.height: float = config.getfloat(self._SECTION, "height", fallback=0.0)
@@ -182,9 +176,7 @@ class TelegramUIConfig:
         self.silent_commands: bool = config.getboolean(self._SECTION, "silent_commands", fallback=False)
         self.silent_status: bool = config.getboolean(self._SECTION, "silent_status", fallback=False)
         self.status_single_message: bool = config.getboolean(self._SECTION, "status_single_message", fallback=True)
-        self.pin_status_single_message: bool = config.getboolean(
-            self._SECTION, "pin_status_single_message", fallback=False
-        )  # Todo: implement
+        self.pin_status_single_message: bool = config.getboolean(self._SECTION, "pin_status_single_message", fallback=False)  # Todo: implement
         self.status_message_content: List[str] = (
             [el.strip() for el in config.get(self._SECTION, "status_message_content").split(",")]
             if config.has_option(self._SECTION, "status_message_content")
@@ -208,16 +200,10 @@ class TelegramUIConfig:
             )
         )
         self.buttons_default: bool = False if config.has_option(self._SECTION, "buttons") else True
-        self.require_confirmation_macro: bool = config.getboolean(
-            self._SECTION, "require_confirmation_macro", fallback=True
-        )
-        self.include_macros_in_command_list: bool = config.getboolean(
-            self._SECTION, "include_macros_in_command_list", fallback=True
-        )
+        self.require_confirmation_macro: bool = config.getboolean(self._SECTION, "require_confirmation_macro", fallback=True)
+        self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, "include_macros_in_command_list", fallback=True)
         self.disabled_macros: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")]
-            if config.has_option(self._SECTION, "disabled_macros")
-            else []
+            [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")] if config.has_option(self._SECTION, "disabled_macros") else []
         )
         self.show_hidden_macros: bool = config.getboolean(self._SECTION, "show_hidden_macros", fallback=False)
         self.eta_source: str = config.get(self._SECTION, "eta_source", fallback="slicer")

@@ -306,11 +306,7 @@ class Notifier:
             self._notify(mess, self._silent_progress, self._group_only)
 
     def schedule_notification(self, progress: int = 0, position_z: int = 0):
-        if (
-            not self._klippy.printing
-            or self._klippy.printing_duration <= 0.0
-            or (self._height == 0 and self._percent == 0)
-        ):
+        if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
             return
 
         notify = False
@@ -386,9 +382,7 @@ class Notifier:
         else:
             status_message = self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
             for group_ in self._notify_groups:
-                self._groups_status_mesages[group_] = self._bot.send_message(
-                    group_, message, disable_notification=self.silent_status
-                )
+                self._groups_status_mesages[group_] = self._bot.send_message(group_, message, disable_notification=self.silent_status)
         if self._status_single_message:
             self._status_message = status_message
 
@@ -434,18 +428,10 @@ class Notifier:
                     self.interval = int(part.split(sep="=").pop())
                     response += f"time={self.interval} "
                 else:
-                    self._klippy.execute_command(
-                        f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"'
-                    )
+                    self._klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
             except Exception as ex:
-                self._klippy.execute_command(
-                    f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"'
-                )
+                self._klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = f"percent={self.percent} height={self.height} time={self.interval} "
-            self._klippy.execute_command(
-                f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"'
-            )
-            self._klippy.execute_command(
-                f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"'
-            )
+            self._klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
+            self._klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')

@@ -126,9 +126,7 @@ class Timelapse:
     def min_lapse_duration(self, new_value: int):
         if new_value >= 0:
             if new_value <= self._max_lapse_duration and not new_value == 0:
-                logger.warning(
-                    f"Min lapse duration {new_value} is lower than max lapse duration {self._max_lapse_duration}"
-                )
+                logger.warning(f"Min lapse duration {new_value} is lower than max lapse duration {self._max_lapse_duration}")
             self._min_lapse_duration = new_value
             self._camera.min_lapse_duration = new_value
 
@@ -140,9 +138,7 @@ class Timelapse:
     def max_lapse_duration(self, new_value: int):
         if new_value >= 0:
             if new_value <= self._min_lapse_duration and not new_value == 0:
-                logger.warning(
-                    f"Max lapse duration {new_value} is lower than min lapse duration {self._min_lapse_duration}"
-                )
+                logger.warning(f"Max lapse duration {new_value} is lower than min lapse duration {self._min_lapse_duration}")
             self._max_lapse_duration = new_value
             self._camera.max_lapse_duration = new_value
 
@@ -203,19 +199,11 @@ class Timelapse:
 
         gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
 
-        if (
-            self._height > 0.0
-            and round(position_z * 100) % round(self._height * 100) == 0
-            and position_z > self._last_height
-        ):
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(
-                logging_callback
-            )
+        if self._height > 0.0 and round(position_z * 100) % round(self._height * 100) == 0 and position_z > self._last_height:
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
         elif position_z < -1000:
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(
-                logging_callback
-            )
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
 
     def take_test_lapse_photo(self):
         self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
@@ -352,13 +340,9 @@ class Timelapse:
                     self.max_lapse_duration = int(part.split(sep="=").pop())
                     response += f"max_lapse_duration={self.max_lapse_duration} "
                 else:
-                    self._klippy.execute_command(
-                        f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"'
-                    )
+                    self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
             except Exception as ex:
-                self._klippy.execute_command(
-                    f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"'
-                )
+                self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = (
                 f"enabled={self.enabled} "
@@ -370,7 +354,5 @@ class Timelapse:
                 f"min_lapse_duration={self.min_lapse_duration} "
                 f"max_lapse_duration={self.max_lapse_duration} "
             )
-            self._klippy.execute_command(
-                f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"'
-            )
+            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
             self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

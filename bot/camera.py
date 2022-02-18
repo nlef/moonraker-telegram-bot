@@ -28,12 +28,7 @@ def cam_light_toggle(func):
     def wrapper(self, *args, **kwargs):
         self.use_light()
 
-        if (
-            self.light_timeout > 0
-            and self.light_device
-            and not self.light_device.device_state
-            and not self.light_lock.locked()
-        ):
+        if self.light_timeout > 0 and self.light_device and not self.light_device.device_state and not self.light_lock.locked():
             self.light_timer_event.clear()
             self.light_lock.acquire()
             self.light_need_off = True
@@ -389,9 +384,7 @@ class Camera:
                 outfile.write(photo.getvalue())
             photo.close()
 
-    def create_timelapse(
-        self, printing_filename: str, gcode_name: str, info_mess: Message
-    ) -> (BytesIO, BytesIO, int, int, str, str):
+    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
 
     def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
@@ -403,9 +396,7 @@ class Camera:
         # Todo: check _max_lapse_duration > _min_lapse_duration
         if (
             (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
-            or (
-                self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0
-            )
+            or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0)
             or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
         ):
             return self._target_fps
@@ -420,9 +411,7 @@ class Camera:
             )
             return self._target_fps
 
-    def _create_timelapse(
-        self, printing_filename: str, gcode_name: str, info_mess: Message
-    ) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
         if not printing_filename:
             raise ValueError(f"Gcode file name is empty")
 

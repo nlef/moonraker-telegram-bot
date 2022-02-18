@@ -194,9 +194,7 @@ class Klippy:
 
     def _get_marco_list(self) -> List[str]:
         return [
-            key
-            for key in self._get_full_marco_list()
-            if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))
+            key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))
         ]
 
     def _auth_moonraker(self) -> None:
@@ -238,25 +236,17 @@ class Klippy:
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         if "power" in value:
-            message = (
-                emoji.emojize(" :hotsprings: ", use_aliases=True)
-                + f"{sens_name.title()}: {round(value['temperature'])}"
-            )
+            message = emoji.emojize(" :hotsprings: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
             if value["power"] > 0.0:
                 message += emoji.emojize(" :fire: ", use_aliases=True)
         elif "speed" in value:
-            message = (
-                emoji.emojize(" :tornado: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
-            )
+            message = emoji.emojize(" :tornado: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
         else:
-            message = (
-                emoji.emojize(" :thermometer: ", use_aliases=True)
-                + f"{sens_name.title()}: {round(value['temperature'])}"
-            )
+            message = emoji.emojize(" :thermometer: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
         message += "\n"
         return message
 
@@ -269,15 +259,9 @@ class Klippy:
     def _get_power_devices_mess(self) -> str:
         message = ""
         if self._light_device and self._light_device.name in self._devices_list:
-            message += (
-                emoji.emojize(" :flashlight: Light: ", use_aliases=True)
-                + f"{'on' if self._light_device.device_state else 'off'}\n"
-            )
+            message += emoji.emojize(" :flashlight: Light: ", use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
         if self._psu_device and self._psu_device.name in self._devices_list:
-            message += (
-                emoji.emojize(" :electric_plug: PSU: ", use_aliases=True)
-                + f"{'on' if self._psu_device.device_state else 'off'}\n"
-            )
+            message += emoji.emojize(" :electric_plug: PSU: ", use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
     def execute_command(self, *command) -> None:
@@ -325,11 +309,7 @@ class Klippy:
         return self._populate_with_thumb(self._thumbnail_path, message)
 
     def _get_printing_file_info(self, message_pre: str = "") -> str:
-        message = (
-            f"Printing: {self.printing_filename} \n"
-            if not message_pre
-            else f"{message_pre}: {self.printing_filename} \n"
-        )
+        message = f"Printing: {self.printing_filename} \n" if not message_pre else f"{message_pre}: {self.printing_filename} \n"
         if "progress" in self._message_parts:
             message += f"Progress {round(self.printing_progress * 100, 0)}%"
         if "height" in self._message_parts:

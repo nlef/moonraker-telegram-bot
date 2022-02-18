@@ -17,23 +17,15 @@ from configuration import ConfigWrapper
 from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
-from telegram import (
-    ChatAction,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputMediaDocument,
-    Message,
-    MessageEntity,
-    ReplyKeyboardMarkup,
-    Update,
-)
+from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument, Message, MessageEntity, ReplyKeyboardMarkup, Update
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
-from timelapse import Timelapse
 import ujson
 import websocket
+
+from timelapse import Timelapse
 
 try:
     import thread
@@ -452,10 +444,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             reply_markup=confirm_keyboard(f"macro:{command}"),
         )
     elif ".gcode" in query.data and ":" not in query.data:
-        keyboard_keys = dict(
-            (x["callback_data"], x["text"])
-            for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"])
-        )
+        keyboard_keys = dict((x["callback_data"], x["text"]) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"]))
         filename = keyboard_keys[query.data]
         keyboard = [
             [
@@ -525,9 +514,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         ) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
         info_mess.edit_text(text="Uploading time-lapse")
         if video_bio.getbuffer().nbytes > 52428800:
-            info_mess.edit_text(
-                text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}"
-            )
+            info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
         else:
             query.bot.send_video(
                 configWrap.bot.chat_id,
@@ -589,9 +576,7 @@ def get_macros(update: Update, _: CallbackContext) -> None:
                 map(
                     lambda el: InlineKeyboardButton(
                         el,
-                        callback_data=f"macroc:{el}"
-                        if configWrap.telegram_ui.require_confirmation_macro
-                        else f"macro:{el}",
+                        callback_data=f"macroc:{el}" if configWrap.telegram_ui.require_confirmation_macro else f"macro:{el}",
                     ),
                     klippy.macros,
                 )
@@ -997,9 +982,7 @@ def notify_status_update(message_params):
     for sens in [key for key in message_params[0] if "temperature_sensor" in key]:
         klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_params[0][sens])
 
-    for heater in [
-        key for key in message_params[0] if "extruder" in key or "heater_bed" in key or "heater_generic" in key
-    ]:
+    for heater in [key for key in message_params[0] if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
         klippy.update_sensror(
             heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
             message_params[0][heater],

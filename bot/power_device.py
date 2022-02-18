@@ -37,18 +37,14 @@ class PowerDevice(object):
     def switch_device(self, state: bool) -> bool:
         with self._state_lock:
             if state:
-                res = requests.post(
-                    f"http://{self._moonraker_host}/machine/device_power/device?device={self.name}&action=on"
-                )
+                res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.name}&action=on")
                 if res.ok:
                     self._device_on = True
                     return True
                 else:
                     logger.error(f"Power device switch failed: {res.reason}")
             else:
-                res = requests.post(
-                    f"http://{self._moonraker_host}/machine/device_power/device?device={self.name}&action=off"
-                )
+                res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.name}&action=off")
                 if res.ok:
                     self._device_on = False
                     return False

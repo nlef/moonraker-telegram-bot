@@ -1,8 +1,8 @@
 -r requirements.txt
 black==22.1.0
-isort==5.10.0
-mypy-0.931
+isort==5.10.1
+mypy==0.931
 pre-commit==2.17.0
 types-emoji==1.2.7
-types-requests==2.27.9
+types-requests==2.27.10
 types-ujson==4.2.1
