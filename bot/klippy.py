@@ -63,6 +63,7 @@ class Klippy:
         self._thumbnail_path = ""
 
         self._jwt_token: str = ""
+        self._refresh_token: str = ""
 
         # Todo: create sensors class!!
         self.sensors_dict: dict = dict()
@@ -162,10 +163,7 @@ class Klippy:
             self._reset_file_info()
             return
 
-        response = requests.get(
-            f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}",
-            headers=self._headers,
-        )
+        response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}", "GET")
         # Todo: add response status check!
         resp = response.json()["result"]
         self._printing_filename = new_value
@@ -186,7 +184,7 @@ class Klippy:
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     def _get_full_marco_list(self) -> List[str]:
-        resp = requests.get(f"http://{self._host}/printer/objects/list", headers=self._headers)
+        resp = self._make_request(f"http://{self._host}/printer/objects/list", "GET")
         if not resp.ok:
             return []
         macro_lines = list(filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"]))
@@ -205,10 +203,28 @@ class Klippy:
             json={"username": self._user, "password": self._passwd},
         )
         if res.ok:
-            # Todo: check if token refresh needed
             self._jwt_token = res.json()["result"]["token"]
+            self._refresh_token = res.json()["result"]["refresh_token"]
         else:
             logger.error(res.reason)
+
+    def _refresh_moonraker_token(self) -> None:
+        if not self._refresh_token:
+            return
+        res = requests.post(f"http://{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token})
+        if res.ok:
+            logger.debug("JWT token successfully refreshed")
+            self._jwt_token = res.json()["result"]["token"]
+        else:
+            logger.error(f"Failed to refresh token: {res.reason}")
+
+    def _make_request(self, url, method, json=None, stream=None, files=None) -> requests.Response:
+        res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files)
+        if res.status_code == 401:  # Unauthorized
+            logger.debug("JWT token expired, refreshing...")
+            self._refresh_moonraker_token()
+            res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files)
+        return res
 
     def check_connection(self) -> str:
         try:
@@ -265,7 +281,7 @@ class Klippy:
 
     def execute_command(self, *command) -> None:
         data = {"commands": list(map(lambda el: f"{el}", command))}
-        res = requests.post(f"http://{self._host}/api/printer/command", json=data, headers=self._headers)
+        res = self._make_request(f"http://{self._host}/api/printer/command", "POST", json=data)
         if not res.ok:
             logger.error(res.reason)
 
@@ -283,11 +299,7 @@ class Klippy:
             # Todo: resize?
             img = Image.open("../imgs/nopreview.png").convert("RGB")
         else:
-            response = requests.get(
-                f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}",
-                stream=True,
-                headers=self._headers,
-            )
+            response = self._make_request(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", "GET", stream=True)
             if response.ok:
                 response.raw.decode_content = True
                 img = Image.open(response.raw).convert("RGB")
@@ -337,10 +349,7 @@ class Klippy:
         return message
 
     def get_status(self) -> str:
-        response = requests.get(
-            f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status",
-            headers=self._headers,
-        )
+        response = self._make_request(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", "GET")
         resp = response.json()["result"]["status"]
         print_stats = resp["print_stats"]
         # webhook = resp['webhooks']
@@ -380,10 +389,7 @@ class Klippy:
         return message
 
     def get_file_info_by_name(self, filename: str, message: str):
-        response = requests.get(
-            f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}",
-            headers=self._headers,
-        )
+        response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}", "GET")
         # Todo: add response status check!
         resp = response.json()["result"]
         message += "\n"
@@ -409,24 +415,17 @@ class Klippy:
 
     # TOdo: add scrolling
     def get_gcode_files(self):
-        response = requests.get(f"http://{self._host}/server/files/list?root=gcodes", headers=self._headers)
+        response = self._make_request(f"http://{self._host}/server/files/list?root=gcodes", "GET")
         resp = response.json()
         files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
         return files
 
     def upload_file(self, file: BytesIO) -> bool:
-        response = requests.post(
-            f"http://{self._host}/server/files/upload",
-            files={"file": file},
-            headers=self._headers,
-        )
+        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file})
         return response.ok
 
     def start_printing_file(self, filename: str) -> bool:
-        response = requests.post(
-            f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}",
-            headers=self._headers,
-        )
+        response = self._make_request(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}", "POST")
         return response.ok
 
     def stop_all(self):
@@ -434,10 +433,7 @@ class Klippy:
 
     # moonraker databse section
     def get_param_from_db(self, param_name: str):
-        res = requests.get(
-            f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}",
-            headers=self._headers,
-        )
+        res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "GET")
         if res.ok:
             return res.json()["result"]["value"]
         else:
@@ -447,19 +443,12 @@ class Klippy:
 
     def save_param_to_db(self, param_name: str, value) -> None:
         data = {"namespace": self._dbname, "key": param_name, "value": value}
-        res = requests.post(
-            f"http://{self._host}/server/database/item",
-            json=data,
-            headers=self._headers,
-        )
+        res = self._make_request(f"http://{self._host}/server/database/item", "POST", json=data)
         if not res.ok:
             logger.error(f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}")
 
     def delete_param_from_db(self, param_name: str) -> None:
-        res = requests.delete(
-            f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}",
-            headers=self._headers,
-        )
+        res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "DELETE")
         if not res.ok:
             logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
 
