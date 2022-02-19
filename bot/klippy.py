@@ -8,10 +8,11 @@ from typing import List, Tuple
 import urllib
 
 from PIL import Image  # type: ignore
-from configuration import ConfigWrapper
 import emoji
-from power_device import PowerDevice
 import requests
+
+from configuration import ConfigWrapper
+from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)
 

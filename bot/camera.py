@@ -14,12 +14,13 @@ import time
 from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
-from configuration import ConfigWrapper
 import cv2  # type: ignore
-from klippy import Klippy
 from numpy.core.records import ndarray
-from power_device import PowerDevice
 from telegram import Message
+
+from configuration import ConfigWrapper
+from klippy import Klippy
+from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)
 

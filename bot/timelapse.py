@@ -3,10 +3,11 @@ import logging
 import time
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
+from telegram import Bot, ChatAction, Message
+
 from camera import Camera
 from configuration import ConfigWrapper
 from klippy import Klippy
-from telegram import Bot, ChatAction, Message
 
 logger = logging.getLogger(__name__)
 
