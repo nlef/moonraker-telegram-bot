@@ -155,6 +155,7 @@ class TelegramUIConfig:
         "status_message_heaters",
         "status_message_devices",
         "status_message_temperature_fans",
+        "status_message_m117_update",
     ]
     _MESSAGE_CONTENT = [
         "progress",
@@ -209,6 +210,7 @@ class TelegramUIConfig:
         self.status_message_devices: List[str] = (
             [el.strip() for el in config.get(self._SECTION, "status_message_devices").split(",")] if config.has_option(self._SECTION, "status_message_devices") else []
         )
+        self.status_message_m117_update: bool = config.getboolean(self._SECTION, "status_message_m117_update", fallback=False)
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
 

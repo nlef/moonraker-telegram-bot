@@ -41,6 +41,7 @@ class Notifier:
         self._silent_status: bool = config.telegram_ui.silent_status
         self._status_single_message: bool = config.telegram_ui.status_single_message
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
+        self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
         self._message_parts: List[str] = config.telegram_ui.status_message_content
 
         self._last_height: int = 0
@@ -71,7 +72,7 @@ class Notifier:
     @m117_status.setter
     def m117_status(self, new_value: str):
         self._last_m117_status = new_value
-        if self._klippy.printing:
+        if self._klippy.printing and self._status_message_m117_update:
             self._schedule_notification()
 
     @property
