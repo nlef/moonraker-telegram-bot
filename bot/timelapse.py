@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 import time
 
-from apscheduler.schedulers.base import BaseScheduler
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from camera import Camera
 from configuration import ConfigWrapper
 from klippy import Klippy
@@ -268,9 +268,7 @@ class Timelapse:
                 info_mess.edit_text(text="Uploading time-lapse")
 
                 if video_bio.getbuffer().nbytes > 52428800:
-                    info_mess.edit_text(
-                        text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}"
-                    )
+                    info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
                     self._bot.send_video(
                         self._chat_id,

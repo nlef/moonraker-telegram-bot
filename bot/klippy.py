@@ -4,10 +4,10 @@ from io import BytesIO
 import logging
 import re
 import time
-from typing import List
+from typing import List, Tuple
 import urllib
 
-from PIL import Image
+from PIL import Image  # type: ignore
 from configuration import ConfigWrapper
 import emoji
 from power_device import PowerDevice
@@ -155,10 +155,6 @@ class Klippy:
     def printing_filename(self) -> str:
         return self._printing_filename
 
-    @property
-    def printing_filename_with_time(self) -> str:
-        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
-
     @printing_filename.setter
     def printing_filename(self, new_value: str):
         if not new_value:
@@ -184,6 +180,10 @@ class Klippy:
                 self._thumbnail_path = file_dir + "/"
             self._thumbnail_path += thumb["relative_path"]
 
+    @property
+    def printing_filename_with_time(self) -> str:
+        return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
+
     def _get_full_marco_list(self) -> List[str]:
         resp = requests.get(f"http://{self._host}/printer/objects/list", headers=self._headers)
         if not resp.ok:
@@ -193,9 +193,7 @@ class Klippy:
         return loaded_macros
 
     def _get_marco_list(self) -> List[str]:
-        return [
-            key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))
-        ]
+        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))]
 
     def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
@@ -222,13 +220,13 @@ class Klippy:
     def update_sensror(self, name: str, value) -> None:
         if name in self.sensors_dict:
             if "temperature" in value:
-                self.sensors_dict.get(name)["temperature"] = value["temperature"]
+                self.sensors_dict[name]["temperature"] = value["temperature"]
             if "target" in value:
-                self.sensors_dict.get(name)["target"] = value["target"]
+                self.sensors_dict[name]["target"] = value["target"]
             if "power" in value:
-                self.sensors_dict.get(name)["power"] = value["power"]
+                self.sensors_dict[name]["power"] = value["power"]
             if "speed" in value:
-                self.sensors_dict.get(name)["speed"] = value["speed"]
+                self.sensors_dict[name]["speed"] = value["speed"]
         else:
             self.sensors_dict[name] = value
 
@@ -304,7 +302,7 @@ class Klippy:
         img.close()
         return message, bio
 
-    def get_file_info(self, message: str = "") -> (str, BytesIO):
+    def get_file_info(self, message: str = "") -> Tuple[str, BytesIO]:
         message = self.get_print_stats(message)
         return self._populate_with_thumb(self._thumbnail_path, message)
 

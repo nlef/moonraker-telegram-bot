@@ -11,12 +11,13 @@ from pathlib import Path
 from queue import Queue
 import threading
 import time
-from typing import List
+from typing import List, Tuple
 
-from PIL import Image, _webp
+from PIL import Image, _webp  # type: ignore
 from configuration import ConfigWrapper
-import cv2
+import cv2  # type: ignore
 from klippy import Klippy
+from numpy.core.records import ndarray
 from power_device import PowerDevice
 from telegram import Message
 
@@ -101,12 +102,13 @@ class Camera:
 
         self._hw_accel: bool = False
 
+        self._img_extension: str
         if config.camera.picture_quality == "low":
-            self._img_extension: str = "jpeg"
+            self._img_extension = "jpeg"
         elif config.camera.picture_quality == "high":
-            self._img_extension: str = "webp"
+            self._img_extension = "webp"
         else:
-            self._img_extension: str = config.camera.picture_quality
+            self._img_extension = config.camera.picture_quality
 
         self._light_requests: int = 0
         self._light_request_lock = threading.Lock()
@@ -118,14 +120,15 @@ class Camera:
         elif self._flip_vertically:
             self._flip = 0
 
+        self._rotate_code: int
         if config.camera.rotate == "90_cw":
-            self._rotate_code: int = cv2.ROTATE_90_CLOCKWISE
+            self._rotate_code = cv2.ROTATE_90_CLOCKWISE
         elif config.camera.rotate == "90_ccw":
-            self._rotate_code: int = cv2.ROTATE_90_COUNTERCLOCKWISE
+            self._rotate_code = cv2.ROTATE_90_COUNTERCLOCKWISE
         elif config.camera.rotate == "180":
-            self._rotate_code: int = cv2.ROTATE_180
+            self._rotate_code = cv2.ROTATE_180
         else:
-            self._rotate_code: int = -10
+            self._rotate_code = -10
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -280,7 +283,7 @@ class Camera:
             thumb_bio.close()
 
     @cam_light_toggle
-    def take_video(self) -> (BytesIO, BytesIO, int, int):
+    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
         def process_video_frame(frame_local):
             if self._flip_vertically or self._flip_horizontally:
                 if self._hw_accel:
@@ -340,7 +343,7 @@ class Camera:
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue = Queue(fps_cam * self._video_buffer_size)
+            frame_queue: Queue[ndarray] = Queue(fps_cam * self._video_buffer_size)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
@@ -384,10 +387,10 @@ class Camera:
                 outfile.write(photo.getvalue())
             photo.close()
 
-    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
 
-    def create_timelapse_for_file(self, filename: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+    def create_timelapse_for_file(self, filename: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(filename, filename, info_mess)
 
     def _calculate_fps(self, frames_count: int) -> int:
@@ -406,12 +409,10 @@ class Camera:
         elif actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
         else:
-            logger.error(
-                f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}"
-            )
+            logger.error(f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}")
             return self._target_fps
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> (BytesIO, BytesIO, int, int, str, str):
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
             raise ValueError(f"Gcode file name is empty")
 

@@ -9,32 +9,33 @@ import os
 from pathlib import Path
 import random
 import sys
+from typing import List, Optional, Union
 from zipfile import ZipFile
 
-from apscheduler.events import EVENT_JOB_ERROR
+from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from camera import Camera
 from configuration import ConfigWrapper
 from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
-from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument, Message, MessageEntity, ReplyKeyboardMarkup, Update
+from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message, MessageEntity, ReplyKeyboardMarkup, Update
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
 import ujson
-import websocket
+import websocket  # type: ignore
 
 from timelapse import Timelapse
 
 try:
-    import thread
+    import thread  # type: ignore
 except ImportError:
-    import _thread as thread
+    import _thread as thread  # type: ignore
 
 from io import BytesIO
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
 
 logging.basicConfig(
@@ -93,50 +94,60 @@ scheduler = BackgroundScheduler(
 scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
 bot_updater: Updater
-configWrap: ConfigWrapper = None
+configWrap: ConfigWrapper
 myId = random.randint(0, 300000)
 cameraWrap: Camera
 timelapse: Timelapse
 notifier: Notifier
-ws: websocket.WebSocketApp = None
+ws: Optional[websocket.WebSocketApp] = None
 klippy: Klippy
 light_power_device: PowerDevice
 psu_power_device: PowerDevice
 
 
 def echo_unknown(update: Update, _: CallbackContext) -> None:
+    if update.message is None:
+        return
     update.message.reply_text(f"unknown command: {update.message.text}", quote=True)
 
 
 def unknown_chat(update: Update, _: CallbackContext) -> None:
+    if update.effective_chat is None:
+        logger.warning("Undefined effective chat")
+        return
+
     if update.effective_chat.id in configWrap.notifications.notify_groups:
         return
-    if update.effective_chat.id >= 0:
-        mess = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n||This incident will be reported.||"
-        update.effective_message.reply_text(
-            escape_markdown(mess, version=2),
-            parse_mode=PARSEMODE_MARKDOWN_V2,
-            quote=True,
-        )
-    logger.error(
-        f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}"
+
+    if update.effective_chat.id < 0 or update.effective_message is None:
+        return
+
+    mess = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n||This incident will be reported.||"
+    update.effective_message.reply_text(
+        escape_markdown(mess, version=2),
+        parse_mode=PARSEMODE_MARKDOWN_V2,
+        quote=True,
     )
+    logger.error(f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}")
 
 
 def status(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
     if klippy.printing and not configWrap.notifications.group_only:
         notifier.update_status()
         import time
 
         time.sleep(configWrap.camera.light_timeout + 1.5)
-        message_to_reply.delete()
+        update.effective_message.delete()
     else:
         mess = escape_markdown(klippy.get_status(), version=2)
         if cameraWrap.enabled:
             with cameraWrap.take_photo() as bio:
-                message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
-                message_to_reply.reply_photo(
+                update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
+                update.effective_message.reply_photo(
                     photo=bio,
                     caption=mess,
                     parse_mode=PARSEMODE_MARKDOWN_V2,
@@ -144,8 +155,8 @@ def status(update: Update, _: CallbackContext) -> None:
                 )
                 bio.close()
         else:
-            message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-            message_to_reply.reply_text(
+            update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+            update.effective_message.reply_text(
                 mess,
                 parse_mode=PARSEMODE_MARKDOWN_V2,
                 disable_notification=notifier.silent_commands,
@@ -190,22 +201,25 @@ def check_unfinished_lapses():
 
 
 def get_video(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
     if not cameraWrap.enabled:
-        message_to_reply.reply_text("camera is disabled", quote=True)
+        update.effective_message.reply_text("camera is disabled", quote=True)
     else:
-        info_reply: Message = message_to_reply.reply_text(
+        info_reply: Message = update.effective_message.reply_text(
             text=f"Starting video recording",
             disable_notification=notifier.silent_commands,
             quote=True,
         )
-        message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
+        update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
             info_reply.edit_text(text="Uploading video")
             if video_bio.getbuffer().nbytes > 52428800:
                 info_reply.edit_text(text="Telegram has a 50mb restriction...")
             else:
-                message_to_reply.reply_video(
+                update.effective_message.reply_video(
                     video=video_bio,
                     thumb=thumb_bio,
                     width=width,
@@ -215,21 +229,27 @@ def get_video(update: Update, _: CallbackContext) -> None:
                     disable_notification=notifier.silent_commands,
                     quote=True,
                 )
-                message_to_reply.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_reply.message_id)
+                update.effective_message.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_reply.message_id)
 
             video_bio.close()
             thumb_bio.close()
 
 
 def manage_printing(command: str) -> None:
+    if ws is None:
+        return
     ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
 
 
 def emergency_stop_printer():
+    if ws is None:
+        return
     ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
 
 
 def shutdown_pi_host():
+    if ws is None:
+        return
     ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"machine.shutdown", "id": myId}))
 
 
@@ -250,8 +270,12 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
 
 
 def pause_printing(update: Update, __: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Pause printing?",
         reply_markup=confirm_keyboard("pause_printing"),
         disable_notification=notifier.silent_commands,
@@ -260,8 +284,12 @@ def pause_printing(update: Update, __: CallbackContext) -> None:
 
 
 def resume_printing(update: Update, __: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Resume printing?",
         reply_markup=confirm_keyboard("resume_printing"),
         disable_notification=notifier.silent_commands,
@@ -270,8 +298,12 @@ def resume_printing(update: Update, __: CallbackContext) -> None:
 
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Cancel printing?",
         reply_markup=confirm_keyboard("cancel_printing"),
         disable_notification=notifier.silent_commands,
@@ -280,8 +312,12 @@ def cancel_printing(update: Update, __: CallbackContext) -> None:
 
 
 def emergency_stop(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Execute emergency stop?",
         reply_markup=confirm_keyboard("emergency_stop"),
         disable_notification=notifier.silent_commands,
@@ -290,8 +326,12 @@ def emergency_stop(update: Update, _: CallbackContext) -> None:
 
 
 def shutdown_host(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Shutdown host?",
         reply_markup=confirm_keyboard("shutdown_host"),
         disable_notification=notifier.silent_commands,
@@ -300,8 +340,12 @@ def shutdown_host(update: Update, _: CallbackContext) -> None:
 
 
 def bot_restart(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    update.message.reply_text(
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
         "Restart bot?",
         reply_markup=confirm_keyboard("bot_restart"),
         disable_notification=notifier.silent_commands,
@@ -310,8 +354,12 @@ def bot_restart(update: Update, _: CallbackContext) -> None:
 
 
 def send_logs(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
     update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
-    logs_list = []
+    logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     if Path(f"{configWrap.bot.log_path}/telegram.log").exists():
         with open(f"{configWrap.bot.log_path}/telegram.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="telegram.log"))
@@ -338,25 +386,28 @@ def restart_bot() -> None:
 
 
 def power(update: Update, _: CallbackContext) -> None:
-    message_to_reply = update.message if update.message else update.effective_message
-    message_to_reply.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
     if psu_power_device:
         if psu_power_device.device_state:
-            message_to_reply.reply_text(
+            update.effective_message.reply_text(
                 "Power Off printer?",
                 reply_markup=confirm_keyboard("power_off_printer"),
                 disable_notification=notifier.silent_commands,
                 quote=True,
             )
         else:
-            message_to_reply.reply_text(
+            update.effective_message.reply_text(
                 "Power On printer?",
                 reply_markup=confirm_keyboard("power_on_printer"),
                 disable_notification=notifier.silent_commands,
                 quote=True,
             )
     else:
-        message_to_reply.reply_text(
+        update.effective_message.reply_text(
             "No power device in config!",
             disable_notification=notifier.silent_commands,
             quote=True,
@@ -364,6 +415,10 @@ def power(update: Update, _: CallbackContext) -> None:
 
 
 def light_toggle(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None:
+        logger.warning("Undefined effective message")
+        return
+
     if light_power_device:
         mess = f"Device `{light_power_device.name}` toggled " + ("on" if light_power_device.toggle_device() else "off")
         update.effective_message.reply_text(
@@ -381,8 +436,28 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
 
 
 def button_handler(update: Update, context: CallbackContext) -> None:
-    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    if update.effective_message is None or update.effective_message.bot is None or update.callback_query is None:
+        logger.warning("Undefined effective message or bot or query")
+        return
+    if update.effective_message.reply_to_message is None:
+        logger.error(f"Undefined reply_to_message for {update.effective_message.to_json()}")
+        return
     query = update.callback_query
+
+    if query.bot is None:
+        logger.error(f"Undefined bot in callback_query")
+        return
+
+    if query.message is None:
+        logger.error(f"Undefined callback_query.message for {query.to_json()}")
+        return
+
+    if query.data is None:
+        logger.error(f"Undefined callback_query.data for {query.to_json()}")
+        return
+
+    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    # query = update.callback_query
     query.answer()
     # Todo: maybe regex check?
     if query.data == "do_nothing":
@@ -444,6 +519,9 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             reply_markup=confirm_keyboard(f"macro:{command}"),
         )
     elif ".gcode" in query.data and ":" not in query.data:
+        if query.message.reply_markup is None:
+            logger.error(f"Undefined query.message.reply_markup in {query.message.to_json()}")
+            return
         keyboard_keys = dict((x["callback_data"], x["text"]) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"]))
         filename = keyboard_keys[query.data]
         keyboard = [
@@ -491,6 +569,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             elif query.message.caption:
                 query.message.edit_caption(caption=f"Failed start printing file {filename}")
     elif "lapse:" in query.data:
+        if query.message.reply_markup is None:
+            logger.error(f"Undefined query.message.reply_markup in {query.message.to_json()}")
+            return
+
         lapse_name = next(
             filter(
                 lambda el: el[0].callback_data == query.data,
@@ -538,18 +620,24 @@ def button_handler(update: Update, context: CallbackContext) -> None:
 
 
 def get_gcode_files(update: Update, _: CallbackContext) -> None:
-    def create_file_button(element) -> InlineKeyboardButton:
+    def create_file_button(element) -> List[InlineKeyboardButton]:
         filename = element["path"] if "path" in element else element["filename"]
-        return InlineKeyboardButton(
-            filename,
-            callback_data=hashlib.md5(filename.encode()).hexdigest() + ".gcode",
-        )
+        return [
+            InlineKeyboardButton(
+                filename,
+                callback_data=hashlib.md5(filename.encode()).hexdigest() + ".gcode",
+            )
+        ]
 
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    files_keys = list(map(list, zip(map(create_file_button, klippy.get_gcode_files()))))
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    files_keys: List[List[InlineKeyboardButton]] = list(map(create_file_button, klippy.get_gcode_files()))
     reply_markup = InlineKeyboardMarkup(files_keys)
 
-    update.message.reply_text(
+    update.effective_message.reply_text(
         "Gcode files to print:",
         reply_markup=reply_markup,
         disable_notification=notifier.silent_commands,
@@ -559,28 +647,32 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
 
 def exec_gcode(update: Update, _: CallbackContext) -> None:
     # maybe use context.args
-    message = update.message if update.message else update.effective_message
-    if not message.text == "/gcode":
-        command = message.text.replace("/gcode ", "")
+    if update.effective_message is None or update.effective_message.text is None:
+        logger.warning("Undefined effective message or text")
+        return
+
+    if not update.effective_message.text == "/gcode":
+        command = update.effective_message.text.replace("/gcode ", "")
         klippy.execute_command(command)
     else:
-        message.reply_text("No command provided", quote=True)
+        update.effective_message.reply_text("No command provided", quote=True)
 
 
 def get_macros(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
     update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    files_keys = list(
+    files_keys: List[List[InlineKeyboardButton]] = list(
         map(
-            list,
-            zip(
-                map(
-                    lambda el: InlineKeyboardButton(
-                        el,
-                        callback_data=f"macroc:{el}" if configWrap.telegram_ui.require_confirmation_macro else f"macro:{el}",
-                    ),
-                    klippy.macros,
+            lambda el: [
+                InlineKeyboardButton(
+                    el,
+                    callback_data=f"macroc:{el}" if configWrap.telegram_ui.require_confirmation_macro else f"macro:{el}",
                 )
-            ),
+            ],
+            klippy.macros,
         )
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
@@ -594,6 +686,10 @@ def get_macros(update: Update, _: CallbackContext) -> None:
 
 
 def macros_handler(update: Update, _: CallbackContext) -> None:
+    if not update.effective_message or update.effective_message.text is None:
+        logger.warning("Undefined effective message or update.effective_message.text")
+        return
+
     command = update.effective_message.text.replace("/", "").upper()
     if command in klippy.macros_all:
         if configWrap.telegram_ui.require_confirmation_macro:
@@ -615,10 +711,22 @@ def macros_handler(update: Update, _: CallbackContext) -> None:
 
 
 def upload_file(update: Update, _: CallbackContext) -> None:
-    update.message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
-    doc = update.message.document
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    doc = update.effective_message.document
+    if doc is None or doc.file_name is None:
+        update.effective_message.reply_text(
+            f"Document or filename is None in {update.effective_message.to_json()}",
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        return
+
     if not doc.file_name.endswith((".gcode", ".zip")):
-        update.message.reply_text(
+        update.effective_message.reply_text(
             f"unknown filetype in {doc.file_name}",
             disable_notification=notifier.silent_commands,
             quote=True,
@@ -628,7 +736,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     try:
         file_byte_array = doc.get_file().download_as_bytearray()
     except BadRequest as badreq:
-        update.message.reply_text(
+        update.effective_message.reply_text(
             f"Bad request: {badreq.message}",
             disable_notification=notifier.silent_commands,
             quote=True,
@@ -647,7 +755,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
     elif doc.file_name.endswith(".zip"):
         with ZipFile(uploaded_bio) as my_zip_file:
             if len(my_zip_file.namelist()) > 1:
-                update.message.reply_text(
+                update.effective_message.reply_text(
                     f"Multiple files in archive {doc.file_name}",
                     disable_notification=notifier.silent_commands,
                     quote=True,
@@ -674,14 +782,14 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(
+        update.effective_message.reply_text(
             f"Successfully uploaded file: {sending_bio.name}",
             reply_markup=reply_markup,
             disable_notification=notifier.silent_commands,
             quote=True,
         )
     else:
-        update.message.reply_text(
+        update.effective_message.reply_text(
             f"Failed uploading file: {sending_bio.name}",
             disable_notification=notifier.silent_commands,
             quote=True,
@@ -714,7 +822,10 @@ def create_keyboard():
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text(
+    if update.effective_message is None:
+        logger.warning("Undefined effective message")
+        return
+    update.effective_message.reply_text(
         "The following commands are known:\n\n"
         "/status - send klipper status\n"
         "/pause - pause printing\n"

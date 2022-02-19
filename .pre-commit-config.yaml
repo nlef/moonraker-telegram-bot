@@ -21,8 +21,8 @@ repos:
         types: [python]
         require_serial: true
       # TODO: fix typing errors
-      # - id: mypy
-      #   name: mypy
-      #   entry: mypy
-      #   language: system
-      #   types: [python]
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]

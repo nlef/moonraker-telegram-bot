@@ -1,12 +1,11 @@
 from datetime import datetime
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from apscheduler.schedulers.base import BaseScheduler
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from camera import Camera
 from configuration import ConfigWrapper
 from klippy import Klippy
-import telegram
 from telegram import Bot, ChatAction, InputMediaPhoto, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.utils.helpers import escape_markdown
@@ -48,7 +47,7 @@ class Notifier:
         self._last_m117_status: str = ""
         self._last_tgnotify_status: str = ""
 
-        self._status_message: Message = None
+        self._status_message: Optional[Message] = None
         self._groups_status_mesages: Dict[int, Message] = {}
 
         if logging_handler:

@@ -71,7 +71,8 @@ class CameraConfig:
     def __init__(self, config: configparser.ConfigParser):
         self.enabled: bool = config.has_section(self._SECTION)
         self.host: str = config.get(self._SECTION, "host", fallback="")
-        self.threads: int = config.getint(self._SECTION, "threads", fallback=int(os.cpu_count() / 2))
+        # self.threads: int = config.getint(self._SECTION, "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
+        self.threads: int = config.getint(self._SECTION, "threads", fallback=2)
         self.flip_vertically: bool = config.getboolean(self._SECTION, "flip_vertically", fallback=False)
         self.flip_horizontally: bool = config.getboolean(self._SECTION, "flip_horizontally", fallback=False)
         self.rotate: str = config.get(self._SECTION, "rotate", fallback="")
@@ -92,9 +93,7 @@ class NotifierConfig:
         self.percent: int = config.getint(self._SECTION, "percent", fallback=0)
         self.height: float = config.getfloat(self._SECTION, "height", fallback=0)
         self.interval: int = config.getint(self._SECTION, "time", fallback=0)
-        self.notify_groups: List[int] = (
-            [int(el.strip()) for el in config.get(self._SECTION, "groups").split(",")] if config.has_option(self._SECTION, "groups") else []
-        )
+        self.notify_groups: List[int] = [int(el.strip()) for el in config.get(self._SECTION, "groups").split(",")] if config.has_option(self._SECTION, "groups") else []
         self.group_only: bool = config.getboolean(self._SECTION, "group_only", fallback=False)
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
@@ -178,16 +177,10 @@ class TelegramUIConfig:
         self.status_single_message: bool = config.getboolean(self._SECTION, "status_single_message", fallback=True)
         self.pin_status_single_message: bool = config.getboolean(self._SECTION, "pin_status_single_message", fallback=False)  # Todo: implement
         self.status_message_content: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_content").split(",")]
-            if config.has_option(self._SECTION, "status_message_content")
-            else self._MESSAGE_CONTENT
+            [el.strip() for el in config.get(self._SECTION, "status_message_content").split(",")] if config.has_option(self._SECTION, "status_message_content") else self._MESSAGE_CONTENT
         )
 
-        buttons_string = (
-            config.get(self._SECTION, "buttons")
-            if config.has_option(self._SECTION, "buttons")
-            else "[status,pause,cancel,resume],[files,emergency,macros,shutdown]"
-        )
+        buttons_string = config.get(self._SECTION, "buttons") if config.has_option(self._SECTION, "buttons") else "[status,pause,cancel,resume],[files,emergency,macros,shutdown]"
         self.buttons: List[List[str]] = list(
             map(
                 lambda el: list(
@@ -202,30 +195,20 @@ class TelegramUIConfig:
         self.buttons_default: bool = False if config.has_option(self._SECTION, "buttons") else True
         self.require_confirmation_macro: bool = config.getboolean(self._SECTION, "require_confirmation_macro", fallback=True)
         self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, "include_macros_in_command_list", fallback=True)
-        self.disabled_macros: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")] if config.has_option(self._SECTION, "disabled_macros") else []
-        )
+        self.disabled_macros: List[str] = [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")] if config.has_option(self._SECTION, "disabled_macros") else []
         self.show_hidden_macros: bool = config.getboolean(self._SECTION, "show_hidden_macros", fallback=False)
         self.eta_source: str = config.get(self._SECTION, "eta_source", fallback="slicer")
         self.status_message_sensors: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_sensors").split(",")]
-            if config.has_option(self._SECTION, "status_message_sensors")
-            else []
+            [el.strip() for el in config.get(self._SECTION, "status_message_sensors").split(",")] if config.has_option(self._SECTION, "status_message_sensors") else []
         )
         self.status_message_heaters: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_heaters").split(",")]
-            if config.has_option(self._SECTION, "status_message_heaters")
-            else []
+            [el.strip() for el in config.get(self._SECTION, "status_message_heaters").split(",")] if config.has_option(self._SECTION, "status_message_heaters") else []
         )
         self.status_message_temp_fans: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_temperature_fans").split(",")]
-            if config.has_option(self._SECTION, "status_message_temperature_fans")
-            else []
+            [el.strip() for el in config.get(self._SECTION, "status_message_temperature_fans").split(",")] if config.has_option(self._SECTION, "status_message_temperature_fans") else []
         )
         self.status_message_devices: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_devices").split(",")]
-            if config.has_option(self._SECTION, "status_message_devices")
-            else []
+            [el.strip() for el in config.get(self._SECTION, "status_message_devices").split(",")] if config.has_option(self._SECTION, "status_message_devices") else []
         )
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
@@ -237,10 +220,4 @@ class ConfigWrapper:
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
-        self.unknown_fields = (
-            self.bot.unknown_fields
-            + self.camera.unknown_fields
-            + self.notifications.unknown_fields
-            + self.timelapse.unknown_fields
-            + self.telegram_ui.unknown_fields
-        )
+        self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
