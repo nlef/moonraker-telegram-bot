@@ -14,7 +14,6 @@ from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
-from numpy.core.records import ndarray
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -310,7 +309,7 @@ class Camera:
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as ex:
-                    logger.warning("Reading video frames queue exception $s", ex)
+                    logger.warning("Reading video frames queue exception %s", ex)
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))
@@ -343,24 +342,22 @@ class Camera:
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue[ndarray] = Queue(fps_cam * self._video_buffer_size)
+            frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
-            video_lock.acquire()
-            threading.Thread(target=write_video, args=()).start()
-            t_end = time.time() + self._video_duration
-            while success and time.time() <= t_end:
-                success, frame_loc = self.cam_cam.read()
-                try:
-                    frame_queue.put(frame_loc, block=False)
-                except Exception as ex:
-                    logger.warning("Writing video frames queue exception %s", ex.with_traceback)
-                    frame_queue.put(frame_loc)
-                # frame_loc = None
-                # del frame_loc
-
-            video_lock.release()
+            with video_lock:
+                threading.Thread(target=write_video, args=()).start()
+                t_end = time.time() + self._video_duration
+                while success and time.time() <= t_end:
+                    success, frame_loc = self.cam_cam.read()
+                    try:
+                        frame_queue.put(frame_loc, block=False)
+                    except Exception as ex:
+                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
+                        frame_queue.put(frame_loc)
+                    # frame_loc = None
+                    # del frame_loc
             video_written_event.wait()
 
         self.cam_cam.release()
@@ -421,8 +418,9 @@ class Camera:
 
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
-        if not Path(f"{lapse_dir}/lapse.lock").is_file():
-            open(f"{lapse_dir}/lapse.lock", mode="a").close()
+        lock_file = Path(f"{lapse_dir}/lapse.lock")
+        if not lock_file.is_file():
+            lock_file.touch()
 
         # Todo: check for nonempty photos!
         photos = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}")

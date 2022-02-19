@@ -216,7 +216,7 @@ class Klippy:
             logger.debug("JWT token successfully refreshed")
             self._jwt_token = res.json()["result"]["token"]
         else:
-            logger.error(f"Failed to refresh token: {res.reason}")
+            logger.error("Failed to refresh token: %s", res.reason)
 
     def _make_request(self, url, method, json=None, stream=None, files=None) -> requests.Response:
         res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files)

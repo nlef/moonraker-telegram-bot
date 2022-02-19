@@ -9,11 +9,6 @@ repos:
       - id: trailing-whitespace
   - repo: local
     hooks:
-#      - id: pylint
-#        name: pylint
-#        entry: pylint
-#        language: system
-#        types: [python]
       - id: black
         name: black
         entry: black
@@ -29,5 +24,10 @@ repos:
       - id: mypy
         name: mypy
         entry: mypy
+        language: system
+        types: [python]
+      - id: pylint
+        name: pylint
+        entry: pylint
         language: system
         types: [python]

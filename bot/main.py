@@ -2,6 +2,7 @@ import argparse
 import configparser
 import faulthandler
 import hashlib
+from io import BytesIO
 import itertools
 import logging
 from logging.handlers import RotatingFileHandler
@@ -14,6 +15,8 @@ from typing import List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
+from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
+import emoji
 from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message, MessageEntity, ReplyKeyboardMarkup, Update
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
@@ -28,16 +31,6 @@ from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
 from timelapse import Timelapse
-
-try:
-    import thread  # type: ignore
-except ImportError:
-    import _thread as thread  # type: ignore
-
-from io import BytesIO
-
-from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
-import emoji
 
 logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
@@ -381,7 +374,7 @@ def send_logs(update: Update, _: CallbackContext) -> None:
 def restart_bot() -> None:
     if ws:
         ws.close()
-    os._exit(1)
+    sys.exit(1)
 
 
 def power(update: Update, _: CallbackContext) -> None:
@@ -502,7 +495,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             width,
             height,
             video_path,
-            gcode_name,
+            _gcode_name,
         ) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
         info_mess.edit_text(text="Uploading time-lapse")
         if video_bio.getbuffer().nbytes > 52428800:
@@ -771,10 +764,10 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                 )
                 return
 
-            contained_file = my_zip_file.open(my_zip_file.namelist()[0])
-            sending_bio.name = contained_file.name
-            sending_bio.write(contained_file.read())
-            sending_bio.seek(0)
+            with my_zip_file.open(my_zip_file.namelist()[0]) as contained_file:
+                sending_bio.name = contained_file.name
+                sending_bio.write(contained_file.read())
+                sending_bio.seek(0)
 
     if klippy.upload_file(sending_bio):
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
@@ -1271,7 +1264,7 @@ def websocket_to_message(ws_loc, ws_message):
 
 
 def parselog():
-    with open("../telegram.log") as file:
+    with open("../telegram.log", encoding="utf-8") as file:
         lines = file.readlines()
 
     wslines = list(filter(lambda it: " - {" in it, lines))
