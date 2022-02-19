@@ -248,11 +248,11 @@ class Timelapse:
                 disable_notification=self._silent_progress,
             )
 
-            if self._executors_pool._work_queue.qsize() > 0:
+            if self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
                 info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
             time.sleep(5)
-            while self._executors_pool._work_queue.qsize() > 0:
+            while self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
                 time.sleep(1)
 
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)

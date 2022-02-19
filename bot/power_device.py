@@ -6,8 +6,8 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-class PowerDevice(object):
-    def __new__(cls, name: str, moonraker_host: str):
+class PowerDevice:
+    def __new__(cls, name: str, _moonraker_host: str):
         if name:
             return super(PowerDevice, cls).__new__(cls)
         else:
