@@ -192,7 +192,7 @@ class TelegramUIConfig:
                 re.findall(r"\[.[^\]]*\]", buttons_string),
             )
         )
-        self.buttons_default: bool = False if config.has_option(self._SECTION, "buttons") else True
+        self.buttons_default: bool = bool(config.has_option(self._SECTION, "buttons"))
         self.require_confirmation_macro: bool = config.getboolean(self._SECTION, "require_confirmation_macro", fallback=True)
         self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, "include_macros_in_command_list", fallback=True)
         self.disabled_macros: List[str] = [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")] if config.has_option(self._SECTION, "disabled_macros") else []

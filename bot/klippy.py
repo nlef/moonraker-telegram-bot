@@ -66,7 +66,7 @@ class Klippy:
         self._refresh_token: str = ""
 
         # Todo: create sensors class!!
-        self.sensors_dict: dict = dict()
+        self.sensors_dict: dict = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -232,7 +232,7 @@ class Klippy:
             return "" if response.ok else f"Connection failed. {response.reason}"
         except Exception as ex:
             logger.error(ex, exc_info=True)
-            return f"Connection failed."
+            return "Connection failed."
 
     def update_sensror(self, name: str, value) -> None:
         if name in self.sensors_dict:
@@ -290,8 +290,7 @@ class Klippy:
             eta = int(self.file_estimated_time - self.printing_duration)
         else:  # eta by file
             eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
-        if eta < 0:
-            eta = 0
+        eta = max(eta, 0)
         return timedelta(seconds=eta)
 
     def _populate_with_thumb(self, thumb_path: str, message: str):
@@ -304,7 +303,7 @@ class Klippy:
                 response.raw.decode_content = True
                 img = Image.open(response.raw).convert("RGB")
             else:
-                logger.error(f"Thumbnail download failed for {thumb_path} \n\n{response.reason}")
+                logger.error("Thumbnail download failed for %s \n\n%s", thumb_path, response.reason)
                 # Todo: resize?
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
@@ -369,13 +368,13 @@ class Klippy:
             if not self.printing_filename:
                 self.printing_filename = print_stats["filename"]
         elif print_stats["state"] == "paused":
-            message += f"Printing paused\n"
+            message += "Printing paused\n"
         elif print_stats["state"] == "complete":
-            message += f"Printing complete\n"
+            message += "Printing complete\n"
         elif print_stats["state"] == "standby":
-            message += f"Printer standby\n"
+            message += "Printer standby\n"
         elif print_stats["state"] == "error":
-            message += f"Printing error\n"
+            message += "Printing error\n"
             if "message" in print_stats and print_stats["message"]:
                 message += f"{print_stats['message']}\n"
 
@@ -409,7 +408,7 @@ class Klippy:
                     thumb_path = file_dir + "/"
                 thumb_path += thumb["relative_path"]
             else:
-                logger.error(f"Thumbnail relative_path and filename not found in {resp}")
+                logger.error("Thumbnail relative_path and filename not found in %s", resp)
 
         return self._populate_with_thumb(thumb_path, message)
 
@@ -437,7 +436,7 @@ class Klippy:
         if res.ok:
             return res.json()["result"]["value"]
         else:
-            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
+            logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res.reason)
             # Fixme: return default value? check for 404!
             return None
 
@@ -445,12 +444,12 @@ class Klippy:
         data = {"namespace": self._dbname, "key": param_name, "value": value}
         res = self._make_request(f"http://{self._host}/server/database/item", "POST", json=data)
         if not res.ok:
-            logger.error(f"Failed saving {param_name} to {self._dbname} \n\n{res.reason}")
+            logger.error("Failed saving %s to %s \n\n%s", param_name, self._dbname, res.reason)
 
     def delete_param_from_db(self, param_name: str) -> None:
         res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "DELETE")
         if not res.ok:
-            logger.error(f"Failed getting {param_name} from {self._dbname} \n\n{res.reason}")
+            logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res.reason)
 
     # macro data section
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str) -> None:
@@ -463,4 +462,4 @@ class Klippy:
             )
 
         else:
-            logger.error(f'Marco "{self._DATA_MACRO}" not defined')
+            logger.error("Marco %s not defined", self._DATA_MACRO)

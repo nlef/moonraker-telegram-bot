@@ -127,7 +127,7 @@ class Timelapse:
     def min_lapse_duration(self, new_value: int):
         if new_value >= 0:
             if new_value <= self._max_lapse_duration and not new_value == 0:
-                logger.warning(f"Min lapse duration {new_value} is lower than max lapse duration {self._max_lapse_duration}")
+                logger.warning("Min lapse duration %s is lower than max lapse duration %s", new_value, self._max_lapse_duration)
             self._min_lapse_duration = new_value
             self._camera.min_lapse_duration = new_value
 
@@ -139,7 +139,7 @@ class Timelapse:
     def max_lapse_duration(self, new_value: int):
         if new_value >= 0:
             if new_value <= self._min_lapse_duration and not new_value == 0:
-                logger.warning(f"Max lapse duration {new_value} is lower than min lapse duration {self._min_lapse_duration}")
+                logger.warning("Max lapse duration %s is lower than min lapse duration %s", new_value, self._min_lapse_duration)
             self._max_lapse_duration = new_value
             self._camera.max_lapse_duration = new_value
 
@@ -180,19 +180,19 @@ class Timelapse:
 
     def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False):
         if not self._enabled:
-            logger.debug(f"lapse is disabled")
+            logger.debug("lapse is disabled")
             return
         elif not self._klippy.printing_filename:
-            logger.debug(f"lapse is inactive for file undefined")
+            logger.debug("lapse is inactive for file undefined")
             return
         elif not self._running:
-            logger.debug(f"lapse is not running at the moment")
+            logger.debug("lapse is not running at the moment")
             return
         elif self._paused and not manually:
-            logger.debug(f"lapse is paused at the moment")
+            logger.debug("lapse is paused at the moment")
             return
         elif not self._mode_manual and self._klippy.printing_duration <= 0.0:
-            logger.debug(f"lapse must not run with auto mode and zero print duration")
+            logger.debug("lapse must not run with auto mode and zero print duration")
             return
 
         if 0.0 < position_z < self._last_height - self._height:
@@ -237,7 +237,7 @@ class Timelapse:
 
     def _send_lapse(self):
         if not self._enabled or not self._klippy.printing_filename:
-            logger.debug(f"lapse is inactive for enabled {self.enabled} or file undefined")
+            logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
         else:
             lapse_filename = self._klippy.printing_filename_with_time
             gcode_name = self._klippy.printing_filename

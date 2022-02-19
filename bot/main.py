@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import random
 import sys
+import time
 from typing import List, Optional, Union
 from zipfile import ZipFile
 
@@ -128,7 +129,7 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
         parse_mode=PARSEMODE_MARKDOWN_V2,
         quote=True,
     )
-    logger.error(f"Unauthorized access detected from `{update.effective_chat.username}` with chat_id `{update.effective_chat.id}`. Message: {update.effective_message.to_json()}")
+    logger.error("Unauthorized access detected from `%s` with chat_id `%s`. Message: %s", update.effective_chat.username, update.effective_chat.id, update.effective_message.to_json())
 
 
 def status(update: Update, _: CallbackContext) -> None:
@@ -138,8 +139,6 @@ def status(update: Update, _: CallbackContext) -> None:
 
     if klippy.printing and not configWrap.notifications.group_only:
         notifier.update_status()
-        import time
-
         time.sleep(configWrap.camera.light_timeout + 1.5)
         update.effective_message.delete()
     else:
@@ -209,7 +208,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
         update.effective_message.reply_text("camera is disabled", quote=True)
     else:
         info_reply: Message = update.effective_message.reply_text(
-            text=f"Starting video recording",
+            text="Starting video recording",
             disable_notification=notifier.silent_commands,
             quote=True,
         )
@@ -244,13 +243,13 @@ def manage_printing(command: str) -> None:
 def emergency_stop_printer():
     if ws is None:
         return
-    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.emergency_stop", "id": myId}))
+    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": myId}))
 
 
 def shutdown_pi_host():
     if ws is None:
         return
-    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"machine.shutdown", "id": myId}))
+    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": myId}))
 
 
 def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
@@ -439,91 +438,13 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     if update.effective_message is None or update.effective_message.bot is None or update.callback_query is None:
         logger.warning("Undefined effective message or bot or query")
         return
-    if update.effective_message.reply_to_message is None:
-        logger.error(f"Undefined reply_to_message for {update.effective_message.to_json()}")
-        return
-    query = update.callback_query
 
-    if query.bot is None:
-        logger.error(f"Undefined bot in callback_query")
-        return
-
-    if query.message is None:
-        logger.error(f"Undefined callback_query.message for {query.to_json()}")
-        return
-
-    if query.data is None:
-        logger.error(f"Undefined callback_query.data for {query.to_json()}")
-        return
-
-    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    # query = update.callback_query
-    query.answer()
-    # Todo: maybe regex check?
-    if query.data == "do_nothing":
-        if update.effective_message.reply_to_message:
-            context.bot.delete_message(
-                update.effective_message.chat_id,
-                update.effective_message.reply_to_message.message_id,
-            )
-        query.delete_message()
-    elif query.data == "emergency_stop":
-        emergency_stop_printer()
-        query.delete_message()
-    elif query.data == "shutdown_host":
-        update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
-        query.delete_message()
-        shutdown_pi_host()
-    elif query.data == "bot_restart":
-        update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
-        query.delete_message()
-        restart_bot()
-    elif query.data == "cancel_printing":
-        manage_printing("cancel")
-        query.delete_message()
-    elif query.data == "pause_printing":
-        manage_printing("pause")
-        query.delete_message()
-    elif query.data == "resume_printing":
-        manage_printing("resume")
-        query.delete_message()
-    elif query.data == "power_off_printer":
-        psu_power_device.switch_device(False)
-        update.effective_message.reply_to_message.reply_text(
-            f"Device `{psu_power_device.name}` toggled off",
-            parse_mode=PARSEMODE_MARKDOWN_V2,
-            quote=True,
-        )
-        query.delete_message()
-    elif query.data == "power_on_printer":
-        psu_power_device.switch_device(True)
-        update.effective_message.reply_to_message.reply_text(
-            f"Device `{psu_power_device.name}` toggled on",
-            parse_mode=PARSEMODE_MARKDOWN_V2,
-            quote=True,
-        )
-        query.delete_message()
-    elif "macro:" in query.data:
-        command = query.data.replace("macro:", "")
-        update.effective_message.reply_to_message.reply_text(
-            f"Running macro: {command}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-        query.delete_message()
-        klippy.execute_command(command)
-    elif "macroc:" in query.data:
-        command = query.data.replace("macroc:", "")
-        query.edit_message_text(
-            text=f"Execute marco {command}?",
-            reply_markup=confirm_keyboard(f"macro:{command}"),
-        )
-    elif ".gcode" in query.data and ":" not in query.data:
+    def print_file_dialog():
         if query.message.reply_markup is None:
-            logger.error(f"Undefined query.message.reply_markup in {query.message.to_json()}")
+            logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
             return
         keyboard_keys = dict((x["callback_data"], x["text"]) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"]))
-        filename = keyboard_keys[query.data]
+        pri_filename = keyboard_keys[query.data]
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -538,7 +459,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         start_pre_mess = "Start printing file:"
-        message, bio = klippy.get_file_info_by_name(filename, f"{start_pre_mess}{filename}?")
+        message, bio = klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
         if bio is not None:
             update.effective_message.reply_to_message.reply_photo(
                 photo=bio,
@@ -546,31 +467,20 @@ def button_handler(update: Update, context: CallbackContext) -> None:
                 reply_markup=reply_markup,
                 disable_notification=notifier.silent_commands,
                 quote=True,
-                caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(filename))],
+                caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
             )
             bio.close()
-            context.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
+            query.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
         else:
             query.edit_message_text(
                 text=message,
                 reply_markup=reply_markup,
-                entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(filename))],
+                entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
             )
-    elif "print_file" in query.data:
-        if query.message.caption:
-            filename = query.message.parse_caption_entity(query.message.caption_entities[0]).strip()
-        else:
-            filename = query.message.parse_entity(query.message.entities[0]).strip()
-        if klippy.start_printing_file(filename):
-            query.delete_message()
-        else:
-            if query.message.text:
-                query.edit_message_text(text=f"Failed start printing file {filename}")
-            elif query.message.caption:
-                query.message.edit_caption(caption=f"Failed start printing file {filename}")
-    elif "lapse:" in query.data:
+
+    def build_and_send_lapse():
         if query.message.reply_markup is None:
-            logger.error(f"Undefined query.message.reply_markup in {query.message.to_json()}")
+            logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
             return
 
         lapse_name = next(
@@ -614,8 +524,107 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         thumb_bio.close()
         query.delete_message()
         check_unfinished_lapses()
+
+    query = update.callback_query
+
+    if query.bot is None:
+        logger.error("Undefined bot in callback_query")
+        return
+
+    if query.message is None:
+        logger.error("Undefined callback_query.message for %s", query.to_json())
+        return
+
+    if query.data is None:
+        logger.error("Undefined callback_query.data for %s", query.to_json())
+        return
+
+    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+
+    query.answer()
+    # Todo: maybe regex check?
+    if query.data == "do_nothing":
+        if update.effective_message.reply_to_message:
+            context.bot.delete_message(
+                update.effective_message.chat_id,
+                update.effective_message.reply_to_message.message_id,
+            )
+        query.delete_message()
+    elif query.data == "emergency_stop":
+        emergency_stop_printer()
+        query.delete_message()
+    elif query.data == "cancel_printing":
+        manage_printing("cancel")
+        query.delete_message()
+    elif query.data == "pause_printing":
+        manage_printing("pause")
+        query.delete_message()
+    elif query.data == "resume_printing":
+        manage_printing("resume")
+        query.delete_message()
+    elif "lapse:" in query.data:
+        build_and_send_lapse()
+
+    if update.effective_message.reply_to_message is None:
+        logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
+        return
+
+    if query.data == "shutdown_host":
+        update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
+        query.delete_message()
+        shutdown_pi_host()
+    elif query.data == "bot_restart":
+        update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
+        query.delete_message()
+        restart_bot()
+    elif query.data == "power_off_printer":
+        psu_power_device.switch_device(False)
+        update.effective_message.reply_to_message.reply_text(
+            f"Device `{psu_power_device.name}` toggled off",
+            parse_mode=PARSEMODE_MARKDOWN_V2,
+            quote=True,
+        )
+        query.delete_message()
+    elif query.data == "power_on_printer":
+        psu_power_device.switch_device(True)
+        update.effective_message.reply_to_message.reply_text(
+            f"Device `{psu_power_device.name}` toggled on",
+            parse_mode=PARSEMODE_MARKDOWN_V2,
+            quote=True,
+        )
+        query.delete_message()
+    elif "macro:" in query.data:
+        command = query.data.replace("macro:", "")
+        update.effective_message.reply_to_message.reply_text(
+            f"Running macro: {command}",
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        query.delete_message()
+        klippy.execute_command(command)
+    elif "macroc:" in query.data:
+        command = query.data.replace("macroc:", "")
+        query.edit_message_text(
+            text=f"Execute marco {command}?",
+            reply_markup=confirm_keyboard(f"macro:{command}"),
+        )
+    elif ".gcode" in query.data and ":" not in query.data:
+        print_file_dialog()
+    elif "print_file" in query.data:
+        if query.message.caption:
+            filename = query.message.parse_caption_entity(query.message.caption_entities[0]).strip()
+        else:
+            filename = query.message.parse_entity(query.message.entities[0]).strip()
+        if klippy.start_printing_file(filename):
+            query.delete_message()
+        else:
+            if query.message.text:
+                query.edit_message_text(text=f"Failed start printing file {filename}")
+            elif query.message.caption:
+                query.message.edit_caption(caption=f"Failed start printing file {filename}")
+
     else:
-        logger.debug(f"unknown message from inline keyboard query: {query.data}")
+        logger.debug("unknown message from inline keyboard query: %s", query.data)
         query.delete_message()
 
 
@@ -935,8 +944,8 @@ def start_bot(bot_token, socks):
 def on_close(_, close_status_code, close_msg):
     logger.info("WebSocket closed")
     if close_status_code or close_msg:
-        logger.error("WebSocket close status code: " + str(close_status_code))
-        logger.error("WebSocket close message: " + str(close_msg))
+        logger.error("WebSocket close status code: %s", str(close_status_code))
+        logger.error("WebSocket close message: %s", str(close_msg))
 
 
 def on_error(_, error):
@@ -1156,12 +1165,12 @@ def parse_print_stats(message_params):
         timelapse.running = False
         notifier.send_notification(f"Printer state change: {message_params[0]['print_stats']['state']} \n")
     elif state:
-        logger.error(f"Unknown state: {state}")
+        logger.error("Unknown state: %s", state)
 
 
 def power_device_state(device):
     device_name = device["device"]
-    device_state = True if device["status"] == "on" else False
+    device_state = bool(device["status"] == "on")
     if psu_power_device and psu_power_device.name == device_name:
         psu_power_device.device_state = device_state
     if light_power_device and light_power_device.name == device_name:
@@ -1209,7 +1218,7 @@ def websocket_to_message(ws_loc, ws_message):
                         klippy.state_message = state_message
                         notifier.send_error(f"Klippy changed state to {klippy.state}\n{klippy.state_message}")
                 else:
-                    logger.error(f"UnKnown klippy state: {klippy_state}")
+                    logger.error("UnKnown klippy state: %s", klippy_state)
                     klippy.connected = False
                     scheduler.add_job(
                         reshedule,
@@ -1234,7 +1243,7 @@ def websocket_to_message(ws_loc, ws_message):
     else:
         message_method = json_message["method"]
         if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
-            logger.warning(f"klippy disconnect detected with message: {json_message['method']}")
+            logger.warning("klippy disconnect detected with message: %s", json_message["method"])
             stop_all()
             klippy.connected = False
             scheduler.add_job(
@@ -1262,16 +1271,14 @@ def websocket_to_message(ws_loc, ws_message):
 
 
 def parselog():
-    with open("../telegram.log") as f:
-        lines = f.readlines()
+    with open("../telegram.log") as file:
+        lines = file.readlines()
 
     wslines = list(filter(lambda it: " - {" in it, lines))
-    tt = list(map(lambda el: el.split(" - ")[-1].replace("\n", ""), wslines))
+    messages = list(map(lambda el: el.split(" - ")[-1].replace("\n", ""), wslines))
 
-    for mes in tt:
+    for mes in messages:
         websocket_to_message(ws, mes)
-        import time
-
         time.sleep(0.01)
     print("lalal")
 

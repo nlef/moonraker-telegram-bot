@@ -1,4 +1,3 @@
-import configparser
 from contextlib import contextmanager
 from functools import wraps
 import glob
@@ -52,7 +51,7 @@ def cam_light_toggle(func):
                 self.light_need_off = False
                 self.light_device.switch_device(False)
             else:
-                logger.debug(f"light requests count: {self.light_requests}")
+                logger.debug("light requests count: %s", self.light_requests)
 
         if self.light_need_off and self.light_requests == 0:
             threading.Timer(self.light_timeout, delayed_light_off).start()
@@ -70,7 +69,7 @@ class Camera:
         light_device: PowerDevice,
         logging_handler: logging.Handler = None,
     ):
-        self.enabled: bool = True if config.camera.enabled and config.camera.host else False
+        self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
         self._flip_vertically: bool = config.camera.flip_vertically
@@ -141,7 +140,7 @@ class Camera:
         if cv2.ocl.haveOpenCL():
             logger.debug("OpenCL is available")
             cv2.ocl.setUseOpenCL(True)
-            logger.debug(f"OpenCL in OpenCV is enabled: {cv2.ocl.useOpenCL()}")
+            logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
         cv2.setNumThreads(self._threads)
         self.cam_cam = cv2.VideoCapture()
@@ -311,7 +310,7 @@ class Camera:
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as ex:
-                    logger.warning(f"Reading video frames queue exception {ex.with_traceback}")
+                    logger.warning("Reading video frames queue exception $s", ex)
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))
@@ -356,7 +355,7 @@ class Camera:
                 try:
                     frame_queue.put(frame_loc, block=False)
                 except Exception as ex:
-                    logger.warning(f"Writing video frames queue exception {ex.with_traceback}")
+                    logger.warning("Writing video frames queue exception %s", ex.with_traceback)
                     frame_queue.put(frame_loc)
                 # frame_loc = None
                 # del frame_loc
@@ -367,8 +366,8 @@ class Camera:
         self.cam_cam.release()
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
-        with open(filepath, "rb") as fh:
-            video_bio.write(fh.read())
+        with open(filepath, "rb") as video_file:
+            video_bio.write(video_file.read())
         os.remove(filepath)
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
@@ -410,12 +409,12 @@ class Camera:
         elif actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
         else:
-            logger.error(f"Unknown fps calculation state for durations min:{self._min_lapse_duration} and max:{self._max_lapse_duration} and actual:{actual_duration}")
+            logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
             return self._target_fps
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
-            raise ValueError(f"Gcode file name is empty")
+            raise ValueError("Gcode file name is empty")
 
         while self.light_need_off:
             time.sleep(1)
@@ -433,7 +432,7 @@ class Camera:
         if photo_count == 0:
             raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
-        info_mess.edit_text(text=f"Creating thumbnail")
+        info_mess.edit_text(text="Creating thumbnail")
         last_photo = photos[-1]
         img = cv2.imread(last_photo)
         height, width, layers = img.shape
@@ -455,7 +454,7 @@ class Camera:
                 frameSize=(width, height),
             )
 
-            info_mess.edit_text(text=f"Images recoding")
+            info_mess.edit_text(text="Images recoding")
             last_update_time = time.time()
             for fnum, filename in enumerate(photos):
                 if time.time() >= last_update_time + 3:
@@ -482,7 +481,7 @@ class Camera:
         with open(video_filepath, "rb") as fh:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
-            info_mess.edit_text(text=f"Copy lapse to target ditectory")
+            info_mess.edit_text(text="Copy lapse to target ditectory")
             Path(target_video_file).parent.mkdir(parents=True, exist_ok=True)
             with open(target_video_file, "wb") as cpf:
                 cpf.write(video_bio.getvalue())
@@ -491,7 +490,7 @@ class Camera:
         os.remove(f"{lapse_dir}/lapse.lock")
 
         if self._cleanup:
-            info_mess.edit_text(text=f"Performing cleanups")
+            info_mess.edit_text(text="Performing cleanups")
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
                 os.remove(filename)
             if video_bio.getbuffer().nbytes < 52428800:

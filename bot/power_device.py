@@ -42,7 +42,7 @@ class PowerDevice(object):
                     self._device_on = True
                     return True
                 else:
-                    logger.error(f"Power device switch failed: {res.reason}")
+                    logger.error("Power device switch failed: %s", res.reason)
                     return state
             else:
                 res = requests.post(f"http://{self._moonraker_host}/machine/device_power/device?device={self.name}&action=off")
@@ -50,5 +50,5 @@ class PowerDevice(object):
                     self._device_on = False
                     return False
                 else:
-                    logger.error(f"Power device switch failed: {res.reason}")
+                    logger.error("Power device switch failed: %s", res.reason)
                     return state

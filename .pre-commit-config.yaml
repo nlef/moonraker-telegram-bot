@@ -8,6 +8,11 @@ repos:
       - id: trailing-whitespace
   - repo: local
     hooks:
+#      - id: pylint
+#        name: pylint
+#        entry: pylint
+#        language: system
+#        types: [python]
       - id: black
         name: black
         entry: black
@@ -20,7 +25,6 @@ repos:
         language: system
         types: [python]
         require_serial: true
-      # TODO: fix typing errors
       - id: mypy
         name: mypy
         entry: mypy
