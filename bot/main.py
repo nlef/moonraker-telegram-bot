@@ -13,11 +13,6 @@ from typing import List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
-from camera import Camera
-from configuration import ConfigWrapper
-from klippy import Klippy
-from notifications import Notifier
-from power_device import PowerDevice
 from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message, MessageEntity, ReplyKeyboardMarkup, Update
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
@@ -26,6 +21,11 @@ from telegram.utils.helpers import escape_markdown
 import ujson
 import websocket  # type: ignore
 
+from camera import Camera
+from configuration import ConfigWrapper
+from klippy import Klippy
+from notifications import Notifier
+from power_device import PowerDevice
 from timelapse import Timelapse
 
 try:

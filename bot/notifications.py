@@ -3,12 +3,13 @@ import logging
 from typing import Dict, List, Optional
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from camera import Camera
-from configuration import ConfigWrapper
-from klippy import Klippy
 from telegram import Bot, ChatAction, InputMediaPhoto, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.utils.helpers import escape_markdown
+
+from camera import Camera
+from configuration import ConfigWrapper
+from klippy import Klippy
 
 logger = logging.getLogger(__name__)
 
