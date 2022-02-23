@@ -512,6 +512,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
                 disable_notification=notifier.silent_commands,
             )
             query.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_mess.message_id)
+            cameraWrap.cleanup(lapse_name)
 
         video_bio.close()
         thumb_bio.close()

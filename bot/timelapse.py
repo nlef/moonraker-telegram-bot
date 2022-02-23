@@ -282,6 +282,7 @@ class Timelapse:
                         disable_notification=self._silent_progress,
                     )
                     self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                    self._camera.cleanup(lapse_filename)
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
 

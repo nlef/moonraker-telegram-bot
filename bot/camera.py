@@ -487,16 +487,16 @@ class Camera:
 
         os.remove(f"{lapse_dir}/lapse.lock")
 
+        return video_bio, thumb_bio, width, height, video_filepath, gcode_name
+
+    def cleanup(self, lapse_filename: str):
+        lapse_dir = f"{self._base_dir}/{lapse_filename}"
         if self._cleanup:
-            info_mess.edit_text(text="Performing cleanups")
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
                 os.remove(filename)
-            if video_bio.getbuffer().nbytes < 52428800:
-                for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
-                    os.remove(filename)
-                Path(lapse_dir).rmdir()
-
-        return video_bio, thumb_bio, width, height, video_filepath, gcode_name
+            for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
+                os.remove(filename)
+            Path(lapse_dir).rmdir()
 
     def clean(self) -> None:
         if self._cleanup and self._klippy.printing_filename and os.path.isdir(self.lapse_dir):
