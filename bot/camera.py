@@ -313,14 +313,14 @@ class Camera:
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))
-                # frame_local = None
-                # del frame_local
+                frame_local = None
+                del frame_local
 
             while not frame_queue.empty():
                 frame_local = frame_queue.get()
                 out.write(process_video_frame(frame_local))
-                # frame_local = None
-                # del frame_local
+                frame_local = None
+                del frame_local
 
             out.release()
             video_written_event.set()
@@ -356,8 +356,8 @@ class Camera:
                     except Exception as ex:
                         logger.warning("Writing video frames queue exception %s", ex.with_traceback)
                         frame_queue.put(frame_loc)
-                    # frame_loc = None
-                    # del frame_loc
+                    frame_loc = None
+                    del frame_loc
             video_written_event.wait()
 
         self.cam_cam.release()

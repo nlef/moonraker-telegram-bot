@@ -453,23 +453,16 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         reply_markup = InlineKeyboardMarkup(keyboard)
         start_pre_mess = "Start printing file:"
         message, bio = klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
-        if bio is not None:
-            update.effective_message.reply_to_message.reply_photo(
-                photo=bio,
-                caption=message,
-                reply_markup=reply_markup,
-                disable_notification=notifier.silent_commands,
-                quote=True,
-                caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
-            )
-            bio.close()
-            query.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
-        else:
-            query.edit_message_text(
-                text=message,
-                reply_markup=reply_markup,
-                entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
-            )
+        update.effective_message.reply_to_message.reply_photo(
+            photo=bio,
+            caption=message,
+            reply_markup=reply_markup,
+            disable_notification=notifier.silent_commands,
+            quote=True,
+            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
+        )
+        bio.close()
+        query.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
 
     def build_and_send_lapse():
         if query.message.reply_markup is None:
@@ -766,11 +759,21 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                 return
 
             with my_zip_file.open(my_zip_file.namelist()[0]) as contained_file:
-                sending_bio.name = contained_file.name
-                sending_bio.write(contained_file.read())
-                sending_bio.seek(0)
+                if contained_file.name.endswith(".gcode"):
+                    sending_bio.name = contained_file.name
+                    sending_bio.write(contained_file.read())
+                    sending_bio.seek(0)
+                else:
+                    update.effective_message.reply_text(
+                        f"Not a gcode file {doc.file_name}",
+                        disable_notification=notifier.silent_commands,
+                        quote=True,
+                    )
+                    return
 
     if klippy.upload_file(sending_bio):
+        start_pre_mess = "Successfully uploaded file:"
+        mess, thumb = klippy.get_file_info_by_name(sending_bio.name, f"{start_pre_mess}{sending_bio.name}")
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
         keyboard = [
             [
@@ -785,12 +788,17 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        update.effective_message.reply_text(
-            f"Successfully uploaded file: {sending_bio.name}",
+        update.effective_message.reply_photo(
+            photo=thumb,
+            caption=mess,
             reply_markup=reply_markup,
             disable_notification=notifier.silent_commands,
             quote=True,
+            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(sending_bio.name))],
         )
+        thumb.close()
+        # Todo: delete uploaded file
+        # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
     else:
         update.effective_message.reply_text(
             f"Failed uploading file: {sending_bio.name}",

@@ -293,7 +293,7 @@ class Klippy:
         eta = max(eta, 0)
         return timedelta(seconds=eta)
 
-    def _populate_with_thumb(self, thumb_path: str, message: str):
+    def _populate_with_thumb(self, thumb_path: str, message: str) -> Tuple[str, BytesIO]:
         if not thumb_path:
             # Todo: resize?
             img = Image.open("../imgs/nopreview.png").convert("RGB")
@@ -387,7 +387,7 @@ class Klippy:
 
         return message
 
-    def get_file_info_by_name(self, filename: str, message: str):
+    def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
         response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}", "GET")
         # Todo: add response status check!
         resp = response.json()["result"]
