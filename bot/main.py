@@ -91,6 +91,7 @@ scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 bot_updater: Updater
 configWrap: ConfigWrapper
 myId = random.randint(0, 300000)
+main_pid = os.getpid()
 cameraWrap: Camera
 timelapse: Timelapse
 notifier: Notifier
@@ -376,8 +377,7 @@ def restart_bot() -> None:
     scheduler.shutdown(wait=False)
     if ws:
         ws.close()
-    os.kill(os.getpid(), signal.SIGINT)
-    sys.exit(1)
+    os.kill(main_pid, signal.SIGTERM)
 
 
 def power(update: Update, _: CallbackContext) -> None:
