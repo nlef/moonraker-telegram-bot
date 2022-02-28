@@ -9,6 +9,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import random
+import signal
 import sys
 import time
 from typing import List, Optional, Union
@@ -372,8 +373,10 @@ def send_logs(update: Update, _: CallbackContext) -> None:
 
 
 def restart_bot() -> None:
+    scheduler.shutdown(wait=False)
     if ws:
         ws.close()
+    os.kill(os.getpid(), signal.SIGINT)
     sys.exit(1)
 
 
