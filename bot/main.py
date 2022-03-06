@@ -60,7 +60,7 @@ sys.excepthook = handle_exception
 # some global params
 def errors_listener(event):
     exception_info = f"Job {event.job_id} raised"
-    if "message" in event.exception:
+    if hasattr(event.exception, "message"):
         exception_info += f"{event.exception.message}\n"
     else:
         exception_info += f"{event.exception}\n"
@@ -889,7 +889,7 @@ def greeting_message():
         ("shutdown", "shutdown Pi gracefully"),
     ]
     if configWrap.telegram_ui.include_macros_in_command_list:
-        commands += list(map(lambda el: (el.lower(), el), klippy.macros))
+        commands += list(filter(lambda e: len(e) < 32, map(lambda el: (el.lower(), el), klippy.macros)))
         if len(commands) >= 100:
             logger.warning("Commands list too large!")
             commands = commands[0:99]
