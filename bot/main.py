@@ -9,6 +9,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import random
+import re
 import signal
 import sys
 import time
@@ -430,90 +431,109 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
         )
 
 
+def button_lapse_handler(update: Update, context: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None or update.callback_query is None:
+        logger.warning("Undefined effective message or bot or query")
+        return
+    query = update.callback_query
+    if query.message is None:
+        logger.error("Undefined callback_query.message for %s", query.to_json())
+        return
+    if query.message.reply_markup is None:
+        logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
+        return
+
+    lapse_name = next(
+        filter(
+            lambda el: el[0].callback_data == query.data,
+            query.message.reply_markup.inline_keyboard,
+        )
+    )[0].text
+    info_mess: Message = context.bot.send_message(
+        chat_id=configWrap.bot.chat_id,
+        text=f"Starting time-lapse assembly for {lapse_name}",
+        disable_notification=notifier.silent_commands,
+    )
+    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
+    # Todo: refactor all timelapse cals
+    (
+        video_bio,
+        thumb_bio,
+        width,
+        height,
+        video_path,
+        _gcode_name,
+    ) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
+    info_mess.edit_text(text="Uploading time-lapse")
+    if video_bio.getbuffer().nbytes > 52428800:
+        info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
+    else:
+        context.bot.send_video(
+            configWrap.bot.chat_id,
+            video=video_bio,
+            thumb=thumb_bio,
+            width=width,
+            height=height,
+            caption=f"time-lapse of {lapse_name}",
+            timeout=120,
+            disable_notification=notifier.silent_commands,
+        )
+        context.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_mess.message_id)
+        cameraWrap.cleanup(lapse_name)
+
+    video_bio.close()
+    thumb_bio.close()
+    query.delete_message()
+    check_unfinished_lapses()
+
+
+def print_file_dialog_handler(update: Update, context: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None or update.callback_query is None:
+        logger.warning("Undefined effective message or bot or query")
+        return
+    query = update.callback_query
+    if query.message is None:
+        logger.error("Undefined callback_query.message for %s", query.to_json())
+        return
+    if query.message.reply_markup is None:
+        logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
+        return
+    if update.effective_message.reply_to_message is None:
+        logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
+        return
+    keyboard_keys = dict((x["callback_data"], x["text"]) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"]))
+    pri_filename = keyboard_keys[query.data]
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                emoji.emojize(":robot: print file", use_aliases=True),
+                callback_data=f"print_file:{query.data}",
+            ),
+            InlineKeyboardButton(
+                emoji.emojize(":cross_mark: cancel", use_aliases=True),
+                callback_data="cancel_file",
+            ),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    start_pre_mess = "Start printing file:"
+    message, bio = klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
+    update.effective_message.reply_to_message.reply_photo(
+        photo=bio,
+        caption=message,
+        reply_markup=reply_markup,
+        disable_notification=notifier.silent_commands,
+        quote=True,
+        caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
+    )
+    bio.close()
+    context.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
+
+
 def button_handler(update: Update, context: CallbackContext) -> None:
     if update.effective_message is None or update.effective_message.bot is None or update.callback_query is None:
         logger.warning("Undefined effective message or bot or query")
         return
-
-    def print_file_dialog():
-        if query.message.reply_markup is None:
-            logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
-            return
-        keyboard_keys = dict((x["callback_data"], x["text"]) for x in itertools.chain.from_iterable(query.message.reply_markup.to_dict()["inline_keyboard"]))
-        pri_filename = keyboard_keys[query.data]
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    emoji.emojize(":robot: print file", use_aliases=True),
-                    callback_data=f"print_file:{query.data}",
-                ),
-                InlineKeyboardButton(
-                    emoji.emojize(":cross_mark: cancel", use_aliases=True),
-                    callback_data="cancel_file",
-                ),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        start_pre_mess = "Start printing file:"
-        message, bio = klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
-        update.effective_message.reply_to_message.reply_photo(
-            photo=bio,
-            caption=message,
-            reply_markup=reply_markup,
-            disable_notification=notifier.silent_commands,
-            quote=True,
-            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
-        )
-        bio.close()
-        query.bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
-
-    def build_and_send_lapse():
-        if query.message.reply_markup is None:
-            logger.error("Undefined query.message.reply_markup in %s", query.message.to_json())
-            return
-
-        lapse_name = next(
-            filter(
-                lambda el: el[0].callback_data == query.data,
-                query.message.reply_markup.inline_keyboard,
-            )
-        )[0].text
-        info_mess: Message = query.bot.send_message(
-            chat_id=configWrap.bot.chat_id,
-            text=f"Starting time-lapse assembly for {lapse_name}",
-            disable_notification=notifier.silent_commands,
-        )
-        query.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
-        # Todo: refactor all timelapse cals
-        (
-            video_bio,
-            thumb_bio,
-            width,
-            height,
-            video_path,
-            _gcode_name,
-        ) = cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
-        info_mess.edit_text(text="Uploading time-lapse")
-        if video_bio.getbuffer().nbytes > 52428800:
-            info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
-        else:
-            query.bot.send_video(
-                configWrap.bot.chat_id,
-                video=video_bio,
-                thumb=thumb_bio,
-                width=width,
-                height=height,
-                caption=f"time-lapse of {lapse_name}",
-                timeout=120,
-                disable_notification=notifier.silent_commands,
-            )
-            query.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_mess.message_id)
-            cameraWrap.cleanup(lapse_name)
-
-        video_bio.close()
-        thumb_bio.close()
-        query.delete_message()
-        check_unfinished_lapses()
 
     query = update.callback_query
 
@@ -532,15 +552,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
 
     query.answer()
-    # Todo: maybe regex check?
-    if query.data == "do_nothing":
-        if update.effective_message.reply_to_message:
-            context.bot.delete_message(
-                update.effective_message.chat_id,
-                update.effective_message.reply_to_message.message_id,
-            )
-        query.delete_message()
-    elif query.data == "emergency_stop":
+    if query.data == "emergency_stop":
         emergency_stop_printer()
         query.delete_message()
     elif query.data == "cancel_printing":
@@ -552,14 +564,14 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == "resume_printing":
         manage_printing("resume")
         query.delete_message()
-    elif "lapse:" in query.data:
-        build_and_send_lapse()
-
-    if update.effective_message.reply_to_message is None:
+    elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
-        return
-
-    if query.data == "shutdown_host":
+    elif query.data == "do_nothing":
+        context.bot.delete_message(
+            update.effective_message.chat_id,
+            update.effective_message.reply_to_message.message_id,
+        )
+    elif query.data == "shutdown_host":
         update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
         query.delete_message()
         shutdown_pi_host()
@@ -598,8 +610,6 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             text=f"Execute marco {command}?",
             reply_markup=confirm_keyboard(f"macro:{command}"),
         )
-    elif ".gcode" in query.data and ":" not in query.data:
-        print_file_dialog()
     elif "print_file" in query.data:
         if query.message.caption:
             filename = query.message.parse_caption_entity(query.message.caption_entities[0]).strip()
@@ -916,6 +926,8 @@ def start_bot(bot_token, socks):
 
     dispatcher.add_handler(MessageHandler(~Filters.chat(configWrap.bot.chat_id), unknown_chat))
 
+    dispatcher.add_handler(CallbackQueryHandler(button_lapse_handler, pattern="lapse:"))
+    dispatcher.add_handler(CallbackQueryHandler(print_file_dialog_handler, pattern=re.compile("^\\S[^\\:]+\\.gcode$")))
     dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
