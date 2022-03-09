@@ -899,7 +899,7 @@ def greeting_message():
         ("shutdown", "shutdown Pi gracefully"),
     ]
     if configWrap.telegram_ui.include_macros_in_command_list:
-        commands += list(filter(lambda e: len(e) < 32, map(lambda el: (el.lower(), el), klippy.macros)))
+        commands += list(map(lambda el: (el.lower(), el), filter(lambda e: len(e) < 32, klippy.macros)))
         if len(commands) >= 100:
             logger.warning("Commands list too large!")
             commands = commands[0:99]
