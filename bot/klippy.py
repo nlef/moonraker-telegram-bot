@@ -10,9 +10,12 @@ import urllib
 from PIL import Image  # type: ignore
 import emoji
 import requests
+import ujson
 
 from configuration import ConfigWrapper
 from power_device import PowerDevice
+
+requests.models.complexjson = ujson  # type: ignore
 
 logger = logging.getLogger(__name__)
 

@@ -552,7 +552,14 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
 
     query.answer()
-    if query.data == "emergency_stop":
+    if query.data == "do_nothing":
+        if update.effective_message.reply_to_message:
+            context.bot.delete_message(
+                update.effective_message.chat_id,
+                update.effective_message.reply_to_message.message_id,
+            )
+        query.delete_message()
+    elif query.data == "emergency_stop":
         emergency_stop_printer()
         query.delete_message()
     elif query.data == "cancel_printing":
@@ -566,11 +573,6 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
-    elif query.data == "do_nothing":
-        context.bot.delete_message(
-            update.effective_message.chat_id,
-            update.effective_message.reply_to_message.message_id,
-        )
     elif query.data == "shutdown_host":
         update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
         query.delete_message()
@@ -1044,9 +1046,9 @@ def status_response(status_resp):
         if status_resp[sens]:
             klippy.update_sensror(sens.replace("temperature_sensor ", ""), status_resp[sens])
 
-    for sens in [key for key in status_resp if "temperature_fan" in key]:
-        if status_resp[sens]:
-            klippy.update_sensror(sens.replace("temperature_fan ", ""), status_resp[sens])
+    for fan in [key for key in status_resp if "temperature_fan" in key]:
+        if status_resp[fan]:
+            klippy.update_sensror(fan.replace("temperature_fan ", ""), status_resp[fan])
 
     for heater in [key for key in status_resp if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
         if status_resp[heater]:
@@ -1056,7 +1058,6 @@ def status_response(status_resp):
             )
 
 
-# Todo: add command for setting status!
 def notify_gcode_reponse(message_params):
     if timelapse.manual_mode:
         if "timelapse start" in message_params:
@@ -1077,68 +1078,71 @@ def notify_gcode_reponse(message_params):
         timelapse.take_lapse_photo(manually=True, gcode=True)
     if "timelapse photo" in message_params:
         timelapse.take_lapse_photo(manually=True)
-    if message_params[0].startswith("tgnotify "):
-        notifier.send_notification(message_params[0][9:])
-    if message_params[0].startswith("tgnotify_photo "):
-        notifier.send_notification_with_photo(message_params[0][15:])
-    if message_params[0].startswith("tgalarm "):
-        notifier.send_error(message_params[0][8:])
-    if message_params[0].startswith("tgalarm_photo "):
-        notifier.send_error_with_photo(message_params[0][14:])
-    if message_params[0].startswith("tgnotify_status "):
-        notifier.tgnotify_status = message_params[0][16:]
-    if message_params[0].startswith("set_timelapse_params "):
-        timelapse.parse_timelapse_params(message_params[0])
-    if message_params[0].startswith("set_notify_params "):
-        notifier.parse_notification_params(message_params[0])
+    message_params_loc = message_params[0]
+    if message_params_loc.startswith("tgnotify "):
+        notifier.send_notification(message_params_loc[9:])
+    if message_params_loc.startswith("tgnotify_photo "):
+        notifier.send_notification_with_photo(message_params_loc[15:])
+    if message_params_loc.startswith("tgalarm "):
+        notifier.send_error(message_params_loc[8:])
+    if message_params_loc.startswith("tgalarm_photo "):
+        notifier.send_error_with_photo(message_params_loc[14:])
+    if message_params_loc.startswith("tgnotify_status "):
+        notifier.tgnotify_status = message_params_loc[16:]
+    if message_params_loc.startswith("set_timelapse_params "):
+        timelapse.parse_timelapse_params(message_params_loc)
+    if message_params_loc.startswith("set_notify_params "):
+        notifier.parse_notification_params(message_params_loc)
 
 
 def notify_status_update(message_params):
-    if "display_status" in message_params[0]:
-        if "message" in message_params[0]["display_status"]:
-            notifier.m117_status = message_params[0]["display_status"]["message"]
-        if "progress" in message_params[0]["display_status"]:
-            klippy.printing_progress = message_params[0]["display_status"]["progress"]
-            notifier.schedule_notification(progress=int(message_params[0]["display_status"]["progress"] * 100))
+    message_params_loc = message_params[0]
+    if "display_status" in message_params_loc:
+        if "message" in message_params_loc["display_status"]:
+            notifier.m117_status = message_params_loc["display_status"]["message"]
+        if "progress" in message_params_loc["display_status"]:
+            klippy.printing_progress = message_params_loc["display_status"]["progress"]
+            notifier.schedule_notification(progress=int(message_params_loc["display_status"]["progress"] * 100))
 
-    if "toolhead" in message_params[0] and "position" in message_params[0]["toolhead"]:
+    if "toolhead" in message_params_loc and "position" in message_params_loc["toolhead"]:
         # position_z = json_message["params"][0]['toolhead']['position'][2]
         pass
-    if "gcode_move" in message_params[0] and "position" in message_params[0]["gcode_move"]:
-        position_z = message_params[0]["gcode_move"]["gcode_position"][2]
+    if "gcode_move" in message_params_loc and "position" in message_params_loc["gcode_move"]:
+        position_z = message_params_loc["gcode_move"]["gcode_position"][2]
         klippy.printing_height = position_z
         notifier.schedule_notification(position_z=int(position_z))
         timelapse.take_lapse_photo(position_z)
 
-    if "virtual_sdcard" in message_params[0] and "progress" in message_params[0]["virtual_sdcard"]:
-        klippy.vsd_progress = message_params[0]["virtual_sdcard"]["progress"]
+    if "virtual_sdcard" in message_params_loc and "progress" in message_params_loc["virtual_sdcard"]:
+        klippy.vsd_progress = message_params_loc["virtual_sdcard"]["progress"]
 
-    if "print_stats" in message_params[0]:
+    if "print_stats" in message_params_loc:
         parse_print_stats(message_params)
 
-    for sens in [key for key in message_params[0] if "temperature_sensor" in key]:
-        klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_params[0][sens])
+    for sens in [key for key in message_params_loc if "temperature_sensor" in key]:
+        klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_params_loc[sens])
 
-    for heater in [key for key in message_params[0] if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
+    for heater in [key for key in message_params_loc if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
         klippy.update_sensror(
             heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
-            message_params[0][heater],
+            message_params_loc[heater],
         )
 
 
 def parse_print_stats(message_params):
     state = ""
+    print_stats_loc = message_params[0]["print_stats"]
     # Fixme:  maybe do not parse without state? history data may not be avaliable
     # Message with filename will be sent before printing is started
-    if "filename" in message_params[0]["print_stats"]:
-        klippy.printing_filename = message_params[0]["print_stats"]["filename"]
-    if "filament_used" in message_params[0]["print_stats"]:
-        klippy.filament_used = message_params[0]["print_stats"]["filament_used"]
-    if "state" in message_params[0]["print_stats"]:
-        state = message_params[0]["print_stats"]["state"]
+    if "filename" in print_stats_loc:
+        klippy.printing_filename = print_stats_loc["filename"]
+    if "filament_used" in print_stats_loc:
+        klippy.filament_used = print_stats_loc["filament_used"]
+    if "state" in print_stats_loc:
+        state = print_stats_loc["state"]
     # Fixme: reset notify percent & height on finish/cancel/start
-    if "print_duration" in message_params[0]["print_stats"]:
-        klippy.printing_duration = message_params[0]["print_stats"]["print_duration"]
+    if "print_duration" in print_stats_loc:
+        klippy.printing_duration = print_stats_loc["print_duration"]
     if state == "printing":
         klippy.paused = False
         if not klippy.printing:
@@ -1171,16 +1175,16 @@ def parse_print_stats(message_params):
         klippy.printing = False
         timelapse.running = False
         notifier.remove_notifier_timer()
-        error_mess = f"Printer state change error: {message_params[0]['print_stats']['state']}\n"
-        if "message" in message_params[0]["print_stats"] and message_params[0]["print_stats"]["message"]:
-            error_mess += f"{message_params[0]['print_stats']['message']}\n"
+        error_mess = f"Printer state change error: {print_stats_loc['state']}\n"
+        if "message" in print_stats_loc and print_stats_loc["message"]:
+            error_mess += f"{print_stats_loc['message']}\n"
         notifier.send_error(error_mess)
     elif state == "standby":
         klippy.printing = False
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.running = False
-        notifier.send_notification(f"Printer state change: {message_params[0]['print_stats']['state']} \n")
+        notifier.send_notification(f"Printer state change: {print_stats_loc['state']} \n")
     elif state:
         logger.error("Unknown state: %s", state)
 
