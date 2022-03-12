@@ -251,17 +251,17 @@ class Klippy:
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         if "power" in value:
-            message = emoji.emojize(" :hotsprings: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
+            message = emoji.emojize(" :hotsprings: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
-                message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
+                message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
             if value["power"] > 0.0:
-                message += emoji.emojize(" :fire: ", use_aliases=True)
+                message += emoji.emojize(" :fire: ", language="alias")
         elif "speed" in value:
-            message = emoji.emojize(" :tornado: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
+            message = emoji.emojize(" :tornado: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
-                message += emoji.emojize(" :arrow_right: ", use_aliases=True) + f"{round(value['target'])}"
+                message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
         else:
-            message = emoji.emojize(" :thermometer: ", use_aliases=True) + f"{sens_name.title()}: {round(value['temperature'])}"
+            message = emoji.emojize(" :thermometer: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
         message += "\n"
         return message
 
@@ -274,9 +274,9 @@ class Klippy:
     def _get_power_devices_mess(self) -> str:
         message = ""
         if self._light_device and self._light_device.name in self._devices_list:
-            message += emoji.emojize(" :flashlight: Light: ", use_aliases=True) + f"{'on' if self._light_device.device_state else 'off'}\n"
+            message += emoji.emojize(" :flashlight: Light: ", language="alias") + f"{'on' if self._light_device.device_state else 'off'}\n"
         if self._psu_device and self._psu_device.name in self._devices_list:
-            message += emoji.emojize(" :electric_plug: PSU: ", use_aliases=True) + f"{'on' if self._psu_device.device_state else 'off'}\n"
+            message += emoji.emojize(" :electric_plug: PSU: ", language="alias") + f"{'on' if self._psu_device.device_state else 'off'}\n"
         return message
 
     def execute_command(self, *command) -> None:
@@ -352,7 +352,7 @@ class Klippy:
         resp = response.json()["result"]["status"]
         print_stats = resp["print_stats"]
         # webhook = resp['webhooks']
-        # message = emoji.emojize(':robot: Klipper status: ', use_aliases=True) + f"{webhook['state']}\n"
+        # message = emoji.emojize(':robot: Klipper status: ', language='alias') + f"{webhook['state']}\n"
         message = ""
 
         # if 'display_status' in resp and 'message' in resp['display_status']:
@@ -362,7 +362,7 @@ class Klippy:
         # if 'state_message' in webhook:
         #     message += f"State message: {webhook['state_message']}\n"
 
-        # message += emoji.emojize(':mechanical_arm: Printing process status: ', use_aliases=True) + f"{print_stats['state']} \n"
+        # message += emoji.emojize(':mechanical_arm: Printing process status: ', language='alias') + f"{print_stats['state']} \n"
 
         if print_stats["state"] == "printing":
             if not self.printing_filename:

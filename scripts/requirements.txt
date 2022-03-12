@@ -1,4 +1,4 @@
-emoji==1.6.3
+emoji==1.7.0
 Pillow==9.0.1
 PySocks==1.7.1
 python-telegram-bot==13.11

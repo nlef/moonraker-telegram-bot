@@ -181,7 +181,7 @@ def check_unfinished_lapses():
     files_keys.append(
         [
             InlineKeyboardButton(
-                emoji.emojize(":no_entry_sign: ", use_aliases=True),
+                emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
             )
         ]
@@ -252,11 +252,11 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                emoji.emojize(":white_check_mark: ", use_aliases=True),
+                emoji.emojize(":white_check_mark: ", language="alias"),
                 callback_data=callback_mess,
             ),
             InlineKeyboardButton(
-                emoji.emojize(":no_entry_sign: ", use_aliases=True),
+                emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
             ),
         ]
@@ -506,11 +506,11 @@ def print_file_dialog_handler(update: Update, context: CallbackContext) -> None:
     keyboard = [
         [
             InlineKeyboardButton(
-                emoji.emojize(":robot: print file", use_aliases=True),
+                emoji.emojize(":robot: print file", language="alias"),
                 callback_data=f"print_file:{query.data}",
             ),
             InlineKeyboardButton(
-                emoji.emojize(":cross_mark: cancel", use_aliases=True),
+                emoji.emojize(":cross_mark: cancel", language="alias"),
                 callback_data="cancel_file",
             ),
         ]
@@ -791,11 +791,11 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         keyboard = [
             [
                 InlineKeyboardButton(
-                    emoji.emojize(":robot: print file", use_aliases=True),
+                    emoji.emojize(":robot: print file", language="alias"),
                     callback_data=f"print_file:{filehash}",
                 ),
                 InlineKeyboardButton(
-                    emoji.emojize(":cross_mark: do nothing", use_aliases=True),
+                    emoji.emojize(":cross_mark: do nothing", language="alias"),
                     callback_data="do_nothing",
                 ),
             ]
