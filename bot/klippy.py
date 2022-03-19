@@ -35,8 +35,8 @@ class Klippy:
         self.show_hidden_macros: bool = config.telegram_ui.show_hidden_macros
         self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
-        self._light_device = light_device
-        self._psu_device = psu_device
+        self._light_device: PowerDevice = light_device
+        self._psu_device: PowerDevice = psu_device
         self._sensors_list: List[str] = config.telegram_ui.status_message_sensors
         self._heates_list: List[str] = config.telegram_ui.status_message_heaters
         self._temp_fans_list: List[str] = config.telegram_ui.status_message_temp_fans
@@ -44,7 +44,7 @@ class Klippy:
         self._user: str = config.bot.user
         self._passwd: str = config.bot.passwd
 
-        self._dbname = "telegram-bot"
+        self._dbname: str = "telegram-bot"
 
         self._connected: bool = False
         self.printing: bool = False
@@ -63,7 +63,7 @@ class Klippy:
         self.filament_used: float = 0.0
         self.filament_total: float = 0.0
         self.filament_weight: float = 0.0
-        self._thumbnail_path = ""
+        self._thumbnail_path: str = ""
 
         self._jwt_token: str = ""
         self._refresh_token: str = ""
@@ -102,7 +102,7 @@ class Klippy:
         return self._connected
 
     @connected.setter
-    def connected(self, new_value: bool):
+    def connected(self, new_value: bool) -> None:
         self._connected = new_value
         self.printing = False
         self.paused = False
@@ -419,7 +419,8 @@ class Klippy:
     def get_gcode_files(self):
         response = self._make_request(f"http://{self._host}/server/files/list?root=gcodes", "GET")
         resp = response.json()
-        files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
+        # files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
+        files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
     def upload_file(self, file: BytesIO) -> bool:
@@ -430,7 +431,7 @@ class Klippy:
         response = self._make_request(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}", "POST")
         return response.ok
 
-    def stop_all(self):
+    def stop_all(self) -> None:
         self._reset_file_info()
 
     # moonraker databse section

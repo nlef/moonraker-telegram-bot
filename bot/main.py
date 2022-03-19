@@ -612,6 +612,12 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             text=f"Execute marco {command}?",
             reply_markup=confirm_keyboard(f"macro:{command}"),
         )
+    elif "gcode_files_offset:" in query.data:
+        offset = int(query.data.replace("gcode_files_offset:", ""))
+        query.edit_message_text(
+            "Gcode files to print:",
+            reply_markup=gcode_files_keyboard(offset),
+        )
     elif "print_file" in query.data:
         if query.message.caption:
             filename = query.message.parse_caption_entity(query.message.caption_entities[0]).strip()
@@ -631,6 +637,20 @@ def button_handler(update: Update, context: CallbackContext) -> None:
 
 
 def get_gcode_files(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
+        "Gcode files to print:",
+        reply_markup=gcode_files_keyboard(),
+        disable_notification=notifier.silent_commands,
+        quote=True,
+    )
+
+
+def gcode_files_keyboard(offset: int = 0):
     def create_file_button(element) -> List[InlineKeyboardButton]:
         filename = element["path"] if "path" in element else element["filename"]
         return [
@@ -640,20 +660,34 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
             )
         ]
 
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
+    gcodes = klippy.get_gcode_files()
+    files_keys: List[List[InlineKeyboardButton]] = list(map(create_file_button, gcodes[offset : offset + 10]))
+    if len(gcodes) > 10:
+        arrows = []
+        if offset >= 10:
+            arrows.append(
+                InlineKeyboardButton(
+                    emoji.emojize(":arrow_backward:previous", language="alias"),
+                    callback_data=f"gcode_files_offset:{offset - 10}",
+                )
+            )
+        arrows.append(
+            InlineKeyboardButton(
+                emoji.emojize(":no_entry_sign: ", language="alias"),
+                callback_data="do_nothing",
+            )
+        )
+        if offset + 10 <= len(gcodes):
+            arrows.append(
+                InlineKeyboardButton(
+                    emoji.emojize("next:arrow_forward:", language="alias"),
+                    callback_data=f"gcode_files_offset:{offset + 10}",
+                )
+            )
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
-    files_keys: List[List[InlineKeyboardButton]] = list(map(create_file_button, klippy.get_gcode_files()))
-    reply_markup = InlineKeyboardMarkup(files_keys)
+        files_keys += [arrows]
 
-    update.effective_message.reply_text(
-        "Gcode files to print:",
-        reply_markup=reply_markup,
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+    return InlineKeyboardMarkup(files_keys)
 
 
 def exec_gcode(update: Update, _: CallbackContext) -> None:
@@ -1023,7 +1057,7 @@ def status_response(status_resp):
             # Todo: maybe get print start time and set start interval for job?
             notifier.add_notifier_timer()
             if not timelapse.manual_mode:
-                timelapse.running = True
+                timelapse.is_running = True
                 # TOdo: manual timelapse start check?
 
         # Fixme: some logic error with states for klippy.paused and printing
@@ -1064,10 +1098,10 @@ def notify_gcode_reponse(message_params):
             if not klippy.printing_filename:
                 klippy.get_status()
             timelapse.clean()
-            timelapse.running = True
+            timelapse.is_running = True
 
         if "timelapse stop" in message_params:
-            timelapse.running = False
+            timelapse.is_running = False
         if "timelapse pause" in message_params:
             timelapse.paused = True
         if "timelapse resume" in message_params:
@@ -1153,7 +1187,7 @@ def parse_print_stats(message_params):
                 klippy.get_status()
             if not timelapse.manual_mode:
                 timelapse.clean()
-                timelapse.running = True
+                timelapse.is_running = True
             notifier.send_print_start_info()
 
         if not timelapse.manual_mode:
@@ -1167,13 +1201,13 @@ def parse_print_stats(message_params):
         klippy.printing = False
         notifier.remove_notifier_timer()
         if not timelapse.manual_mode:
-            timelapse.running = False
+            timelapse.is_running = False
             timelapse.send_timelapse()
         # Fixme: add finish printing method in notifier
         notifier.send_print_finish()
     elif state == "error":
         klippy.printing = False
-        timelapse.running = False
+        timelapse.is_running = False
         notifier.remove_notifier_timer()
         error_mess = f"Printer state change error: {print_stats_loc['state']}\n"
         if "message" in print_stats_loc and print_stats_loc["message"]:
@@ -1183,7 +1217,7 @@ def parse_print_stats(message_params):
         klippy.printing = False
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
-        timelapse.running = False
+        timelapse.is_running = False
         notifier.send_notification(f"Printer state change: {print_stats_loc['state']} \n")
     elif state:
         logger.error("Unknown state: %s", state)
@@ -1202,6 +1236,7 @@ def websocket_to_message(ws_loc, ws_message):
     json_message = ujson.loads(ws_message)
     logger.debug(ws_message)
 
+    # Todo: log and rework!
     if "error" in json_message:
         return
 

@@ -47,8 +47,8 @@ class Timelapse:
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
 
-        self._klippy = klippy
-        self._camera = camera
+        self._klippy: Klippy = klippy
+        self._camera: Camera = camera
 
         # push params to cameras instances
         self._camera.target_fps = self._target_fps
@@ -56,7 +56,7 @@ class Timelapse:
         self._camera.max_lapse_duration = self._max_lapse_duration
         self._camera.last_frame_duration = self._last_frame_duration
 
-        self._sched = scheduler
+        self._sched: BaseScheduler = scheduler
         self._chat_id: int = config.bot.chat_id
         self._bot: Bot = bot
 
@@ -154,11 +154,11 @@ class Timelapse:
             self._camera.last_frame_duration = new_value
 
     @property
-    def running(self) -> bool:
+    def is_running(self) -> bool:
         return self._running
 
-    @running.setter
-    def running(self, new_val: bool):
+    @is_running.setter
+    def is_running(self, new_val: bool) -> None:
         self._running = new_val
         self._paused = False
         if new_val:
@@ -178,7 +178,7 @@ class Timelapse:
         elif self._running:
             self._add_timelapse_timer()
 
-    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False):
+    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False) -> None:
         if not self._enabled:
             logger.debug("lapse is disabled")
             return
@@ -206,13 +206,13 @@ class Timelapse:
         elif position_z < -1000:
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
 
-    def take_test_lapse_photo(self):
+    def take_test_lapse_photo(self) -> None:
         self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
 
-    def clean(self):
+    def clean(self) -> None:
         self._camera.clean()
 
-    def _add_timelapse_timer(self):
+    def _add_timelapse_timer(self) -> None:
         if self._interval > 0 and not self._sched.get_job("timelapse_timer"):
             self._sched.add_job(
                 self.take_lapse_photo,
@@ -221,11 +221,11 @@ class Timelapse:
                 id="timelapse_timer",
             )
 
-    def _remove_timelapse_timer(self):
+    def _remove_timelapse_timer(self) -> None:
         if self._sched.get_job("timelapse_timer"):
             self._sched.remove_job("timelapse_timer")
 
-    def _reschedule_timelapse_timer(self):
+    def _reschedule_timelapse_timer(self) -> None:
         if self._interval > 0 and self._sched.get_job("timelapse_timer"):
             self._sched.add_job(
                 self.take_lapse_photo,
@@ -235,7 +235,7 @@ class Timelapse:
                 replace_existing=True,
             )
 
-    def _send_lapse(self):
+    def _send_lapse(self) -> None:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
         else:
@@ -294,7 +294,7 @@ class Timelapse:
                 self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f"{gcode_name}.mp4")
                 self._klippy.execute_command(self._after_lapse_gcode.strip())
 
-    def send_timelapse(self):
+    def send_timelapse(self) -> None:
         self._sched.add_job(
             self._send_lapse,
             misfire_grace_time=None,
@@ -303,13 +303,13 @@ class Timelapse:
             replace_existing=False,
         )
 
-    def stop_all(self):
+    def stop_all(self) -> None:
         self._remove_timelapse_timer()
         self._running = False
         self._paused = False
         self._last_height = 0.0
 
-    def parse_timelapse_params(self, message: str):
+    def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
         mass_parts.pop(0)
         response = ""

@@ -90,13 +90,13 @@ class Camera:
         self._last_frame_duration: int = 5
 
         self._light_need_off: bool = False
-        self._light_need_off_lock = threading.Lock()
+        self._light_need_off_lock: threading.Lock = threading.Lock()
 
         self.light_timeout: int = config.camera.light_timeout
         self.light_device: PowerDevice = light_device
-        self._camera_lock = threading.Lock()
+        self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
-        self.light_timer_event = threading.Event()
+        self.light_timer_event: threading.Event = threading.Event()
         self.light_timer_event.set()
 
         self._hw_accel: bool = False
@@ -110,7 +110,7 @@ class Camera:
             self._img_extension = config.camera.picture_quality
 
         self._light_requests: int = 0
-        self._light_request_lock = threading.Lock()
+        self._light_request_lock: threading.Lock = threading.Lock()
 
         if self._flip_vertically and self._flip_horizontally:
             self._flip = -1
@@ -164,11 +164,11 @@ class Camera:
         with self._light_request_lock:
             return self._light_requests
 
-    def use_light(self):
+    def use_light(self) -> None:
         with self._light_request_lock:
             self._light_requests += 1
 
-    def free_light(self):
+    def free_light(self) -> None:
         with self._light_request_lock:
             self._light_requests -= 1
 
@@ -177,7 +177,7 @@ class Camera:
         return self._target_fps
 
     @target_fps.setter
-    def target_fps(self, new_value: int):
+    def target_fps(self, new_value: int) -> None:
         self._target_fps = new_value
 
     @property
@@ -194,7 +194,7 @@ class Camera:
         return self._max_lapse_duration
 
     @max_lapse_duration.setter
-    def max_lapse_duration(self, new_value: int):
+    def max_lapse_duration(self, new_value: int) -> None:
         if new_value >= 0:
             self._max_lapse_duration = new_value
 
@@ -203,7 +203,7 @@ class Camera:
         return self._last_frame_duration
 
     @last_frame_duration.setter
-    def last_frame_duration(self, new_value: int):
+    def last_frame_duration(self, new_value: int) -> None:
         if new_value >= 0:
             self._last_frame_duration = new_value
 
@@ -489,7 +489,7 @@ class Camera:
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
-    def cleanup(self, lapse_filename: str):
+    def cleanup(self, lapse_filename: str) -> None:
         lapse_dir = f"{self._base_dir}/{lapse_filename}"
         if self._cleanup:
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):

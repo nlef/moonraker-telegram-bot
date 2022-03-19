@@ -25,7 +25,7 @@ class PowerDevice:
             return self._device_on
 
     @device_state.setter
-    def device_state(self, state: bool):
+    def device_state(self, state: bool) -> None:
         with self._state_lock:
             self._device_on = state
 

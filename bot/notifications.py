@@ -27,7 +27,7 @@ class Notifier:
         self._bot: Bot = bot
         self._chat_id: int = config.bot.chat_id
         self._cam_wrap: Camera = camera_wrapper
-        self._sched = scheduler
+        self._sched: BaseScheduler = scheduler
         self._klippy: Klippy = klippy
 
         self._percent: int = config.notifications.percent
@@ -108,7 +108,7 @@ class Notifier:
         return self._interval
 
     @interval.setter
-    def interval(self, new_value: int):
+    def interval(self, new_value: int) -> None:
         if new_value == 0:
             self._interval = new_value
             self.remove_notifier_timer()
@@ -116,7 +116,7 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
-    def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
+    def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_single_message and not manual:
@@ -163,7 +163,7 @@ class Notifier:
                     disable_notification=silent,
                 )
 
-    def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False):
+    def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if self._cam_wrap.enabled:
             with self._cam_wrap.take_photo() as photo:
                 if not group_only:
@@ -217,7 +217,7 @@ class Notifier:
             self._send_message(message, silent, manual)
 
     # manual notification methods
-    def send_error(self, message: str):
+    def send_error(self, message: str) -> None:
         self._sched.add_job(
             self._send_message,
             kwargs={
@@ -231,7 +231,7 @@ class Notifier:
             replace_existing=False,
         )
 
-    def send_error_with_photo(self, message: str):
+    def send_error_with_photo(self, message: str) -> None:
         self._sched.add_job(
             self._notify,
             kwargs={
@@ -245,7 +245,7 @@ class Notifier:
             replace_existing=False,
         )
 
-    def send_notification(self, message: str):
+    def send_notification(self, message: str) -> None:
         self._sched.add_job(
             self._send_message,
             kwargs={
@@ -259,7 +259,7 @@ class Notifier:
             replace_existing=False,
         )
 
-    def send_notification_with_photo(self, message: str):
+    def send_notification_with_photo(self, message: str) -> None:
         self._sched.add_job(
             self._notify,
             kwargs={
@@ -282,7 +282,7 @@ class Notifier:
         self._status_message = None
         self._groups_status_mesages = {}
 
-    def _schedule_notification(self, message: str = "", schedule: bool = False):
+    def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:
         mess = escape_markdown(self._klippy.get_print_stats(message), version=2)
         if self._last_m117_status and "m117_status" in self._message_parts:
             mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
@@ -306,7 +306,7 @@ class Notifier:
         else:
             self._notify(mess, self._silent_progress, self._group_only)
 
-    def schedule_notification(self, progress: int = 0, position_z: int = 0):
+    def schedule_notification(self, progress: int = 0, position_z: int = 0) -> None:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
             return
 
@@ -328,12 +328,12 @@ class Notifier:
         if notify:
             self._schedule_notification(schedule=True)
 
-    def _notify_by_time(self):
+    def _notify_by_time(self) -> None:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0:
             return
         self._schedule_notification()
 
-    def add_notifier_timer(self):
+    def add_notifier_timer(self) -> None:
         if self._interval > 0:
             # Todo: maybe check if job exists?
             self._sched.add_job(
@@ -344,11 +344,11 @@ class Notifier:
                 replace_existing=True,
             )
 
-    def remove_notifier_timer(self):
+    def remove_notifier_timer(self) -> None:
         if self._sched.get_job("notifier_timer"):
             self._sched.remove_job("notifier_timer")
 
-    def _reschedule_notifier_timer(self):
+    def _reschedule_notifier_timer(self) -> None:
         if self._interval > 0 and self._sched.get_job("notifier_timer"):
             self._sched.add_job(
                 self._notify_by_time,
@@ -358,11 +358,11 @@ class Notifier:
                 replace_existing=True,
             )
 
-    def stop_all(self):
+    def stop_all(self) -> None:
         self.reset_notifications()
         self.remove_notifier_timer()
 
-    def _send_print_start_info(self):
+    def _send_print_start_info(self) -> None:
         message, bio = self._klippy.get_file_info("Printer started printing")
         if bio is not None:
             status_message = self._bot.send_photo(
@@ -387,7 +387,7 @@ class Notifier:
         if self._status_single_message:
             self._status_message = status_message
 
-    def send_print_start_info(self):
+    def send_print_start_info(self) -> None:
         self._sched.add_job(
             self._send_print_start_info,
             misfire_grace_time=None,
@@ -397,11 +397,11 @@ class Notifier:
         )
         # Todo: reset something?
 
-    def _send_print_finish(self):
+    def _send_print_finish(self) -> None:
         self._schedule_notification(message="Finished printing")
         self.reset_notifications()
 
-    def send_print_finish(self):
+    def send_print_finish(self) -> None:
         self._sched.add_job(
             self._send_print_finish,
             misfire_grace_time=None,
@@ -410,10 +410,10 @@ class Notifier:
             replace_existing=True,
         )
 
-    def update_status(self):
+    def update_status(self) -> None:
         self._schedule_notification()
 
-    def parse_notification_params(self, message: str):
+    def parse_notification_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
         mass_parts.pop(0)
         response = ""
