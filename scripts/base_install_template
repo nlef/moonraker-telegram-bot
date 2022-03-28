@@ -1,3 +1,5 @@
+#  Please refer to the wiki(https://github.com/nlef/moonraker-telegram-bot/wiki) for detailed information on how to configure the bot
+
 [bot]
 server: localhost
 chat_id: 123456789
