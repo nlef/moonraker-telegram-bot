@@ -291,8 +291,10 @@ class Klippy:
     def _get_eta(self) -> timedelta:
         if self._eta_source == "slicer":
             eta = int(self.file_estimated_time - self.printing_duration)
-        else:  # eta by file
+        elif self.vsd_progress > 0.0:  # eta by file
             eta = int(self.printing_duration / self.vsd_progress - self.printing_duration)
+        else:
+            eta = int(self.file_estimated_time)
         eta = max(eta, 0)
         return timedelta(seconds=eta)
 
