@@ -62,6 +62,7 @@ create_initial_config() {
       MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-$i"
 
       report_status "Creating base config file"
+      mkdir -p "${MOONRAKER_BOT_CONF}"
       cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${MOONRAKER_BOT_CONF}"/telegram.conf
       mkdir -p "${MOONRAKER_BOT_LOG_loc}"
       sed -i "s+some_log_path+${MOONRAKER_BOT_LOG_loc}+g" "${MOONRAKER_BOT_CONF}"/telegram.conf
