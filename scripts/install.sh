@@ -33,6 +33,7 @@ init_config_path() {
 
 create_initial_config() {
   if [[ $INSTANCE_COUNT -eq 1 ]]; then
+    init_config_path
     MOONRAKER_BOT_CONF=${KLIPPER_CONF_DIR}
     # check in config exists!
     if [[ ! -f "${MOONRAKER_BOT_CONF}"/telegram.conf ]]; then
@@ -54,12 +55,21 @@ create_initial_config() {
     ok_msg "Single Moonraker instance created!"
 
   else
+    read -p "Use automatic paths? (Y/n): " -e -i y manual_paths
     i=1
     while [[ $i -le $INSTANCE_COUNT ]]; do
       ### rewrite default variables for multi instance cases
-      MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-$i.service"
-      MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/printer_$i"
-      MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-$i"
+      if [ "${manual_paths}" == "n" ]; then
+        report_status "Telegram bot instance name selection for instance ${i}"
+        read -p "Enter bot instance name: " -e -i "printer_${i}" instance_name
+        MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-${instance_name}.service"
+        MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/printer_${instance_name}"
+        MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-${instance_name}"
+      else
+        MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-$i.service"
+        MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/printer_$i"
+        MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-$i"
+      fi
 
       report_status "Creating base config file"
       mkdir -p "${MOONRAKER_BOT_CONF}"
@@ -153,7 +163,6 @@ install_instances(){
   sudo systemctl stop moonraker-telegram-bot*
   install_packages
   create_virtualenv
-  init_config_path
   create_initial_config
 
 }
