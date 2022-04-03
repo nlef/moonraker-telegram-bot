@@ -43,6 +43,7 @@ class Klippy:
         self._devices_list: List[str] = config.telegram_ui.status_message_devices
         self._user: str = config.bot.user
         self._passwd: str = config.bot.passwd
+        self._api_token: str = config.bot.api_token
 
         self._dbname: str = "telegram-bot"
 
@@ -126,12 +127,13 @@ class Klippy:
         heads = {}
         if self._jwt_token:
             heads = {"Authorization": f"Bearer {self._jwt_token}"}
-
+        elif self._api_token:
+            heads = {"X-Api-Key": self._api_token}
         return heads
 
     @property
     def one_shot_token(self) -> str:
-        if not self._user and not self._jwt_token:
+        if (not self._user and not self._jwt_token) and not self._api_token:
             return ""
 
         resp = requests.get(f"http://{self._host}/access/oneshot_token", headers=self._headers)

@@ -32,6 +32,7 @@ class BotConfig:
         "light_device",
         "user",
         "password",
+        "api_token",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -47,6 +48,7 @@ class BotConfig:
         self.light_device_name: str = config.get(self._SECTION, "light_device", fallback="")
         self.user: str = config.get(self._SECTION, "user", fallback="")
         self.passwd: str = config.get(self._SECTION, "password", fallback="")
+        self.api_token: str = config.get(self._SECTION, "api_token", fallback="")
 
         self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
