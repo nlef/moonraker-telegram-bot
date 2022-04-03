@@ -12,14 +12,14 @@ jobs:
     name: Pre-commit
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: ['3.7', '3.8', '3.9']
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
         uses: actions/checkout@v2.4.0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2.3.2
+        uses: actions/setup-python@v3.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
