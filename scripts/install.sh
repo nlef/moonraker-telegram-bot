@@ -21,7 +21,7 @@ init_config_path() {
   if [ -z ${klipper_cfg_loc+x} ]; then
     report_status "Telegram bot configuration file location selection"
     echo -e "\n\n\n"
-	  echo "Enter the path for the configuration file location."
+	  echo "Enter the path for the configuration files location. Subfolders for multiple instances wil be created under this path."
 	  echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
     read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
     KLIPPER_CONF_DIR=${klip_conf_dir}
@@ -33,7 +33,6 @@ init_config_path() {
 
 create_initial_config() {
   if [[ $INSTANCE_COUNT -eq 1 ]]; then
-    init_config_path
     MOONRAKER_BOT_CONF=${KLIPPER_CONF_DIR}
     # check in config exists!
     if [[ ! -f "${MOONRAKER_BOT_CONF}"/telegram.conf ]]; then
@@ -63,7 +62,7 @@ create_initial_config() {
         report_status "Telegram bot instance name selection for instance ${i}"
         read -p "Enter bot instance name: " -e -i "printer_${i}" instance_name
         MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-${instance_name}.service"
-        MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/printer_${instance_name}"
+        MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/${instance_name}"
         MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-${instance_name}"
       else
         MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-$i.service"
@@ -163,6 +162,8 @@ install_instances(){
   sudo systemctl stop moonraker-telegram-bot*
   install_packages
   create_virtualenv
+
+  init_config_path
   create_initial_config
 
 }
