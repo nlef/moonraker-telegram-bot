@@ -11,16 +11,33 @@ MOONRAKER_BOT_CONF="${HOME}/klipper_config"
 KLIPPER_CONF_DIR="${HOME}/klipper_config"
 CURRENT_USER=${USER}
 
+
+### set color variables
+green=$(echo -en "\e[92m")
+yellow=$(echo -en "\e[93m")
+red=$(echo -en "\e[91m")
+cyan=$(echo -en "\e[96m")
+default=$(echo -en "\e[39m")
+
 # Helper functions
 report_status() {
   echo -e "\n\n###### $1"
+}
+warn_msg(){
+  echo -e "${red}<!!!!> $1${default}"
+}
+status_msg(){
+  echo; echo -e "${yellow}###### $1${default}"
+}
+ok_msg(){
+  echo -e "${green}>>>>>> $1${default}"
 }
 
 # Main functions
 init_config_path() {
   if [ -z ${klipper_cfg_loc+x} ]; then
     report_status "Telegram bot configuration file location selection"
-    echo -e "\n\n\n"
+    echo -e "\n"
 	  echo "Enter the path for the configuration files location. Subfolders for multiple instances wil be created under this path."
 	  echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
     read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
@@ -37,7 +54,7 @@ create_initial_config() {
     # check in config exists!
     if [[ ! -f "${MOONRAKER_BOT_CONF}"/telegram.conf ]]; then
       report_status "Telegram bot log file location selection"
-      echo -e "\n\n\n"
+      echo -e "\n"
       echo "Enter the path for the log file location."
       echo "Its recommended to store it together with the klipper log files for easier backup and usage."
       read -p "Enter desired path: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
@@ -54,7 +71,22 @@ create_initial_config() {
     ok_msg "Single Moonraker instance created!"
 
   else
-    read -p "Use automatic paths? (Y/n): " -e -i y manual_paths
+    manual_paths=""
+    while [[ ! ($manual_paths =~ ^(?i)(y|n|no|yes)(?-i)$) ]]; do
+      read -p "Use automatic paths? (Y/n): " -e -i y manual_paths
+      case "${manual_paths}" in
+        Y|y|Yes|yes)
+          echo -e "###### > Yes"
+          manual_paths="y"
+          break;;
+        N|n|No|no)
+          echo -e "###### > No"
+          manual_paths="n"
+          break;;
+        *)
+          warn_msg "Invalid command!";;
+      esac
+    done
     i=1
     while [[ $i -le $INSTANCE_COUNT ]]; do
       ### rewrite default variables for multi instance cases
@@ -101,7 +133,7 @@ install_packages() {
   report_status "Running apt-get update..."
   sudo apt-get update --allow-releaseinfo-change
   for pkg in $PKGLIST; do
-    echo "$pkg"
+    echo "${cyan}$pkg${default}"
   done
   report_status "Installing packages..."
   sudo apt-get install --yes ${PKGLIST}
@@ -112,12 +144,23 @@ create_virtualenv() {
 
   ### If venv exists and user prompts a rebuild, then do so
   if [ -d "$MOONRAKER_BOT_ENV" ]; then
-    echo "Moonraker telegram bot python virtualenv already exists."
-    read -p "Rebuild python virtualenv? (Y/n): " -e -i "y" REBUILD_VENV
-    if [ "${REBUILD_VENV}" == "y" ]; then
-      echo "Removing old virtualenv"
-      rm -rf "$MOONRAKER_BOT_ENV"
-    fi
+    status_msg "Moonraker telegram bot python virtualenv already exists."
+    REBUILD_VENV=""
+    while [[ ! ($REBUILD_VENV =~ ^(?i)(y|n|no|yes)(?-i)$) ]]; do
+      read -p "Rebuild python virtualenv? (Y/n): " -e -i "y" REBUILD_VENV
+      case "${REBUILD_VENV}" in
+        Y|y|Yes|yes)
+          echo -e "###### > Yes"
+          echo "Removing old virtualenv"
+          rm -rf "$MOONRAKER_BOT_ENV"
+          break;;
+        N|n|No|no)
+          echo -e "###### > No"
+          break;;
+        *)
+          warn_msg "Invalid command!";;
+      esac
+    done
   fi
 
   mkdir -p "${HOME}"/space
@@ -158,8 +201,8 @@ EOF
 install_instances(){
   INSTANCE_COUNT=$1
 
-  #stop_sevice
   sudo systemctl stop moonraker-telegram-bot*
+  status_msg "Installing dependencies"
   install_packages
   create_virtualenv
 
@@ -169,15 +212,6 @@ install_instances(){
 }
 
 setup_dialog(){
-    ### checking system for python3.7+
-#    system_check_moonraker_telegram_bot
-#    ### exit moonraker setup if python versioncheck fails
-#    if [ $py_chk_ok = "false" ]; then
-#      ERROR_MSG="Versioncheck failed! Python 3.7 or newer required!\n"
-#      ERROR_MSG="${ERROR_MSG} Please upgrade Python."
-#      print_msg && clear_msg && return
-#    fi
-
     ### count amount of mooonraker services
     SERVICE_FILES=$(find "$SYSTEMDDIR" -regextype posix-extended -regex "$SYSTEMDDIR/moonraker(-[^0])+[0-9]*.service")
     if [ -f /etc/init.d/moonraker ] || [ -f /etc/systemd/system/moonraker.service ]; then
@@ -188,11 +222,11 @@ setup_dialog(){
 
     echo -e "/=======================================================\\"
     if [[ $MOONRAKER_COUNT -eq 1 ]]; then
-      printf " 1 Mooonraker instance was found!"
+      printf "|${green}%-55s${default}|\n" " 1 Mooonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -gt 1 ]]; then
-      printf "${MOONRAKER_COUNT} Mooonraker instances were found!"
+      printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} Mooonraker instances were found!"
     else
-      echo -e "| INFO: No existing Mooonraker installation found!        |"
+      echo -e "| ${yellow}INFO: No existing Mooonraker installation found!${default}        |"
       init_config_path
     fi
     echo -e "| Usually you need one Moonraker telegram bot instance per Mooonraker   |"
@@ -201,25 +235,24 @@ setup_dialog(){
     echo
     count=""
     while [[ ! ($count =~ ^[1-9]+((0)+)?$) ]]; do
-      read -p "###### Number of Moonraker telegram bot instances to set up: " count
+      read -p "${cyan}###### Number of Moonraker telegram bot instances to set up:${default} " count
       if [[ ! ($count =~ ^[1-9]+((0)+)?$) ]]; then
         echo -e "Invalid Input!\n"
       else
         echo
-        read -p "###### Install $count instance(s)? (Y/n): " yn
+        read -p "${cyan}###### Install $count instance(s)? (Y/n):${default} " yn
         case "$yn" in
           Y|y|Yes|yes|"")
             echo -e "###### > Yes"
-            echo -e "Installing Moonraker telegram bot ...\n"
+            status_msg "Installing Moonraker telegram bot ...\n"
             install_instances "$count"
             break;;
           N|n|No|no)
             echo -e "###### > No"
-            echo -e "Exiting Moonraker telegram bot setup ...\n"
+            warn_msg "Exiting Moonraker telegram bot setup ...\n"
             break;;
           *)
-            print_unkown_cmd
-            print_msg && clear_msg;;
+            warn_msg "Invalid command!";;
         esac
       fi
     done
