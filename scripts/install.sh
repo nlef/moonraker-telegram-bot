@@ -68,7 +68,7 @@ create_initial_config() {
     fi
 
     create_service
-    ok_msg "Single Moonraker instance created!"
+    ok_msg "Single Telegram bot instance created!"
 
   else
     manual_paths=""
