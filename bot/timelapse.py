@@ -195,12 +195,9 @@ class Timelapse:
             logger.debug("lapse must not run with auto mode and zero print duration")
             return
 
-        if 0.0 < position_z < self._last_height - self._height:
-            self._last_height = position_z
-
         gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
 
-        if self._height > 0.0 and round(position_z * 100) % round(self._height * 100) == 0 and position_z > self._last_height:
+        if self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
         elif position_z < -1000:
