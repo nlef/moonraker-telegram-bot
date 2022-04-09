@@ -30,6 +30,7 @@ class Notifier:
         self._sched: BaseScheduler = scheduler
         self._klippy: Klippy = klippy
 
+        self._enabled: bool = config.notifications.enabled
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
@@ -120,18 +121,19 @@ class Notifier:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_single_message and not manual:
-                if not self._status_message:
+                if self._status_message:
+                    # self._status_message.
+                    if self._status_message.caption:
+                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    else:
+                        self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                else:
                     self._status_message = self._bot.send_message(
                         self._chat_id,
                         text=message,
                         parse_mode=PARSEMODE_MARKDOWN_V2,
                         disable_notification=silent,
                     )
-                else:
-                    if self._status_message.caption:
-                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                    else:
-                        self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
             else:
                 self._bot.send_message(
                     self._chat_id,
@@ -142,19 +144,19 @@ class Notifier:
         for group in self._notify_groups:
             self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
             if self._status_single_message and not manual:
-                if not group in self._groups_status_mesages:
+                if group in self._groups_status_mesages:
+                    mess = self._groups_status_mesages[group]
+                    if mess.caption:
+                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    else:
+                        mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                else:
                     self._groups_status_mesages[group] = self._bot.send_message(
                         group,
                         text=message,
                         parse_mode=PARSEMODE_MARKDOWN_V2,
                         disable_notification=silent,
                     )
-                else:
-                    mess = self._groups_status_mesages[group]
-                    if mess.caption:
-                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                    else:
-                        mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
             else:
                 self._bot.send_message(
                     group,
@@ -169,7 +171,11 @@ class Notifier:
                 if not group_only:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
-                        if not self._status_message:
+                        if self._status_message:
+                            # Fixme: check if media in message!
+                            self._status_message.edit_media(media=InputMediaPhoto(photo))
+                            self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                        else:
                             self._status_message = self._bot.send_photo(
                                 self._chat_id,
                                 photo=photo,
@@ -177,10 +183,6 @@ class Notifier:
                                 parse_mode=PARSEMODE_MARKDOWN_V2,
                                 disable_notification=silent,
                             )
-                        else:
-                            # Fixme: check if media in message!
-                            self._status_message.edit_media(media=InputMediaPhoto(photo))
-                            self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
                         self._bot.send_photo(
                             self._chat_id,
@@ -193,17 +195,17 @@ class Notifier:
                     photo.seek(0)
                     self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_single_message and not manual:
-                        if not group_ in self._groups_status_mesages:
+                        if group_ in self._groups_status_mesages:
+                            mess = self._groups_status_mesages[group_]
+                            mess.edit_media(media=InputMediaPhoto(photo))
+                            mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                        else:
                             self._groups_status_mesages[group_] = self._bot.send_photo(
                                 group_,
                                 text=message,
                                 parse_mode=PARSEMODE_MARKDOWN_V2,
                                 disable_notification=silent,
                             )
-                        else:
-                            mess = self._groups_status_mesages[group_]
-                            mess.edit_media(media=InputMediaPhoto(photo))
-                            mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
                         self._bot.send_photo(
                             group_,
@@ -388,13 +390,14 @@ class Notifier:
             self._status_message = status_message
 
     def send_print_start_info(self) -> None:
-        self._sched.add_job(
-            self._send_print_start_info,
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=1,
-            replace_existing=True,
-        )
+        if self._enabled:
+            self._sched.add_job(
+                self._send_print_start_info,
+                misfire_grace_time=None,
+                coalesce=False,
+                max_instances=1,
+                replace_existing=True,
+            )
         # Todo: reset something?
 
     def _send_print_finish(self) -> None:
@@ -402,13 +405,14 @@ class Notifier:
         self.reset_notifications()
 
     def send_print_finish(self) -> None:
-        self._sched.add_job(
-            self._send_print_finish,
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=1,
-            replace_existing=True,
-        )
+        if self._enabled:
+            self._sched.add_job(
+                self._send_print_finish,
+                misfire_grace_time=None,
+                coalesce=False,
+                max_instances=1,
+                replace_existing=True,
+            )
 
     def update_status(self) -> None:
         self._schedule_notification()

@@ -91,6 +91,7 @@ class NotifierConfig:
     _KNOWN_ITEMS = ["percent", "height", "time", "groups", "group_only"]
 
     def __init__(self, config: configparser.ConfigParser):
+        self.enabled: bool = config.has_section(self._SECTION)
         self.percent: int = config.getint(self._SECTION, "percent", fallback=0)
         self.height: float = config.getfloat(self._SECTION, "height", fallback=0)
         self.interval: int = config.getint(self._SECTION, "time", fallback=0)
