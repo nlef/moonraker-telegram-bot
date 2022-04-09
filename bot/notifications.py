@@ -40,7 +40,6 @@ class Notifier:
         self._silent_progress: bool = config.telegram_ui.silent_progress
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
-        self._status_single_message: bool = config.telegram_ui.status_single_message
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
         self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
         self._message_parts: List[str] = config.telegram_ui.status_message_content
@@ -120,9 +119,15 @@ class Notifier:
     def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
-            if self._status_single_message and not manual:
+            if manual:
+                self._bot.send_message(
+                    self._chat_id,
+                    text=message,
+                    parse_mode=PARSEMODE_MARKDOWN_V2,
+                    disable_notification=silent,
+                )
+            else:
                 if self._status_message:
-                    # self._status_message.
                     if self._status_message.caption:
                         self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
                     else:
@@ -134,16 +139,16 @@ class Notifier:
                         parse_mode=PARSEMODE_MARKDOWN_V2,
                         disable_notification=silent,
                     )
-            else:
+        for group in self._notify_groups:
+            self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+            if manual:
                 self._bot.send_message(
-                    self._chat_id,
+                    group,
                     text=message,
                     parse_mode=PARSEMODE_MARKDOWN_V2,
                     disable_notification=silent,
                 )
-        for group in self._notify_groups:
-            self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-            if self._status_single_message and not manual:
+            else:
                 if group in self._groups_status_mesages:
                     mess = self._groups_status_mesages[group]
                     if mess.caption:
@@ -157,20 +162,21 @@ class Notifier:
                         parse_mode=PARSEMODE_MARKDOWN_V2,
                         disable_notification=silent,
                     )
-            else:
-                self._bot.send_message(
-                    group,
-                    text=message,
-                    parse_mode=PARSEMODE_MARKDOWN_V2,
-                    disable_notification=silent,
-                )
 
     def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if self._cam_wrap.enabled:
             with self._cam_wrap.take_photo() as photo:
                 if not group_only:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-                    if self._status_single_message and not manual:
+                    if manual:
+                        self._bot.send_photo(
+                            self._chat_id,
+                            photo=photo,
+                            caption=message,
+                            parse_mode=PARSEMODE_MARKDOWN_V2,
+                            disable_notification=silent,
+                        )
+                    else:
                         if self._status_message:
                             # Fixme: check if media in message!
                             self._status_message.edit_media(media=InputMediaPhoto(photo))
@@ -183,18 +189,18 @@ class Notifier:
                                 parse_mode=PARSEMODE_MARKDOWN_V2,
                                 disable_notification=silent,
                             )
-                    else:
+                for group_ in self._notify_groups:
+                    photo.seek(0)
+                    self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
+                    if manual:
                         self._bot.send_photo(
-                            self._chat_id,
+                            group_,
                             photo=photo,
                             caption=message,
                             parse_mode=PARSEMODE_MARKDOWN_V2,
                             disable_notification=silent,
                         )
-                for group_ in self._notify_groups:
-                    photo.seek(0)
-                    self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    if self._status_single_message and not manual:
+                    else:
                         if group_ in self._groups_status_mesages:
                             mess = self._groups_status_mesages[group_]
                             mess.edit_media(media=InputMediaPhoto(photo))
@@ -206,14 +212,6 @@ class Notifier:
                                 parse_mode=PARSEMODE_MARKDOWN_V2,
                                 disable_notification=silent,
                             )
-                    else:
-                        self._bot.send_photo(
-                            group_,
-                            photo=photo,
-                            caption=message,
-                            parse_mode=PARSEMODE_MARKDOWN_V2,
-                            disable_notification=silent,
-                        )
                 photo.close()
         else:
             self._send_message(message, silent, manual)
@@ -386,8 +384,7 @@ class Notifier:
             status_message = self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
             for group_ in self._notify_groups:
                 self._groups_status_mesages[group_] = self._bot.send_message(group_, message, disable_notification=self.silent_status)
-        if self._status_single_message:
-            self._status_message = status_message
+        self._status_message = status_message
 
     def send_print_start_info(self) -> None:
         if self._enabled:

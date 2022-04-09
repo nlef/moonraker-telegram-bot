@@ -145,7 +145,6 @@ class TelegramUIConfig:
         "silent_progress",
         "silent_commands",
         "silent_status",
-        "status_single_message",
         "pin_status_single_message",
         "status_message_content",
         "buttons",
@@ -177,7 +176,6 @@ class TelegramUIConfig:
         self.silent_progress: bool = config.getboolean(self._SECTION, "silent_progress", fallback=False)
         self.silent_commands: bool = config.getboolean(self._SECTION, "silent_commands", fallback=False)
         self.silent_status: bool = config.getboolean(self._SECTION, "silent_status", fallback=False)
-        self.status_single_message: bool = config.getboolean(self._SECTION, "status_single_message", fallback=True)
         self.pin_status_single_message: bool = config.getboolean(self._SECTION, "pin_status_single_message", fallback=False)  # Todo: implement
         self.status_message_content: List[str] = (
             [el.strip() for el in config.get(self._SECTION, "status_message_content").split(",")] if config.has_option(self._SECTION, "status_message_content") else self._MESSAGE_CONTENT
