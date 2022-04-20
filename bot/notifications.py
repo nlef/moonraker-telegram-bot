@@ -50,6 +50,7 @@ class Notifier:
         self._last_tgnotify_status: str = ""
 
         self._status_message: Optional[Message] = None
+        self._bzz_mess_id: int = 0
         self._groups_status_mesages: Dict[int, Message] = {}
 
         if logging_handler:
@@ -116,105 +117,103 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
+    def kurlyk_notification(self):
+        pass
+
     def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
-            if manual:
-                self._bot.send_message(
+            if self._status_message and not manual:
+                if not self._bzz_mess_id == 0:
+                    self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+
+                if self._status_message.caption:
+                    self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                else:
+                    self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+
+                if not silent:
+                    mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted")
+                    self._bzz_mess_id = mes.message_id
+            else:
+                sent_message = self._bot.send_message(
                     self._chat_id,
                     text=message,
                     parse_mode=PARSEMODE_MARKDOWN_V2,
                     disable_notification=silent,
                 )
-            else:
-                if self._status_message:
-                    if self._status_message.caption:
-                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                    else:
-                        self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                else:
-                    self._status_message = self._bot.send_message(
-                        self._chat_id,
-                        text=message,
-                        parse_mode=PARSEMODE_MARKDOWN_V2,
-                        disable_notification=silent,
-                    )
+                if not self._status_message and not manual:
+                    self._status_message = sent_message
+
         for group in self._notify_groups:
             self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
-            if manual:
-                self._bot.send_message(
+            if group in self._groups_status_mesages and not manual:
+                mess = self._groups_status_mesages[group]
+                if mess.caption:
+                    mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                else:
+                    mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+            else:
+                sent_message = self._bot.send_message(
                     group,
                     text=message,
                     parse_mode=PARSEMODE_MARKDOWN_V2,
                     disable_notification=silent,
                 )
-            else:
-                if group in self._groups_status_mesages:
-                    mess = self._groups_status_mesages[group]
-                    if mess.caption:
-                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                    else:
-                        mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                else:
-                    self._groups_status_mesages[group] = self._bot.send_message(
-                        group,
-                        text=message,
-                        parse_mode=PARSEMODE_MARKDOWN_V2,
-                        disable_notification=silent,
-                    )
+                if group in self._groups_status_mesages or manual:
+                    continue
+                self._groups_status_mesages[group] = sent_message
 
     def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
-        if self._cam_wrap.enabled:
+        if not self._cam_wrap.enabled:
+            self._send_message(message, silent, manual)
+        else:
             with self._cam_wrap.take_photo() as photo:
                 if not group_only:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-                    if manual:
-                        self._bot.send_photo(
+                    if self._status_message and not manual:
+                        if not self._bzz_mess_id == 0:
+                            self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+
+                        # Fixme: check if media in message!
+                        self._status_message.edit_media(media=InputMediaPhoto(photo))
+                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+
+                        if not silent:
+                            mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted")
+                            self._bzz_mess_id = mes.message_id
+
+                    else:
+                        sent_message = self._bot.send_photo(
                             self._chat_id,
                             photo=photo,
                             caption=message,
                             parse_mode=PARSEMODE_MARKDOWN_V2,
                             disable_notification=silent,
                         )
-                    else:
-                        if self._status_message:
-                            # Fixme: check if media in message!
-                            self._status_message.edit_media(media=InputMediaPhoto(photo))
-                            self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                        else:
-                            self._status_message = self._bot.send_photo(
-                                self._chat_id,
-                                photo=photo,
-                                caption=message,
-                                parse_mode=PARSEMODE_MARKDOWN_V2,
-                                disable_notification=silent,
-                            )
-                for group_ in self._notify_groups:
+                        if not self._status_message and not manual:
+                            self._status_message = sent_message
+
+                for group in self._notify_groups:
                     photo.seek(0)
-                    self._bot.send_chat_action(chat_id=group_, action=ChatAction.UPLOAD_PHOTO)
-                    if manual:
-                        self._bot.send_photo(
-                            group_,
+                    self._bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
+                    if group in self._groups_status_mesages and not manual:
+                        mess = self._groups_status_mesages[group]
+                        mess.edit_media(media=InputMediaPhoto(photo))
+                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    else:
+                        sent_message = self._bot.send_photo(
+                            group,
                             photo=photo,
                             caption=message,
                             parse_mode=PARSEMODE_MARKDOWN_V2,
                             disable_notification=silent,
                         )
-                    else:
-                        if group_ in self._groups_status_mesages:
-                            mess = self._groups_status_mesages[group_]
-                            mess.edit_media(media=InputMediaPhoto(photo))
-                            mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
-                        else:
-                            self._groups_status_mesages[group_] = self._bot.send_photo(
-                                group_,
-                                text=message,
-                                parse_mode=PARSEMODE_MARKDOWN_V2,
-                                disable_notification=silent,
-                            )
+                        if group in self._groups_status_mesages or manual:
+                            continue
+                        self._groups_status_mesages[group] = sent_message
+
                 photo.close()
-        else:
-            self._send_message(message, silent, manual)
 
     # manual notification methods
     def send_error(self, message: str) -> None:
@@ -280,7 +279,11 @@ class Notifier:
         self._last_m117_status = ""
         self._last_tgnotify_status = ""
         self._status_message = None
+        bzz_mess_id = self._bzz_mess_id
+        self._bzz_mess_id = 0
         self._groups_status_mesages = {}
+        if not bzz_mess_id == 0:
+            self._bot.delete_message(self._chat_id, bzz_mess_id)
 
     def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:
         mess = escape_markdown(self._klippy.get_print_stats(message), version=2)
