@@ -906,10 +906,14 @@ def help_command(update: Update, _: CallbackContext) -> None:
 
 
 def greeting_message():
+    if configWrap.bot.chat_id == 0:
+        return
     response = klippy.check_connection()
     mess = f"Bot online, no moonraker connection!\n {response} \nFailing..." if response else "Printer online"
     if configWrap.unknown_fields:
         mess += f"\n{configWrap.unknown_fields}"
+    if configWrap.parsing_errors:
+        mess += f"\n{configWrap.parsing_errors}"
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
         configWrap.bot.chat_id,
