@@ -52,7 +52,7 @@ class ConfigHelper:
         if min_value is not None and value < min_value:
             self._parsing_errors.append(f"Option '{option}: {value}': value is below minimum value {min_value}")
         if max_value is not None and value > max_value:
-            self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {min_value}")
+            self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
     def _get_option_value(self, func: Callable, option: str, default: Optional[Any] = None) -> Any:
         try:
@@ -99,10 +99,17 @@ class ConfigHelper:
         val = self._get_option_value(self._config.getboolean, option, default)
         return val
 
-    # TOdo: add typecheck!
-    def _getlist(self, option: str, default: Optional[List] = None) -> List:
+    def _getlist(self, option: str, default: Optional[List] = None, el_type: Any = str) -> List:
         if self._config.has_option(self._SECTION, option):
-            val = [el.strip() for el in self._getstring("status_message_heaters").split(",")]
+            try:
+                val = [el_type(el.strip()) for el in self._getstring(option).split(",")]
+            except Exception as ex:
+                if default is not None:
+                    self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
+                    val = default
+                else:
+                    # Todo: reaise some parsing exception
+                    pass
         elif default is not None:
             val = default
         else:
@@ -190,8 +197,7 @@ class NotifierConfig(ConfigHelper):
         self.percent: int = self._getint("percent", default=0)
         self.height: float = self._getfloat("height", default=0)
         self.interval: int = self._getint("time", default=0)
-        # Todo: implement!
-        self.notify_groups: List[int] = [int(el.strip()) for el in self._getstring("groups").split(",")] if config.has_option(self._SECTION, "groups") else []
+        self.notify_groups: List[int] = self._getlist("groups", default=[], el_type=int)
         self.group_only: bool = self._getboolean("group_only", default=False)
 
 
