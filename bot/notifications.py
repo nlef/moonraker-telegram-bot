@@ -244,7 +244,7 @@ class Notifier:
             replace_existing=False,
         )
 
-    def send_notification(self, message: str) -> None:
+    def send_printer_status_notification(self, message: str) -> None:
         self._sched.add_job(
             self._send_message,
             kwargs={
@@ -258,12 +258,26 @@ class Notifier:
             replace_existing=False,
         )
 
+    def send_notification(self, message: str) -> None:
+        self._sched.add_job(
+            self._send_message,
+            kwargs={
+                "message": escape_markdown(message, version=2),
+                "silent": self._silent_commands,
+                "manual": True,
+            },
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=6,
+            replace_existing=False,
+        )
+
     def send_notification_with_photo(self, message: str) -> None:
         self._sched.add_job(
             self._notify,
             kwargs={
                 "message": escape_markdown(message, version=2),
-                "silent": self._silent_status,
+                "silent": self._silent_commands,
                 "manual": True,
             },
             misfire_grace_time=None,

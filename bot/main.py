@@ -1222,7 +1222,7 @@ def parse_print_stats(message_params):
         notifier.remove_notifier_timer()
         # Fixme: check manual mode
         timelapse.is_running = False
-        notifier.send_notification(f"Printer state change: {print_stats_loc['state']} \n")
+        notifier.send_printer_status_notification(f"Printer state change: {print_stats_loc['state']} \n")
     elif state:
         logger.error("Unknown state: %s", state)
 

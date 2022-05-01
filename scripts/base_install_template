@@ -3,6 +3,7 @@
 [bot]
 server: localhost
 bot_token: AweSomeBotToken
+chat_id: 0
 log_path: some_log_path
 
 [camera]

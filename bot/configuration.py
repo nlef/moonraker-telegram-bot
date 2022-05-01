@@ -140,18 +140,19 @@ class BotConfig(ConfigHelper):
         super().__init__(config)
 
         self.host: str = self._getstring("server", default="localhost")
-        self.socks_proxy: str = self._getstring("socks_proxy", default="")
         self.token: str = self._getstring("bot_token")
-        self.api_url: str = self._getstring("api_url", default="https://api.telegram.org/bot")
         self.chat_id: int = self._getint("chat_id", default=0)
-        self.debug: bool = self._getboolean("debug", default=False)
-        self.log_parser: bool = self._getboolean("log_parser", default=False)
-        self.log_path: str = self._getstring("log_path", default="/tmp")
-        self.poweroff_device_name: str = self._getstring("power_device", default="")
-        self.light_device_name: str = self._getstring("light_device", default="")
+        self.api_url: str = self._getstring("api_url", default="https://api.telegram.org/bot")
+        self.socks_proxy: str = self._getstring("socks_proxy", default="")
         self.user: str = self._getstring("user", default="")
         self.passwd: str = self._getstring("password", default="")
         self.api_token: str = self._getstring("api_token", default="")
+        self.light_device_name: str = self._getstring("light_device", default="")
+        self.poweroff_device_name: str = self._getstring("power_device", default="")
+        self.debug: bool = self._getboolean("debug", default=False)
+        self.log_path: str = self._getstring("log_path", default="/tmp")
+
+        self.log_parser: bool = self._getboolean("log_parser", default=False)
 
 
 class CameraConfig(ConfigHelper):
@@ -174,17 +175,19 @@ class CameraConfig(ConfigHelper):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
         self.host: str = self._getstring("host", default="")
-        # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
-        self.threads: int = self._getint("threads", default=2, min_value=0)
+        self.stream_fps: int = self._getint("fps", default=0, above=0)
         self.flip_vertically: bool = self._getboolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._getboolean("flip_horizontally", default=False)
-        self.rotate: str = self._getstring("rotate", default="")
-        self.fourcc: str = self._getstring("fourcc", default="x264")
-        self.video_duration: int = self._getint("video_duration", default=5)
-        self.video_buffer_size: int = self._getint("video_buffer_size", default=2)
-        self.stream_fps: int = self._getint("fps", default=0)
-        self.light_timeout: int = self._getint("light_control_timeout", default=0)
-        self.picture_quality: str = self._getstring("picture_quality", default="high")
+        self.rotate: str = self._getstring("rotate", default="")  # Todo: check for list of values
+        self.fourcc: str = self._getstring("fourcc", default="x264")  # Todo: check for list of values(x264,mp4v)
+
+        # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
+        self.threads: int = self._getint("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
+
+        self.video_duration: int = self._getint("video_duration", default=5, above=0)
+        self.video_buffer_size: int = self._getint("video_buffer_size", default=2, above=0)
+        self.light_timeout: int = self._getint("light_control_timeout", default=0, min_value=0)
+        self.picture_quality: str = self._getstring("picture_quality", default="high")  # Todo: check for list of values(low, high)
 
 
 class NotifierConfig(ConfigHelper):
@@ -194,9 +197,9 @@ class NotifierConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
-        self.percent: int = self._getint("percent", default=0)
-        self.height: float = self._getfloat("height", default=0)
-        self.interval: int = self._getint("time", default=0)
+        self.percent: int = self._getint("percent", default=0, min_value=0)
+        self.height: float = self._getfloat("height", default=0, min_value=0.0)
+        self.interval: int = self._getint("time", default=0, min_value=0)
         self.notify_groups: List[int] = self._getlist("groups", default=[], el_type=int)
         self.group_only: bool = self._getboolean("group_only", default=False)
 
@@ -225,17 +228,16 @@ class TimelapseConfig(ConfigHelper):
         self.base_dir: str = self._getstring("basedir", default="/tmp/timelapse")  # Fixme: relative path failed! ~/timelapse
         self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")  # Fixme: relative path failed! ~/timelapse
         self.cleanup: bool = self._getboolean("cleanup", default=True)
-        self.mode_manual: bool = self._getboolean("manual_mode", default=False)
-        self.height: float = self._getfloat("height", default=0.0)
-        self.interval: int = self._getint("time", default=0)
-        self.target_fps: int = self._getint("target_fps", default=15)
-        self.min_lapse_duration: int = self._getint("min_lapse_duration", default=0)
-        self.max_lapse_duration: int = self._getint("max_lapse_duration", default=0)
-        self.last_frame_duration: int = self._getint("last_frame_duration", default=5)
-
+        self.height: float = self._getfloat("height", default=0.0, min_value=0.0)
+        self.interval: int = self._getint("time", default=0, min_value=0)
+        self.target_fps: int = self._getint("target_fps", default=15, above=0)
+        self.min_lapse_duration: int = self._getint("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
+        self.max_lapse_duration: int = self._getint("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
+        self.last_frame_duration: int = self._getint("last_frame_duration", default=5, min_value=0)
         # Todo: add to runtime params section!
         self.after_lapse_gcode: str = self._getstring("after_lapse_gcode", default="")
         self.send_finished_lapse: bool = self._getboolean("send_finished_lapse", default=True)
+        self.mode_manual: bool = self._getboolean("manual_mode", default=False)
         self.after_photo_gcode: str = self._getstring("after_photo_gcode", default="")
 
 
@@ -274,12 +276,8 @@ class TelegramUIConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.silent_progress: bool = self._getboolean("silent_progress", default=False)
-        self.silent_commands: bool = self._getboolean("silent_commands", default=False)
-        self.silent_status: bool = self._getboolean("silent_status", default=False)
-        self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
-        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT)
-
+        self.eta_source: str = self._getstring("eta_source", default="slicer")  # Todo: check for list of values(slicer,file)
+        self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
         self.buttons: List[List[str]] = list(
             map(
                 lambda el: list(
@@ -291,17 +289,20 @@ class TelegramUIConfig(ConfigHelper):
                 re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[status,pause,cancel,resume],[files,emergency,macros,shutdown]")),
             )
         )
-        self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.silent_progress: bool = self._getboolean("silent_progress", default=False)
+        self.silent_commands: bool = self._getboolean("silent_commands", default=False)
+        self.silent_status: bool = self._getboolean("silent_status", default=False)
         self.include_macros_in_command_list: bool = self._getboolean("include_macros_in_command_list", default=True)
         self.disabled_macros: List[str] = self._getlist("disabled_macros", default=[])
         self.show_hidden_macros: bool = self._getboolean("show_hidden_macros", default=False)
-        self.eta_source: str = self._getstring("eta_source", default="slicer")
+        self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
+        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT)  # Todo: check for list of values(_MESSAGE_CONTENT)
+        self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
         self.status_message_sensors: List[str] = self._getlist("status_message_sensors", default=[])
         self.status_message_heaters: List[str] = self._getlist("status_message_heaters", default=[])
         self.status_message_temp_fans: List[str] = self._getlist("status_message_temperature_fans", default=[])
         self.status_message_devices: List[str] = self._getlist("status_message_devices", default=[])
-        self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
 
 
 class ConfigWrapper:
