@@ -1,24 +1,142 @@
 import configparser
 import re
-from typing import List
+from typing import Any, Callable, List, Optional, Union
+
+from telegram.utils.helpers import escape_markdown
 
 
-def _check_config(config: configparser.ConfigParser, section_name: str, known_items: List[str]) -> str:
-    if not config.has_section(section_name):
-        return ""
-    unknwn = list(
-        map(
-            lambda fil: f"    {fil[0]}: {fil[1]}\n",
-            filter(lambda el: el[0] not in known_items, config.items(section_name)),
+class ConfigHelper:
+    _SECTION: str
+    _KNOWN_ITEMS: List[str]
+
+    def __init__(self, config: configparser.ConfigParser):
+        self._config = config
+        self._parsing_errors: List[str] = []
+
+    @property
+    def unknown_fields(self) -> str:
+        return self._check_config()
+
+    @property
+    def parsing_errors(self) -> str:
+        if self._parsing_errors:
+            return f"Config errors in section [{self._SECTION}]:\n  " + "\n  ".join(self._parsing_errors) + "\n"
+        else:
+            return ""
+
+    def _check_config(self) -> str:
+        if not self._config.has_section(self._SECTION):
+            return ""
+        unknwn = list(
+            map(
+                lambda fil: f"  {fil[0]}: {fil[1]}\n",
+                filter(lambda el: el[0] not in self._KNOWN_ITEMS, self._config.items(self._SECTION)),
+            )
         )
-    )
-    if unknwn:
-        return f"Unknown/bad items in [{section_name}] section:\n{''.join(unknwn)}\n"
-    else:
-        return ""
+        if unknwn:
+            return f"Unknown/bad items in section [{self._SECTION}]:\n{''.join(unknwn)}\n"
+        else:
+            return ""
+
+    def _check_numerical_value(
+        self,
+        option: str,
+        value: Union[int, float],
+        above: Optional[Union[int, float]] = None,
+        below: Optional[Union[int, float]] = None,
+        min_value: Optional[Union[int, float]] = None,
+        max_value: Optional[Union[int, float]] = None,
+    ) -> None:
+        if above is not None and value <= above:
+            self._parsing_errors.append(f"Option '{option}: {value}': value is not above {above}")
+        if below is not None and value >= below:
+            self._parsing_errors.append(f"Option '{option}: {value}': value is not below {below}")
+        if min_value is not None and value < min_value:
+            self._parsing_errors.append(f"Option '{option}: {value}': value is below minimum value {min_value}")
+        if max_value is not None and value > max_value:
+            self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
+
+    def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
+        if allowed_values is not None and value not in allowed_values:
+            self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
+
+    def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
+        unallowed_params = []
+        if allowed_values is not None:
+            for val in values:
+                if val not in allowed_values:
+                    unallowed_params.append(val)
+        if unallowed_params:
+            self._parsing_errors.append(f"Option '{option}: {values}': values [" + ",".join(unallowed_params) + "] are not allowed")
+
+    def _get_option_value(self, func: Callable, option: str, default: Optional[Any] = None) -> Any:
+        try:
+            val = func(self._SECTION, option, fallback=default) if default is not None else func(self._SECTION, option)
+        except Exception as ex:
+            if default is not None:
+                self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
+                val = default
+            else:
+                raise ex
+        return val
+
+    def _getint(
+        self,
+        option: str,
+        default: Optional[int] = None,
+        above: Optional[Union[int, float]] = None,
+        below: Optional[Union[int, float]] = None,
+        min_value: Optional[Union[int, float]] = None,
+        max_value: Optional[Union[int, float]] = None,
+    ) -> int:
+        val = self._get_option_value(self._config.getint, option, default)
+        self._check_numerical_value(option, val, above, below, min_value, max_value)
+        return val
+
+    def _getfloat(
+        self,
+        option: str,
+        default: Optional[float] = None,
+        above: Optional[Union[int, float]] = None,
+        below: Optional[Union[int, float]] = None,
+        min_value: Optional[Union[int, float]] = None,
+        max_value: Optional[Union[int, float]] = None,
+    ) -> float:
+        val = self._get_option_value(self._config.getfloat, option, default)
+        self._check_numerical_value(option, val, above, below, min_value, max_value)
+        return val
+
+    def _getstring(self, option: str, default: Optional[str] = None, allowed_values: Optional[List[Any]] = None) -> str:
+        val = self._get_option_value(self._config.get, option, default)
+        self._check_string_values(option, val, allowed_values)
+        return val
+
+    def _getboolean(self, option: str, default: Optional[bool] = None) -> bool:
+        val = self._get_option_value(self._config.getboolean, option, default)
+        return val
+
+    def _getlist(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List:
+        if self._config.has_option(self._SECTION, option):
+            try:
+                val = [el_type(el.strip()) for el in self._getstring(option).split(",")]
+            except Exception as ex:
+                if default is not None:
+                    self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
+                    val = default
+                else:
+                    # Todo: reaise some parsing exception
+                    pass
+        elif default is not None:
+            val = default
+        else:
+            # Todo: reaise some parsing exception
+            pass
+
+        self._check_list_values(option, val, allowed_values)
+        return val
 
 
-class BotConfig:
+class BotConfig(ConfigHelper):
     _SECTION = "bot"
     _KNOWN_ITEMS = [
         "server",
@@ -36,24 +154,25 @@ class BotConfig:
     ]
 
     def __init__(self, config: configparser.ConfigParser):
-        self.host: str = config.get(self._SECTION, "server", fallback="localhost")
-        self.socks_proxy: str = config.get(self._SECTION, "socks_proxy", fallback="")
-        self.token: str = config.get(self._SECTION, "bot_token")
-        self.api_url: str = config.get(self._SECTION, "api_url", fallback="https://api.telegram.org/bot")
-        self.chat_id: int = config.getint(self._SECTION, "chat_id")
-        self.debug: bool = config.getboolean(self._SECTION, "debug", fallback=False)
-        self.log_parser: bool = config.getboolean(self._SECTION, "log_parser", fallback=False)
-        self.log_path: str = config.get(self._SECTION, "log_path", fallback="/tmp")
-        self.poweroff_device_name: str = config.get(self._SECTION, "power_device", fallback="")
-        self.light_device_name: str = config.get(self._SECTION, "light_device", fallback="")
-        self.user: str = config.get(self._SECTION, "user", fallback="")
-        self.passwd: str = config.get(self._SECTION, "password", fallback="")
-        self.api_token: str = config.get(self._SECTION, "api_token", fallback="")
+        super().__init__(config)
 
-        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.host: str = self._getstring("server", default="localhost")
+        self.token: str = self._getstring("bot_token")
+        self.chat_id: int = self._getint("chat_id", default=0)
+        self.api_url: str = self._getstring("api_url", default="https://api.telegram.org/bot")
+        self.socks_proxy: str = self._getstring("socks_proxy", default="")
+        self.user: str = self._getstring("user", default="")
+        self.passwd: str = self._getstring("password", default="")
+        self.api_token: str = self._getstring("api_token", default="")
+        self.light_device_name: str = self._getstring("light_device", default="")
+        self.poweroff_device_name: str = self._getstring("power_device", default="")
+        self.debug: bool = self._getboolean("debug", default=False)
+        self.log_path: str = self._getstring("log_path", default="/tmp")
+
+        self.log_parser: bool = self._getboolean("log_parser", default=False)
 
 
-class CameraConfig:
+class CameraConfig(ConfigHelper):
     _SECTION = "camera"
     _KNOWN_ITEMS = [
         "host",
@@ -70,37 +189,39 @@ class CameraConfig:
     ]
 
     def __init__(self, config: configparser.ConfigParser):
+        super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
-        self.host: str = config.get(self._SECTION, "host", fallback="")
-        # self.threads: int = config.getint(self._SECTION, "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
-        self.threads: int = config.getint(self._SECTION, "threads", fallback=2)
-        self.flip_vertically: bool = config.getboolean(self._SECTION, "flip_vertically", fallback=False)
-        self.flip_horizontally: bool = config.getboolean(self._SECTION, "flip_horizontally", fallback=False)
-        self.rotate: str = config.get(self._SECTION, "rotate", fallback="")
-        self.fourcc: str = config.get(self._SECTION, "fourcc", fallback="x264")
-        self.video_duration: int = config.getint(self._SECTION, "video_duration", fallback=5)
-        self.video_buffer_size: int = config.getint(self._SECTION, "video_buffer_size", fallback=2)
-        self.stream_fps: int = config.getint(self._SECTION, "fps", fallback=0)
-        self.light_timeout: int = config.getint(self._SECTION, "light_control_timeout", fallback=0)
-        self.picture_quality: str = config.get(self._SECTION, "picture_quality", fallback="high")
-        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.host: str = self._getstring("host", default="")
+        self.stream_fps: int = self._getint("fps", default=0, above=0)
+        self.flip_vertically: bool = self._getboolean("flip_vertically", default=False)
+        self.flip_horizontally: bool = self._getboolean("flip_horizontally", default=False)
+        self.rotate: str = self._getstring("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
+        self.fourcc: str = self._getstring("fourcc", default="x264", allowed_values=["x264", "mp4v"])
+
+        # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
+        self.threads: int = self._getint("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
+
+        self.video_duration: int = self._getint("video_duration", default=5, above=0)
+        self.video_buffer_size: int = self._getint("video_buffer_size", default=2, above=0)
+        self.light_timeout: int = self._getint("light_control_timeout", default=0, min_value=0)
+        self.picture_quality: str = self._getstring("picture_quality", default="high", allowed_values=["low", "high"])
 
 
-class NotifierConfig:
+class NotifierConfig(ConfigHelper):
     _SECTION = "progress_notification"
     _KNOWN_ITEMS = ["percent", "height", "time", "groups", "group_only"]
 
     def __init__(self, config: configparser.ConfigParser):
+        super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
-        self.percent: int = config.getint(self._SECTION, "percent", fallback=0)
-        self.height: float = config.getfloat(self._SECTION, "height", fallback=0)
-        self.interval: int = config.getint(self._SECTION, "time", fallback=0)
-        self.notify_groups: List[int] = [int(el.strip()) for el in config.get(self._SECTION, "groups").split(",")] if config.has_option(self._SECTION, "groups") else []
-        self.group_only: bool = config.getboolean(self._SECTION, "group_only", fallback=False)
-        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.percent: int = self._getint("percent", default=0, min_value=0)
+        self.height: float = self._getfloat("height", default=0, min_value=0.0)
+        self.interval: int = self._getint("time", default=0, min_value=0)
+        self.notify_groups: List[int] = self._getlist("groups", default=[], el_type=int)
+        self.group_only: bool = self._getboolean("group_only", default=False)
 
 
-class TimelapseConfig:
+class TimelapseConfig(ConfigHelper):
     _SECTION = "timelapse"
     _KNOWN_ITEMS = [
         "basedir",
@@ -119,27 +240,25 @@ class TimelapseConfig:
     ]
 
     def __init__(self, config: configparser.ConfigParser):
+        super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
-        self.base_dir: str = config.get(self._SECTION, "basedir", fallback="/tmp/timelapse")  # Fixme: relative path failed! ~/timelapse
-        self.ready_dir: str = config.get(self._SECTION, "copy_finished_timelapse_dir", fallback="")  # Fixme: relative path failed! ~/timelapse
-        self.cleanup: bool = config.getboolean(self._SECTION, "cleanup", fallback=True)
-        self.mode_manual: bool = config.getboolean(self._SECTION, "manual_mode", fallback=False)
-        self.height: float = config.getfloat(self._SECTION, "height", fallback=0.0)
-        self.interval: int = config.getint(self._SECTION, "time", fallback=0)
-        self.target_fps: int = config.getint(self._SECTION, "target_fps", fallback=15)
-        self.min_lapse_duration: int = config.getint(self._SECTION, "min_lapse_duration", fallback=0)
-        self.max_lapse_duration: int = config.getint(self._SECTION, "max_lapse_duration", fallback=0)
-        self.last_frame_duration: int = config.getint(self._SECTION, "last_frame_duration", fallback=5)
-
+        self.base_dir: str = self._getstring("basedir", default="/tmp/timelapse")  # Fixme: relative path failed! ~/timelapse
+        self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")  # Fixme: relative path failed! ~/timelapse
+        self.cleanup: bool = self._getboolean("cleanup", default=True)
+        self.height: float = self._getfloat("height", default=0.0, min_value=0.0)
+        self.interval: int = self._getint("time", default=0, min_value=0)
+        self.target_fps: int = self._getint("target_fps", default=15, above=0)
+        self.min_lapse_duration: int = self._getint("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
+        self.max_lapse_duration: int = self._getint("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
+        self.last_frame_duration: int = self._getint("last_frame_duration", default=5, min_value=0)
         # Todo: add to runtime params section!
-        self.after_lapse_gcode: str = config.get(self._SECTION, "after_lapse_gcode", fallback="")
-        self.send_finished_lapse: bool = config.getboolean(self._SECTION, "send_finished_lapse", fallback=True)
-        self.after_photo_gcode: str = config.get(self._SECTION, "after_photo_gcode", fallback="")
+        self.after_lapse_gcode: str = self._getstring("after_lapse_gcode", default="")
+        self.send_finished_lapse: bool = self._getboolean("send_finished_lapse", default=True)
+        self.mode_manual: bool = self._getboolean("manual_mode", default=False)
+        self.after_photo_gcode: str = self._getstring("after_photo_gcode", default="")
 
-        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
 
-
-class TelegramUIConfig:
+class TelegramUIConfig(ConfigHelper):
     _SECTION = "telegram_ui"
     _KNOWN_ITEMS = [
         "silent_progress",
@@ -173,15 +292,9 @@ class TelegramUIConfig:
     ]
 
     def __init__(self, config: configparser.ConfigParser):
-        self.silent_progress: bool = config.getboolean(self._SECTION, "silent_progress", fallback=False)
-        self.silent_commands: bool = config.getboolean(self._SECTION, "silent_commands", fallback=False)
-        self.silent_status: bool = config.getboolean(self._SECTION, "silent_status", fallback=False)
-        self.pin_status_single_message: bool = config.getboolean(self._SECTION, "pin_status_single_message", fallback=False)  # Todo: implement
-        self.status_message_content: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_content").split(",")] if config.has_option(self._SECTION, "status_message_content") else self._MESSAGE_CONTENT
-        )
-
-        buttons_string = config.get(self._SECTION, "buttons") if config.has_option(self._SECTION, "buttons") else "[status,pause,cancel,resume],[files,emergency,macros,shutdown]"
+        super().__init__(config)
+        self.eta_source: str = self._getstring("eta_source", default="slicer", allowed_values=["slicer", "file"])
+        self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
         self.buttons: List[List[str]] = list(
             map(
                 lambda el: list(
@@ -190,29 +303,23 @@ class TelegramUIConfig:
                         el.replace("[", "").replace("]", "").split(","),
                     )
                 ),
-                re.findall(r"\[.[^\]]*\]", buttons_string),
+                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[status,pause,cancel,resume],[files,emergency,macros,shutdown]")),
             )
         )
-        self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
-        self.require_confirmation_macro: bool = config.getboolean(self._SECTION, "require_confirmation_macro", fallback=True)
-        self.include_macros_in_command_list: bool = config.getboolean(self._SECTION, "include_macros_in_command_list", fallback=True)
-        self.disabled_macros: List[str] = [el.strip() for el in config.get(self._SECTION, "disabled_macros").split(",")] if config.has_option(self._SECTION, "disabled_macros") else []
-        self.show_hidden_macros: bool = config.getboolean(self._SECTION, "show_hidden_macros", fallback=False)
-        self.eta_source: str = config.get(self._SECTION, "eta_source", fallback="slicer")
-        self.status_message_sensors: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_sensors").split(",")] if config.has_option(self._SECTION, "status_message_sensors") else []
-        )
-        self.status_message_heaters: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_heaters").split(",")] if config.has_option(self._SECTION, "status_message_heaters") else []
-        )
-        self.status_message_temp_fans: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_temperature_fans").split(",")] if config.has_option(self._SECTION, "status_message_temperature_fans") else []
-        )
-        self.status_message_devices: List[str] = (
-            [el.strip() for el in config.get(self._SECTION, "status_message_devices").split(",")] if config.has_option(self._SECTION, "status_message_devices") else []
-        )
-        self.status_message_m117_update: bool = config.getboolean(self._SECTION, "status_message_m117_update", fallback=False)
-        self.unknown_fields: str = _check_config(config, self._SECTION, self._KNOWN_ITEMS)
+        self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.silent_progress: bool = self._getboolean("silent_progress", default=False)
+        self.silent_commands: bool = self._getboolean("silent_commands", default=False)
+        self.silent_status: bool = self._getboolean("silent_status", default=False)
+        self.include_macros_in_command_list: bool = self._getboolean("include_macros_in_command_list", default=True)
+        self.disabled_macros: List[str] = self._getlist("disabled_macros", default=[])
+        self.show_hidden_macros: bool = self._getboolean("show_hidden_macros", default=False)
+        self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
+        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
+        self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
+        self.status_message_sensors: List[str] = self._getlist("status_message_sensors", default=[])
+        self.status_message_heaters: List[str] = self._getlist("status_message_heaters", default=[])
+        self.status_message_temp_fans: List[str] = self._getlist("status_message_temperature_fans", default=[])
+        self.status_message_devices: List[str] = self._getlist("status_message_devices", default=[])
 
 
 class ConfigWrapper:
@@ -223,3 +330,15 @@ class ConfigWrapper:
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
         self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
+        self.parsing_errors = self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
+
+    @property
+    def configuration_errors(self) -> str:
+        error_message: str = ""
+        if self.unknown_fields:
+            error_message += escape_markdown(f"\n{self.unknown_fields}", version=2)
+        if self.parsing_errors:
+            error_message += escape_markdown(f"\n{self.parsing_errors}", version=2)
+        if error_message:
+            error_message += "Please correct the configuration according to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki/Sample-config)"
+        return error_message
