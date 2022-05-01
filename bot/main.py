@@ -885,22 +885,30 @@ def help_command(update: Update, _: CallbackContext) -> None:
     if update.effective_message is None:
         logger.warning("Undefined effective message")
         return
+    mess = (
+        escape_markdown(
+            "The following commands are known:\n\n"
+            "/status - send klipper status\n"
+            "/pause - pause printing\n"
+            "/resume - resume printing\n"
+            "/cancel - cancel printing\n"
+            "/files - list last 5 files(you can start printing one from menu)\n"
+            "/logs - get klipper, moonraker, bot logs\n"
+            "/macros - list all visible macros from klipper\n"
+            "/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n"
+            "/video - will take mp4 video from camera\n"
+            "/power - toggle moonraker power device from config\n"
+            "/light - toggle light\n"
+            "/emergency - emergency stop printing\n"
+            "/bot_restart - restarts the bot service, useful for config updates\n"
+            "/shutdown - shutdown Pi gracefully",
+            version=2,
+        )
+        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional inforamtion"
+    )
     update.effective_message.reply_text(
-        "The following commands are known:\n\n"
-        "/status - send klipper status\n"
-        "/pause - pause printing\n"
-        "/resume - resume printing\n"
-        "/cancel - cancel printing\n"
-        "/files - list last 5 files(you can start printing one from menu)\n"
-        "/logs - get klipper, moonraker, bot logs\n"
-        "/macros - list all visible macros from klipper\n"
-        "/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n"
-        "/video - will take mp4 video from camera\n"
-        "/power - toggle moonraker power device from config\n"
-        "/light - toggle light\n"
-        "/emergency - emergency stop printing\n"
-        "/bot_restart - restarts the bot service, useful for config updates\n"
-        "/shutdown - shutdown Pi gracefully",
+        text=mess,
+        parse_mode=PARSEMODE_MARKDOWN_V2,
         quote=True,
     )
 
@@ -909,15 +917,13 @@ def greeting_message():
     if configWrap.bot.chat_id == 0:
         return
     response = klippy.check_connection()
-    mess = f"Bot online, no moonraker connection!\n {response} \nFailing..." if response else "Printer online"
-    if configWrap.unknown_fields:
-        mess += f"\n{configWrap.unknown_fields}"
-    if configWrap.parsing_errors:
-        mess += f"\n{configWrap.parsing_errors}"
+    mess = f"Bot online, no moonraker connection!\n {response} \nFailing..." if response else "Printer online" + configWrap.configuration_errors
+
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
         configWrap.bot.chat_id,
         text=mess,
+        parse_mode=PARSEMODE_MARKDOWN_V2,
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )

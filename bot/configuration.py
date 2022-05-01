@@ -2,6 +2,8 @@ import configparser
 import re
 from typing import Any, Callable, List, Optional, Union
 
+from telegram.utils.helpers import escape_markdown
+
 
 class ConfigHelper:
     _SECTION: str
@@ -329,3 +331,14 @@ class ConfigWrapper:
         self.telegram_ui = TelegramUIConfig(config)
         self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
         self.parsing_errors = self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
+
+    @property
+    def configuration_errors(self) -> str:
+        error_message: str = ""
+        if self.unknown_fields:
+            error_message += escape_markdown(f"\n{self.unknown_fields}", version=2)
+        if self.parsing_errors:
+            error_message += escape_markdown(f"\n{self.parsing_errors}", version=2)
+        if error_message:
+            error_message += "Please correct the configuration according to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki/Sample-config)"
+        return error_message
