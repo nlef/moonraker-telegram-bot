@@ -54,6 +54,19 @@ class ConfigHelper:
         if max_value is not None and value > max_value:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
+    def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
+        if allowed_values is not None and value not in allowed_values:
+            self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
+
+    def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
+        unallowed_params = []
+        if allowed_values is not None:
+            for val in values:
+                if val not in allowed_values:
+                    unallowed_params.append(val)
+        if unallowed_params:
+            self._parsing_errors.append(f"Option '{option}: {values}': values [" + ",".join(unallowed_params) + "] are not allowed")
+
     def _get_option_value(self, func: Callable, option: str, default: Optional[Any] = None) -> Any:
         try:
             val = func(self._SECTION, option, fallback=default) if default is not None else func(self._SECTION, option)
@@ -91,15 +104,16 @@ class ConfigHelper:
         self._check_numerical_value(option, val, above, below, min_value, max_value)
         return val
 
-    def _getstring(self, option: str, default: Optional[str] = None) -> str:
+    def _getstring(self, option: str, default: Optional[str] = None, allowed_values: Optional[List[Any]] = None) -> str:
         val = self._get_option_value(self._config.get, option, default)
+        self._check_string_values(option, val, allowed_values)
         return val
 
     def _getboolean(self, option: str, default: Optional[bool] = None) -> bool:
         val = self._get_option_value(self._config.getboolean, option, default)
         return val
 
-    def _getlist(self, option: str, default: Optional[List] = None, el_type: Any = str) -> List:
+    def _getlist(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List:
         if self._config.has_option(self._SECTION, option):
             try:
                 val = [el_type(el.strip()) for el in self._getstring(option).split(",")]
@@ -116,6 +130,7 @@ class ConfigHelper:
             # Todo: reaise some parsing exception
             pass
 
+        self._check_list_values(option, val, allowed_values)
         return val
 
 
@@ -178,8 +193,8 @@ class CameraConfig(ConfigHelper):
         self.stream_fps: int = self._getint("fps", default=0, above=0)
         self.flip_vertically: bool = self._getboolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._getboolean("flip_horizontally", default=False)
-        self.rotate: str = self._getstring("rotate", default="")  # Todo: check for list of values
-        self.fourcc: str = self._getstring("fourcc", default="x264")  # Todo: check for list of values(x264,mp4v)
+        self.rotate: str = self._getstring("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
+        self.fourcc: str = self._getstring("fourcc", default="x264", allowed_values=["x264", "mp4v"])
 
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
         self.threads: int = self._getint("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
@@ -187,7 +202,7 @@ class CameraConfig(ConfigHelper):
         self.video_duration: int = self._getint("video_duration", default=5, above=0)
         self.video_buffer_size: int = self._getint("video_buffer_size", default=2, above=0)
         self.light_timeout: int = self._getint("light_control_timeout", default=0, min_value=0)
-        self.picture_quality: str = self._getstring("picture_quality", default="high")  # Todo: check for list of values(low, high)
+        self.picture_quality: str = self._getstring("picture_quality", default="high", allowed_values=["low", "high"])
 
 
 class NotifierConfig(ConfigHelper):
@@ -276,7 +291,7 @@ class TelegramUIConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.eta_source: str = self._getstring("eta_source", default="slicer")  # Todo: check for list of values(slicer,file)
+        self.eta_source: str = self._getstring("eta_source", default="slicer", allowed_values=["slicer", "file"])
         self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
         self.buttons: List[List[str]] = list(
             map(
@@ -297,7 +312,7 @@ class TelegramUIConfig(ConfigHelper):
         self.disabled_macros: List[str] = self._getlist("disabled_macros", default=[])
         self.show_hidden_macros: bool = self._getboolean("show_hidden_macros", default=False)
         self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
-        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT)  # Todo: check for list of values(_MESSAGE_CONTENT)
+        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
         self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
         self.status_message_sensors: List[str] = self._getlist("status_message_sensors", default=[])
         self.status_message_heaters: List[str] = self._getlist("status_message_heaters", default=[])
