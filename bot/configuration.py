@@ -205,6 +205,7 @@ class CameraConfig(ConfigHelper):
         self.video_buffer_size: int = self._getint("video_buffer_size", default=2, above=0)
         self.light_timeout: int = self._getint("light_control_timeout", default=0, min_value=0)
         self.picture_quality: str = self._getstring("picture_quality", default="high", allowed_values=["low", "high"])
+        self.cv2_params = config.items("camera.cv2") if config.has_section("camera.cv2") else []
 
 
 class NotifierConfig(ConfigHelper):

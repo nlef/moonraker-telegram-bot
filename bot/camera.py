@@ -141,9 +141,10 @@ class Camera:
             cv2.ocl.setUseOpenCL(True)
             logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
+        self._cv2_params: List = config.camera.cv2_params
         cv2.setNumThreads(self._threads)
         self.cam_cam = cv2.VideoCapture()
-        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self._set_cv2_params()
 
     @property
     def light_need_off(self) -> bool:
@@ -220,11 +221,35 @@ class Camera:
         del img
         return bio
 
+    @staticmethod
+    def _isfloat(value: str) -> bool:
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+
+    def _set_cv2_params(self):
+        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        for prop_name, value in self._cv2_params:
+            if value.isnumeric():
+                val = int(value)
+            elif self._isfloat(value):
+                val = float(value)
+            else:
+                val = value
+            try:
+                prop = getattr(cv2, prop_name.upper())
+                self.cam_cam.set(prop, val)
+            except AttributeError as err:
+                logger.error(err, err)
+
     @cam_light_toggle
     def take_photo(self) -> BytesIO:
         with self._camera_lock:
             self.cam_cam.open(self._host)
-            self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self._set_cv2_params()
             success, image = self.cam_cam.read()
             self.cam_cam.release()
 
@@ -328,7 +353,7 @@ class Camera:
         with self._camera_lock:
             cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
             self.cam_cam.open(self._host)
-            self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self._set_cv2_params()
             success, frame = self.cam_cam.read()
 
             if not success:
