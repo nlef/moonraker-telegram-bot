@@ -38,8 +38,12 @@ class Klippy:
         self._light_device: PowerDevice = light_device
         self._psu_device: PowerDevice = psu_device
         self._sensors_list: List[str] = config.telegram_ui.status_message_sensors
-        self._heates_list: List[str] = config.telegram_ui.status_message_heaters
-        self._temp_fans_list: List[str] = config.telegram_ui.status_message_temp_fans
+        self._heaters_list: List[str] = config.telegram_ui.status_message_heaters
+        self._heater_fans_list: List[str] = config.telegram_ui.status_message_heater_fans
+        self._controller_fans: List[str] = config.telegram_ui.status_message_controller_fans
+        self._temp_fans_list: List[str] = config.telegram_ui.status_message_temperature_fans
+        self._generic_fans: List[str] = config.telegram_ui.status_message_generic_fans
+
         self._devices_list: List[str] = config.telegram_ui.status_message_devices
         self._user: str = config.bot.user
         self._passwd: str = config.bot.passwd
@@ -82,7 +86,7 @@ class Klippy:
     def prepare_sens_dict_subscribe(self):
         self.sensors_dict = {}
         sens_dict = {}
-        for heat in self._heates_list:
+        for heat in self._heaters_list:
             if heat in ["extruder", "heater_bed"]:
                 sens_dict[heat] = None
             else:
@@ -91,8 +95,17 @@ class Klippy:
         for sens in self._sensors_list:
             sens_dict[f"temperature_sensor {sens}"] = None
 
+        for sens in self._heater_fans_list:
+            sens_dict[f"heater_fan {sens}"] = None
+
+        for sens in self._controller_fans:
+            sens_dict[f"controller_fan {sens}"] = None
+
         for sens in self._temp_fans_list:
             sens_dict[f"temperature_fan {sens}"] = None
+
+        for sens in self._generic_fans:
+            sens_dict[f"fan_generic {sens}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -249,6 +262,8 @@ class Klippy:
                 self.sensors_dict[name]["power"] = value["power"]
             if "speed" in value:
                 self.sensors_dict[name]["speed"] = value["speed"]
+            if "rpm" in value:
+                self.sensors_dict[name]["rpm"] = value["rpm"]
         else:
             self.sensors_dict[name] = value
 
@@ -265,6 +280,10 @@ class Klippy:
             message = emoji.emojize(" :tornado: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
+            if "speed" in value and value["speed"] > 0.0:
+                message += f" {round(value['speed'])}%"
+            if "rpm" in value and value["rpm"] > 0.0:
+                message += f" {round(value['rpm'])}RPM"
         else:
             message = emoji.emojize(" :thermometer: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
         message += "\n"

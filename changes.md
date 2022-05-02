@@ -5,6 +5,7 @@
 * Multi instance installer
 * Добавлен скрипт удаления
 * НАстройка параметров cv2 для камеры с использованием [camera.cv2] (указываем название параметра cv2 и его значение) Никаких проверок!
+* Добавлены "status_message_heater_fans", "status_message_controller_fans", "status_message_generic_fans" в секции telegram_ui
 
 ## Добработки и мелкие исправления
 

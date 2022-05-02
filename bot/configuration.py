@@ -276,7 +276,10 @@ class TelegramUIConfig(ConfigHelper):
         "status_message_sensors",
         "status_message_heaters",
         "status_message_devices",
+        "status_message_heater_fans",
+        "status_message_controller_fans",
         "status_message_temperature_fans",
+        "status_message_generic_fans",
         "status_message_m117_update",
     ]
     _MESSAGE_CONTENT = [
@@ -319,7 +322,10 @@ class TelegramUIConfig(ConfigHelper):
         self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
         self.status_message_sensors: List[str] = self._getlist("status_message_sensors", default=[])
         self.status_message_heaters: List[str] = self._getlist("status_message_heaters", default=[])
-        self.status_message_temp_fans: List[str] = self._getlist("status_message_temperature_fans", default=[])
+        self.status_message_heater_fans: List[str] = self._getlist("status_message_heater_fans", default=[])
+        self.status_message_controller_fans: List[str] = self._getlist("status_message_controller_fans", default=[])
+        self.status_message_temperature_fans: List[str] = self._getlist("status_message_temperature_fans", default=[])
+        self.status_message_generic_fans: List[str] = self._getlist("status_message_generic_fans", default=[])
         self.status_message_devices: List[str] = self._getlist("status_message_devices", default=[])
 
 
