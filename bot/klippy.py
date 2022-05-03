@@ -264,12 +264,13 @@ class Klippy:
                 self.sensors_dict[name]["speed"] = value["speed"]
             if "rpm" in value:
                 self.sensors_dict[name]["rpm"] = value["rpm"]
-        else:
+        elif value:
             self.sensors_dict[name] = value
 
     @staticmethod
     def sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
+        message = ""
         if "power" in value:
             message = emoji.emojize(" :hotsprings: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
@@ -277,16 +278,19 @@ class Klippy:
             if value["power"] > 0.0:
                 message += emoji.emojize(" :fire: ", language="alias")
         elif "speed" in value:
-            message = emoji.emojize(" :tornado: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
+            message = emoji.emojize(" :tornado: ", language="alias") + f"{sens_name.title()}:"
+            if "temperature" in value:
+                message += f" {round(value['temperature'])}"
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
-            if "speed" in value and value["speed"] > 0.0:
-                message += f" {round(value['speed'])}%"
-            if "rpm" in value and value["rpm"] > 0.0:
-                message += f" {round(value['rpm'])}RPM"
-        else:
+            if "speed" in value:
+                message += f" {round(value['speed']*100)}%"
+            if "rpm" in value and value["rpm"] is not None:
+                message += f" {round(value['rpm']*100)}RPM"
+        elif "temperature" in value:
             message = emoji.emojize(" :thermometer: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
-        message += "\n"
+        if message:
+            message += "\n"
         return message
 
     def _get_sensors_message(self) -> str:

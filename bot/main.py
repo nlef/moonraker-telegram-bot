@@ -1085,21 +1085,7 @@ def status_response(status_resp):
     if "virtual_sdcard" in status_resp:
         klippy.vsd_progress = status_resp["virtual_sdcard"]["progress"]
 
-    # Todo: add sensors & heaters parsing
-    for sens in [key for key in status_resp if "temperature_sensor" in key]:
-        if status_resp[sens]:
-            klippy.update_sensror(sens.replace("temperature_sensor ", ""), status_resp[sens])
-
-    for fan in [key for key in status_resp if "temperature_fan" in key]:
-        if status_resp[fan]:
-            klippy.update_sensror(fan.replace("temperature_fan ", ""), status_resp[fan])
-
-    for heater in [key for key in status_resp if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
-        if status_resp[heater]:
-            klippy.update_sensror(
-                heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
-                status_resp[heater],
-            )
+    parse_sensors(status_resp)
 
 
 def notify_gcode_reponse(message_params):
@@ -1163,13 +1149,33 @@ def notify_status_update(message_params):
     if "print_stats" in message_params_loc:
         parse_print_stats(message_params)
 
-    for sens in [key for key in message_params_loc if "temperature_sensor" in key]:
-        klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_params_loc[sens])
+    parse_sensors(message_params_loc)
 
-    for heater in [key for key in message_params_loc if "extruder" in key or "heater_bed" in key or "heater_generic" in key]:
+
+def parse_sensors(message_parts_loc):
+    for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
+        klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
+
+    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan")]:
+        if message_parts_loc[heater_fan]:
+            klippy.update_sensror(heater_fan.replace("heater_fan ", ""), message_parts_loc[heater_fan])
+
+    for controller_fan in [key for key in message_parts_loc if key.startswith("controller_fan")]:
+        if message_parts_loc[controller_fan]:
+            klippy.update_sensror(controller_fan.replace("controller_fan ", ""), message_parts_loc[controller_fan])
+
+    for temperature_fan in [key for key in message_parts_loc if key.startswith("temperature_fan")]:
+        if message_parts_loc[temperature_fan]:
+            klippy.update_sensror(temperature_fan.replace("temperature_fan ", ""), message_parts_loc[temperature_fan])
+
+    for generic_fan in [key for key in message_parts_loc if key.startswith("fan_generic")]:
+        if message_parts_loc[generic_fan]:
+            klippy.update_sensror(generic_fan.replace("fan_generic ", ""), message_parts_loc[generic_fan])
+
+    for heater in [key for key in message_parts_loc if key.startswith("extruder") or key.startswith("heater_bed") or key.startswith("heater_generic")]:
         klippy.update_sensror(
             heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
-            message_params_loc[heater],
+            message_parts_loc[heater],
         )
 
 
