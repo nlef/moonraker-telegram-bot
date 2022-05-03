@@ -286,7 +286,7 @@ class Klippy:
             if "speed" in value:
                 message += f" {round(value['speed']*100)}%"
             if "rpm" in value and value["rpm"] is not None:
-                message += f" {round(value['rpm']*100)}RPM"
+                message += f" {round(value['rpm'])} RPM"
         elif "temperature" in value:
             message = emoji.emojize(" :thermometer: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
         if message:
