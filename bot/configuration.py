@@ -47,6 +47,8 @@ class ConfigHelper:
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ) -> None:
+        if not self._config.has_option(self._SECTION, option):
+            return
         if above is not None and value <= above:
             self._parsing_errors.append(f"Option '{option}: {value}': value is not above {above}")
         if below is not None and value >= below:
@@ -57,10 +59,14 @@ class ConfigHelper:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
     def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
+        if not self._config.has_option(self._SECTION, option):
+            return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
     def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
+        if not self._config.has_option(self._SECTION, option):
+            return
         unallowed_params = []
         if allowed_values is not None:
             for val in values:
