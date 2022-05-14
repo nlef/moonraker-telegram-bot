@@ -355,14 +355,14 @@ def send_logs(update: Update, _: CallbackContext) -> None:
 
     update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
-    if Path(f"{configWrap.bot.log_path}/telegram.log").exists():
-        with open(f"{configWrap.bot.log_path}/telegram.log", "rb") as fh:
+    if Path(f"{configWrap.bot.log_file}/telegram.log").exists():
+        with open(f"{configWrap.bot.log_file}/telegram.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="telegram.log"))
-    if Path(f"{configWrap.bot.log_path}/klippy.log").exists():
-        with open(f"{configWrap.bot.log_path}/klippy.log", "rb") as fh:
+    if Path(f"{configWrap.bot.log_file}/klippy.log").exists():
+        with open(f"{configWrap.bot.log_file}/klippy.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="klippy.log"))
-    if Path(f"{configWrap.bot.log_path}/moonraker.log").exists():
-        with open(f"{configWrap.bot.log_path}/moonraker.log", "rb") as fh:
+    if Path(f"{configWrap.bot.log_file}/moonraker.log").exists():
+        with open(f"{configWrap.bot.log_file}/moonraker.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="moonraker.log"))
     if logs_list:
         update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
@@ -1364,6 +1364,12 @@ if __name__ == "__main__":
         metavar="<configfile>",
         help="Location of moonraker telegram bot configuration file",
     )
+    parser.add_argument(
+        "-l",
+        "--logfile",
+        metavar="<logfile>",
+        help="Location of moonraker telegram bot log file",
+    )
     system_args = parser.parse_args()
     conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
 
@@ -1372,12 +1378,10 @@ if __name__ == "__main__":
 
     conf.read(system_args.configfile)
     configWrap = ConfigWrapper(conf)
-
-    if not configWrap.bot.log_path == "/tmp":
-        Path(configWrap.bot.log_path).mkdir(parents=True, exist_ok=True)
+    configWrap.bot.log_path_update(system_args.logfile)
 
     rotatingHandler = RotatingFileHandler(
-        os.path.join(f"{configWrap.bot.log_path}/", "telegram.log"),
+        configWrap.bot.log_file,
         maxBytes=26214400,
         backupCount=3,
     )
