@@ -917,7 +917,7 @@ def greeting_message():
     if configWrap.bot.chat_id == 0:
         return
     response = klippy.check_connection()
-    mess = f"Bot online, no moonraker connection!\n {response} \nFailing..." if response else "Printer online" + configWrap.configuration_errors
+    mess = escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2) if response else "Printer online" + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
@@ -1379,6 +1379,11 @@ if __name__ == "__main__":
     conf.read(system_args.configfile)
     configWrap = ConfigWrapper(conf)
     configWrap.bot.log_path_update(system_args.logfile)
+
+    with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
+        f.write("\nCurrent Monraker telegram bot config\n")
+        conf.write(f)
+        f.write("\n")
 
     rotatingHandler = RotatingFileHandler(
         configWrap.bot.log_file,
