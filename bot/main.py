@@ -820,9 +820,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                     )
                     return
 
-    if klippy.upload_file(sending_bio):
+    if klippy.upload_gcode_file(sending_bio, configWrap.bot.upload_path):
         start_pre_mess = "Successfully uploaded file:"
-        mess, thumb = klippy.get_file_info_by_name(sending_bio.name, f"{start_pre_mess}{sending_bio.name}")
+        mess, thumb = klippy.get_file_info_by_name(f"{configWrap.bot.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot.formated_upload_path}{sending_bio.name}")
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
         keyboard = [
             [
@@ -843,7 +843,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             reply_markup=reply_markup,
             disable_notification=notifier.silent_commands,
             quote=True,
-            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(sending_bio.name))],
+            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot.formated_upload_path}{sending_bio.name}"))],
         )
         thumb.close()
         # Todo: delete uploaded file

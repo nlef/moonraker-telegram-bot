@@ -284,7 +284,7 @@ class Klippy:
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
             if "speed" in value:
-                message += f" {round(value['speed']*100)}%"
+                message += f" {round(value['speed'] * 100)}%"
             if "rpm" in value and value["rpm"] is not None:
                 message += f" {round(value['rpm'])} RPM"
         elif "temperature" in value:
@@ -442,16 +442,14 @@ class Klippy:
 
         return self._populate_with_thumb(thumb_path, message)
 
-    # TOdo: add scrolling
     def get_gcode_files(self):
         response = self._make_request(f"http://{self._host}/server/files/list?root=gcodes", "GET")
         resp = response.json()
-        # files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
         files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
-    def upload_file(self, file: BytesIO) -> bool:
-        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file})
+    def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
+        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file, "root": "gcodes", "path": upload_path})
         return response.ok
 
     def start_printing_file(self, filename: str) -> bool:

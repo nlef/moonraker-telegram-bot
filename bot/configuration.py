@@ -159,6 +159,7 @@ class BotConfig(ConfigHelper):
         "user",
         "password",
         "api_token",
+        "upload_path",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -176,8 +177,18 @@ class BotConfig(ConfigHelper):
         self.poweroff_device_name: str = self._getstring("power_device", default="")
         self.debug: bool = self._getboolean("debug", default=False)
         self.log_file: str = self._getstring("log_path", default="/tmp")
+        self.upload_path: str = self._getstring("upload_path", default="")
 
         self.log_parser: bool = self._getboolean("log_parser", default=False)
+
+    @property
+    def formated_upload_path(self):
+        if not self.upload_path:
+            return ""
+        if not self.upload_path.endswith("/"):
+            return self.upload_path + "/"
+        else:
+            return self.upload_path
 
     def log_path_update(self, logfile: str) -> None:
         if logfile:
