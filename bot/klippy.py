@@ -185,7 +185,7 @@ class Klippy:
         # Todo: add response status check!
         resp = response.json()["result"]
         self._printing_filename = new_value
-        self.file_estimated_time = resp["estimated_time"]
+        self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
         self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
         self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
         self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
@@ -196,6 +196,11 @@ class Klippy:
             if file_dir:
                 self._thumbnail_path = file_dir + "/"
             self._thumbnail_path += thumb["relative_path"]
+        else:
+            if not "filename" in resp:
+                logger.error('"filename" field is not present in response: %s', resp.json())
+            if not "thumbnails" in resp:
+                logger.error('"thumbnails" field is not present in response: %s', resp.json())
 
     @property
     def printing_filename_with_time(self) -> str:
@@ -327,6 +332,7 @@ class Klippy:
         if not thumb_path:
             # Todo: resize?
             img = Image.open("../imgs/nopreview.png").convert("RGB")
+            logger.warning("Empty thumbnail_path")
         else:
             response = self._make_request(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", "GET", stream=True)
             if response.ok:
