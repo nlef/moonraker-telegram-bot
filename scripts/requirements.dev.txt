@@ -8,5 +8,5 @@ opencv-python~=3.4.8.29
 pre-commit==2.19.0
 pylint==2.13.9
 types-emoji==1.2.8
-types-requests==2.27.25
+types-requests==2.27.26
 types-ujson==4.2.1
