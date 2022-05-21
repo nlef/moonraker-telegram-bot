@@ -211,7 +211,7 @@ class Klippy:
         if not resp.ok:
             return []
         macro_lines = list(filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"]))
-        loaded_macros = list(map(lambda el: el.split(" ")[1], macro_lines))
+        loaded_macros = list(map(lambda el: el.split(" ")[1].upper(), macro_lines))
         return loaded_macros
 
     def _get_marco_list(self) -> List[str]:
