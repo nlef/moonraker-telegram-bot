@@ -74,7 +74,8 @@ class Klippy:
         self._refresh_token: str = ""
 
         # Todo: create sensors class!!
-        self.sensors_dict: dict = {}
+        self._sensors_dict: dict = {}
+        self._power_devices: dict = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -84,7 +85,7 @@ class Klippy:
         self._auth_moonraker()
 
     def prepare_sens_dict_subscribe(self):
-        self.sensors_dict = {}
+        self._sensors_dict = {}
         sens_dict = {}
         for heat in self._heaters_list:
             if heat in ["extruder", "heater_bed"]:
@@ -258,22 +259,22 @@ class Klippy:
             return "Connection failed."
 
     def update_sensror(self, name: str, value) -> None:
-        if name in self.sensors_dict:
+        if name in self._sensors_dict:
             if "temperature" in value:
-                self.sensors_dict[name]["temperature"] = value["temperature"]
+                self._sensors_dict[name]["temperature"] = value["temperature"]
             if "target" in value:
-                self.sensors_dict[name]["target"] = value["target"]
+                self._sensors_dict[name]["target"] = value["target"]
             if "power" in value:
-                self.sensors_dict[name]["power"] = value["power"]
+                self._sensors_dict[name]["power"] = value["power"]
             if "speed" in value:
-                self.sensors_dict[name]["speed"] = value["speed"]
+                self._sensors_dict[name]["speed"] = value["speed"]
             if "rpm" in value:
-                self.sensors_dict[name]["rpm"] = value["rpm"]
+                self._sensors_dict[name]["rpm"] = value["rpm"]
         elif value:
-            self.sensors_dict[name] = value
+            self._sensors_dict[name] = value
 
     @staticmethod
-    def sensor_message(name: str, value) -> str:
+    def _sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         message = ""
         if "power" in value:
@@ -298,18 +299,48 @@ class Klippy:
             message += "\n"
         return message
 
+    def update_power_device(self, name: str, value) -> None:
+        if name in self._power_devices:
+            if "device" in value:
+                self._power_devices[name]["device"] = value["device"]
+            if "status" in value:
+                self._power_devices[name]["status"] = value["status"]
+            if "locked_while_printing" in value:
+                self._power_devices[name]["locked_while_printing"] = value["locked_while_printing"]
+            if "type" in value:
+                self._power_devices[name]["type"] = value["type"]
+            if "is_shutdown" in value:
+                self._power_devices[name]["is_shutdown"] = value["is_shutdown"]
+        else:
+            self._power_devices[name] = value
+
+    @staticmethod
+    def _device_message(name: str, value, emoji_symbol: str = ":vertical_traffic_light:") -> str:
+        message = emoji.emojize(f" {emoji_symbol} ", language="alias") + f"{name}: "
+        if "status" in value:
+            message += f" {value['status']} "
+        if "locked_while_printing" in value and value["locked_while_printing"] == "True":
+            message += emoji.emojize(" :lock: ", language="alias")
+        if message:
+            message += "\n"
+        return message
+
     def _get_sensors_message(self) -> str:
         message = ""
-        for name, value in self.sensors_dict.items():
-            message += self.sensor_message(name, value)
+        for name, value in self._sensors_dict.items():
+            message += self._sensor_message(name, value)
         return message
 
     def _get_power_devices_mess(self) -> str:
         message = ""
-        if self._light_device and self._light_device.name in self._devices_list:
-            message += emoji.emojize(" :flashlight: Light: ", language="alias") + f"{'on' if self._light_device.device_state else 'off'}\n"
-        if self._psu_device and self._psu_device.name in self._devices_list:
-            message += emoji.emojize(" :electric_plug: PSU: ", language="alias") + f"{'on' if self._psu_device.device_state else 'off'}\n"
+        for name, value in self._power_devices.items():
+            if name in self._devices_list:
+                if name == self._light_device.name:
+                    message += self._device_message(name, value, ":flashlight:")
+                elif name == self._psu_device.name:
+                    message += self._device_message(name, value, ":electric_plug:")
+                else:
+                    message += self._device_message(name, value)
         return message
 
     def execute_command(self, *command) -> None:
@@ -378,10 +409,7 @@ class Klippy:
         return message
 
     def get_print_stats(self, message_pre: str = "") -> str:
-        message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
-        if "power_devices" in self._message_parts:
-            message += self._get_power_devices_mess()
-        return message
+        return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     def get_status(self) -> str:
         response = self._make_request(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", "GET")

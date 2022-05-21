@@ -1242,6 +1242,7 @@ def parse_print_stats(message_params):
 def power_device_state(device):
     device_name = device["device"]
     device_state = bool(device["status"] == "on")
+    klippy.update_power_device(device_name, device)
     if psu_power_device and psu_power_device.name == device_name:
         psu_power_device.device_state = device_state
     if light_power_device and light_power_device.name == device_name:
