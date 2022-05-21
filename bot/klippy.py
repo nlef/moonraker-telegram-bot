@@ -195,8 +195,9 @@ class Klippy:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
             file_dir = resp["filename"].rpartition("/")[0]
             if file_dir:
-                self._thumbnail_path = file_dir + "/"
-            self._thumbnail_path += thumb["relative_path"]
+                self._thumbnail_path = f'{file_dir}/{thumb["relative_path"]}'
+            else:
+                self._thumbnail_path = thumb["relative_path"]
         else:
             if not "filename" in resp:
                 logger.error('"filename" field is not present in response: %s', resp.json())
