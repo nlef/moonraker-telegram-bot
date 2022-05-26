@@ -1,7 +1,7 @@
 emoji==1.7.0
 Pillow==9.1.1
 PySocks==1.7.1
-python-telegram-bot==13.11
+python-telegram-bot==13.12
 requests==2.27.1
 tzlocal==2.1
 ujson==5.3.0
