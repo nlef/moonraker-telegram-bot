@@ -186,6 +186,14 @@ def check_unfinished_lapses():
             )
         ]
     )
+    files_keys.append(
+        [
+            InlineKeyboardButton(
+                emoji.emojize(":wastebasket: Cleanup unfinished", language="alias"),
+                callback_data="cleanup_timelapse_unfinished",
+            )
+        ]
+    )
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(
         configWrap.bot.chat_id,
@@ -570,6 +578,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         query.delete_message()
     elif query.data == "resume_printing":
         manage_printing("resume")
+        query.delete_message()
+    elif query.data == "cleanup_timelapse_unfinished":
+        context.bot.send_message(chat_id=configWrap.bot.chat_id, text="Removing unfinished timelapses data")
+        cameraWrap.cleanup_unfinished_lapses()
         query.delete_message()
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
