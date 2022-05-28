@@ -1,4 +1,6 @@
 import configparser
+import pathlib
+from pathlib import Path
 import re
 from typing import Any, Callable, List, Optional, Union
 
@@ -167,9 +169,17 @@ class BotConfig(ConfigHelper):
         self.light_device_name: str = self._getstring("light_device", default="")
         self.poweroff_device_name: str = self._getstring("power_device", default="")
         self.debug: bool = self._getboolean("debug", default=False)
-        self.log_path: str = self._getstring("log_path", default="/tmp")
+        self.log_file: str = self._getstring("log_path", default="/tmp")
 
         self.log_parser: bool = self._getboolean("log_parser", default=False)
+
+    def log_path_update(self, logfile: str) -> None:
+        if logfile:
+            self.log_file = logfile
+        if not pathlib.PurePath(self.log_file).suffix:
+            self.log_file += "/telegram.log"
+        if self.log_file != "/tmp" or pathlib.PurePath(self.log_file).parent != "/tmp":
+            Path(pathlib.PurePath(self.log_file).parent).mkdir(parents=True, exist_ok=True)
 
 
 class CameraConfig(ConfigHelper):

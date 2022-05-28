@@ -6,9 +6,10 @@ SYSTEMDDIR="/etc/systemd/system"
 MOONRAKER_BOT_SERVICE="moonraker-telegram-bot.service"
 MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
 MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
-MOONRAKER_BOT_LOG="${HOME}/klipper_logs"
+MOONRAKER_BOT_LOG="${HOME}/klipper_logs/telegram.log"
 MOONRAKER_BOT_CONF="${HOME}/klipper_config"
 KLIPPER_CONF_DIR="${HOME}/klipper_config"
+KLIPPER_LOGS_DIR="${HOME}/klipper_logs"
 CURRENT_USER=${USER}
 
 
@@ -45,6 +46,11 @@ init_config_path() {
   else
     KLIPPER_CONF_DIR=${klipper_cfg_loc}
   fi
+
+  if [ -z ${LPATH+x} ]; then
+    KLIPPER_LOGS_DIR=${LPATH}
+  fi
+
   report_status "Bot configuration file will be located in ${KLIPPER_CONF_DIR}"
 }
 
@@ -53,18 +59,9 @@ create_initial_config() {
     MOONRAKER_BOT_CONF=${KLIPPER_CONF_DIR}
     # check in config exists!
     if [[ ! -f "${MOONRAKER_BOT_CONF}"/telegram.conf ]]; then
-      report_status "Telegram bot log file location selection"
-      echo -e "\n"
-      echo "Enter the path for the log file location."
-      echo "Its recommended to store it together with the klipper log files for easier backup and usage."
-      read -p "Enter desired path: " -e -i "${MOONRAKER_BOT_LOG}" bot_log_path
-      MOONRAKER_BOT_LOG=${bot_log_path}
-      report_status "Bot logs will be located in ${MOONRAKER_BOT_LOG}"
-
       report_status "Creating base config file"
       cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${MOONRAKER_BOT_CONF}"/telegram.conf
 
-      sed -i "s+some_log_path+${MOONRAKER_BOT_LOG}+g" "${MOONRAKER_BOT_CONF}"/telegram.conf
     fi
 
     create_service
@@ -95,18 +92,17 @@ create_initial_config() {
         read -p "Enter bot instance name: " -e -i "printer_${i}" instance_name
         MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-${instance_name}.service"
         MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/${instance_name}"
-        MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-${instance_name}"
+        MOONRAKER_BOT_LOG="${KLIPPER_LOGS_DIR}/telegram-${instance_name}.log"
       else
         MOONRAKER_BOT_SERVICE="moonraker-telegram-bot-$i.service"
         MOONRAKER_BOT_CONF="${KLIPPER_CONF_DIR}/printer_$i"
-        MOONRAKER_BOT_LOG_loc="${MOONRAKER_BOT_LOG}/telegram-logs-$i"
+        MOONRAKER_BOT_LOG="${KLIPPER_LOGS_DIR}/telegram-$i.log"
       fi
 
       report_status "Creating base config file"
       mkdir -p "${MOONRAKER_BOT_CONF}"
       cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${MOONRAKER_BOT_CONF}"/telegram.conf
-      mkdir -p "${MOONRAKER_BOT_LOG_loc}"
-      sed -i "s+some_log_path+${MOONRAKER_BOT_LOG_loc}+g" "${MOONRAKER_BOT_CONF}"/telegram.conf
+      mkdir -p "${KLIPPER_LOGS_DIR}"
       create_service
       ### raise values by 1
       i=$((i+1))
@@ -183,7 +179,7 @@ WantedBy=multi-user.target
 [Service]
 Type=simple
 User=${CURRENT_USER}
-ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/bot/main.py -c ${MOONRAKER_BOT_CONF}/telegram.conf
+ExecStart=${MOONRAKER_BOT_ENV}/bin/python ${MOONRAKER_BOT_DIR}/bot/main.py -c ${MOONRAKER_BOT_CONF}/telegram.conf -l ${MOONRAKER_BOT_LOG}
 Restart=always
 RestartSec=5
 EOF
