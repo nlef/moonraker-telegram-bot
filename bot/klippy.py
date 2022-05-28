@@ -31,8 +31,8 @@ class Klippy:
         logging_handler: logging.Handler = None,
     ):
         self._host: str = config.bot.host
-        self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
-        self.show_hidden_macros: bool = config.telegram_ui.show_hidden_macros
+        self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
+        self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
         self._light_device: PowerDevice = light_device
@@ -217,7 +217,7 @@ class Klippy:
         return loaded_macros
 
     def _get_marco_list(self) -> List[str]:
-        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))]
+        return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
 
     def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:

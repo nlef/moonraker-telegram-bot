@@ -13,7 +13,7 @@ import re
 import signal
 import sys
 import time
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
@@ -881,30 +881,34 @@ def create_keyboard():
     return keyboard
 
 
+def bot_commands() -> Dict[str, str]:
+    commands = {
+        "help": "list bot commands",
+        "status": "send klipper status",
+        "pause": "pause printing",
+        "resume": "resume printing",
+        "cancel": "cancel printing",
+        "files": "list gcode files. you can start printing one from menu",
+        "logs": "get klipper, moonraker, bot logs",
+        "macros": "list all visible macros from klipper",
+        "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
+        "video": "will take mp4 video from camera",
+        "power": "toggle moonraker power device from config",
+        "light": "toggle light",
+        "emergency": "emergency stop printing",
+        "bot_restart": "restarts the bot service, useful for config updates",
+        "shutdown": "shutdown Pi gracefully",
+    }
+    return {c: a for c, a in commands.items() if c not in configWrap.telegram_ui.hidden_bot_commands}
+
+
 def help_command(update: Update, _: CallbackContext) -> None:
     if update.effective_message is None:
         logger.warning("Undefined effective message")
         return
     mess = (
-        escape_markdown(
-            "The following commands are known:\n\n"
-            "/status - send klipper status\n"
-            "/pause - pause printing\n"
-            "/resume - resume printing\n"
-            "/cancel - cancel printing\n"
-            "/files - list last 5 files(you can start printing one from menu)\n"
-            "/logs - get klipper, moonraker, bot logs\n"
-            "/macros - list all visible macros from klipper\n"
-            "/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n"
-            "/video - will take mp4 video from camera\n"
-            "/power - toggle moonraker power device from config\n"
-            "/light - toggle light\n"
-            "/emergency - emergency stop printing\n"
-            "/bot_restart - restarts the bot service, useful for config updates\n"
-            "/shutdown - shutdown Pi gracefully",
-            version=2,
-        )
-        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional inforamtion"
+        escape_markdown("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]), version=2)
+        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional information"
     )
     update.effective_message.reply_text(
         text=mess,
@@ -913,7 +917,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
     )
 
 
-def greeting_message():
+def greeting_message() -> None:
     if configWrap.bot.chat_id == 0:
         return
     response = klippy.check_connection()
@@ -927,23 +931,7 @@ def greeting_message():
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )
-    commands = [
-        ("help", "list bot commands"),
-        ("status", "send klipper status"),
-        ("pause", "pause printing"),
-        ("resume", "resume printing"),
-        ("cancel", "cancel printing"),
-        ("files", "list last 5 files. you can start printing one from menu"),
-        ("logs", "get klipper, moonraker, bot logs"),
-        ("macros", "list all visible macros from klipper"),
-        ("gcode", 'run any gcode command, spaces are supported. "gcode G28 Z"'),
-        ("video", "will take mp4 video from camera"),
-        ("power", "toggle moonraker power device from config"),
-        ("light", "toggle light"),
-        ("emergency", "emergency stop printing"),
-        ("bot_restart", "restarts the bot service, useful for config updates"),
-        ("shutdown", "shutdown Pi gracefully"),
-    ]
+    commands = list(bot_commands().items())
     if configWrap.telegram_ui.include_macros_in_command_list:
         commands += list(map(lambda el: (el.lower(), el), filter(lambda e: len(e) < 32, klippy.macros)))
         if len(commands) >= 100:
