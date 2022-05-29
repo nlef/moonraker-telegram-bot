@@ -199,9 +199,9 @@ class Klippy:
             else:
                 self._thumbnail_path = thumb["relative_path"]
         else:
-            if not "filename" in resp:
+            if "filename" not in resp:
                 logger.error('"filename" field is not present in response: %s', resp.json())
-            if not "thumbnails" in resp:
+            if "thumbnails" not in resp:
                 logger.error('"thumbnails" field is not present in response: %s', resp.json())
 
     @property
