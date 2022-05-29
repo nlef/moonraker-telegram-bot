@@ -36,6 +36,6 @@ repos:
 #        name: pytest
 #        language: system
 #        types: [python]
-#        entry: pytest
+#        entry: pytest -v
 #        pass_filenames: false
 #        always_run: true
