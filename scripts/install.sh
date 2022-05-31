@@ -47,7 +47,7 @@ init_config_path() {
     KLIPPER_CONF_DIR=${klipper_cfg_loc}
   fi
 
-  if [ -z ${LPATH+x} ]; then
+  if ! [ -z ${LPATH+x} ]; then
     KLIPPER_LOGS_DIR=${LPATH}
   fi
 
