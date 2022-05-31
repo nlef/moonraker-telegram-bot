@@ -10,4 +10,4 @@ pylint==2.13.9
 pytest==7.1.2
 types-emoji==1.7.0
 types-requests==2.27.29
-types-ujson==4.2.1
+types-ujson==5.2.0

@@ -47,7 +47,7 @@ init_config_path() {
     KLIPPER_CONF_DIR=${klipper_cfg_loc}
   fi
 
-  if [ -z ${LPATH+x} ]; then
+  if ! [ -z ${LPATH+x} ]; then
     KLIPPER_LOGS_DIR=${LPATH}
   fi
 
@@ -214,10 +214,14 @@ setup_dialog(){
       MOONRAKER_COUNT=1
     elif [ -n "$SERVICE_FILES" ]; then
       MOONRAKER_COUNT=$(echo "$SERVICE_FILES" | wc -l)
+    else
+      MOONRAKER_COUNT=0
     fi
 
     echo -e "/=======================================================\\"
-    if [[ $MOONRAKER_COUNT -eq 1 ]]; then
+    if [[ $MOONRAKER_COUNT -eq 0 ]]; then
+      printf "|${yellow}%-55s${default}|\n" " No Mooonraker instance was found!"
+    elif [[ $MOONRAKER_COUNT -eq 1 ]]; then
       printf "|${green}%-55s${default}|\n" " 1 Mooonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -gt 1 ]]; then
       printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} Mooonraker instances were found!"
