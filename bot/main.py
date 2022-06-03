@@ -19,7 +19,20 @@ from zipfile import ZipFile
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
-from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message, MessageEntity, ReplyKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    ChatAction,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaAudio,
+    InputMediaDocument,
+    InputMediaPhoto,
+    InputMediaVideo,
+    Message,
+    MessageEntity,
+    ReplyKeyboardMarkup,
+    Update,
+)
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
@@ -929,6 +942,23 @@ def help_command(update: Update, _: CallbackContext) -> None:
     )
 
 
+def prepare_commands_list(macros: List[str], add_macros: bool):
+    def prepare_command(marco: str):
+        try:
+            return BotCommand(marco.lower(), marco)
+        except Exception as ex:
+            logger.error("Bad macro name '%s'\n%s", marco, ex)
+            return None
+
+    commands = list(bot_commands().items())
+    if add_macros:
+        commands += list(filter(lambda el: el, map(prepare_command, macros)))
+        if len(commands) >= 100:
+            logger.warning("Commands list too large!")
+            commands = commands[0:99]
+    return commands
+
+
 def greeting_message() -> None:
     if configWrap.bot.chat_id == 0:
         return
@@ -943,13 +973,7 @@ def greeting_message() -> None:
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )
-    commands = list(bot_commands().items())
-    if configWrap.telegram_ui.include_macros_in_command_list:
-        commands += list(map(lambda el: (el.lower(), el), filter(lambda e: len(e) < 32, klippy.macros)))
-        if len(commands) >= 100:
-            logger.warning("Commands list too large!")
-            commands = commands[0:99]
-    bot_updater.bot.set_my_commands(commands=commands)
+    bot_updater.bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
     check_unfinished_lapses()
 
 

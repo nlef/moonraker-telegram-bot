@@ -6,8 +6,8 @@ mypy==0.960
 numpy~=1.20.1
 opencv-python~=3.4.8.29
 pre-commit==2.19.0
-pylint==2.13.9
+pylint==2.14.0
 pytest==7.1.2
 types-emoji==1.7.0
-types-requests==2.27.29
+types-requests==2.27.30
 types-ujson==5.2.0
