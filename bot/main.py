@@ -974,6 +974,7 @@ def greeting_message() -> None:
         disable_notification=notifier.silent_status,
     )
     bot_updater.bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
+    klippy.add_bot_announcements_feed()
     check_unfinished_lapses()
 
 

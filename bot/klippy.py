@@ -494,6 +494,11 @@ class Klippy:
     def stop_all(self) -> None:
         self._reset_file_info()
 
+    def add_bot_announcements_feed(self):
+        res = self._make_request(f"http://{self._host}/server/announcements/feed?name=moonraker-telegram-bot", "POST")
+        if not res.ok:
+            logger.warning("Failed adding announcements bot feed.\n\n%s", res.reason)
+
     # moonraker databse section
     def get_param_from_db(self, param_name: str):
         res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "GET")
