@@ -721,7 +721,7 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or text")
         return
 
-    if not update.effective_message.text == "/gcode":
+    if update.effective_message.text != "/gcode":
         command = update.effective_message.text.replace("/gcode ", "")
         klippy.execute_command(command)
     else:

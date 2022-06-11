@@ -233,17 +233,24 @@ class Camera:
         self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         for prop_name, value in self._cv2_params:
-            if value.isnumeric():
-                val = int(value)
-            elif self._isfloat(value):
-                val = float(value)
+            if prop_name.upper() == "CAP_PROP_FOURCC":
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))
+                except AttributeError as err:
+                    logger.error(err, err)
             else:
-                val = value
-            try:
-                prop = getattr(cv2, prop_name.upper())
-                self.cam_cam.set(prop, val)
-            except AttributeError as err:
-                logger.error(err, err)
+                if value.isnumeric():
+                    val = int(value)
+                elif self._isfloat(value):
+                    val = float(value)
+                else:
+                    val = value
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, val)
+                except AttributeError as err:
+                    logger.error(err, err)
 
     @cam_light_toggle
     def take_photo(self) -> BytesIO:

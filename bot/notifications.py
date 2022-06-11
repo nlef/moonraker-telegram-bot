@@ -124,7 +124,7 @@ class Notifier:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_message and not manual:
-                if not self._bzz_mess_id == 0:
+                if self._bzz_mess_id != 0:
                     self._bot.delete_message(self._chat_id, self._bzz_mess_id)
 
                 if self._status_message.caption:
@@ -172,7 +172,7 @@ class Notifier:
                 if not group_only:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_message and not manual:
-                        if not self._bzz_mess_id == 0:
+                        if self._bzz_mess_id != 0:
                             self._bot.delete_message(self._chat_id, self._bzz_mess_id)
 
                         # Fixme: check if media in message!
