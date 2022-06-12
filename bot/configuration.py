@@ -153,7 +153,6 @@ class BotConfig(ConfigHelper):
         "chat_id",
         "debug",
         "log_parser",
-        "log_path",
         "power_device",
         "light_device",
         "user",
@@ -339,6 +338,7 @@ class TelegramUIConfig(ConfigHelper):
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.progress_update_message: bool = self._getboolean("progress_update_message", default=True)
         self.silent_progress: bool = self._getboolean("silent_progress", default=False)
         self.silent_commands: bool = self._getboolean("silent_commands", default=False)
         self.silent_status: bool = self._getboolean("silent_status", default=False)

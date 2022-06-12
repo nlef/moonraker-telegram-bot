@@ -37,6 +37,7 @@ class Notifier:
         self._notify_groups: List[int] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
 
+        self._progress_update_message = config.telegram_ui.progress_update_message  # Todo: implement
         self._silent_progress: bool = config.telegram_ui.silent_progress
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
@@ -132,8 +133,8 @@ class Notifier:
                 else:
                     self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
 
-                if not silent:
-                    mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted")
+                if self._progress_update_message:
+                    mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
                     self._bzz_mess_id = mes.message_id
             else:
                 sent_message = self._bot.send_message(
@@ -179,8 +180,8 @@ class Notifier:
                         self._status_message.edit_media(media=InputMediaPhoto(photo))
                         self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
 
-                        if not silent:
-                            mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted")
+                        if self._progress_update_message:
+                            mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
                             self._bzz_mess_id = mes.message_id
 
                     else:
@@ -296,7 +297,7 @@ class Notifier:
         bzz_mess_id = self._bzz_mess_id
         self._bzz_mess_id = 0
         self._groups_status_mesages = {}
-        if not bzz_mess_id == 0:
+        if bzz_mess_id != 0:
             self._bot.delete_message(self._chat_id, bzz_mess_id)
 
     def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:

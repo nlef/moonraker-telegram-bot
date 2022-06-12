@@ -96,17 +96,20 @@ class Klippy:
         for sens in self._sensors_list:
             sens_dict[f"temperature_sensor {sens}"] = None
 
-        for sens in self._heater_fans_list:
-            sens_dict[f"heater_fan {sens}"] = None
+        for h_fan in self._heater_fans_list:
+            if h_fan in ["fan"]:
+                sens_dict[h_fan] = None
+            else:
+                sens_dict[f"heater_fan {h_fan}"] = None
 
-        for sens in self._controller_fans:
-            sens_dict[f"controller_fan {sens}"] = None
+        for c_fan in self._controller_fans:
+            sens_dict[f"controller_fan {c_fan}"] = None
 
-        for sens in self._temp_fans_list:
-            sens_dict[f"temperature_fan {sens}"] = None
+        for t_fan in self._temp_fans_list:
+            sens_dict[f"temperature_fan {t_fan}"] = None
 
-        for sens in self._generic_fans:
-            sens_dict[f"fan_generic {sens}"] = None
+        for g_fan in self._generic_fans:
+            sens_dict[f"fan_generic {g_fan}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -362,7 +365,6 @@ class Klippy:
 
     def _populate_with_thumb(self, thumb_path: str, message: str) -> Tuple[str, BytesIO]:
         if not thumb_path:
-            # Todo: resize?
             img = Image.open("../imgs/nopreview.png").convert("RGB")
             logger.warning("Empty thumbnail_path")
         else:
@@ -372,7 +374,6 @@ class Klippy:
                 img = Image.open(response.raw).convert("RGB")
             else:
                 logger.error("Thumbnail download failed for %s \n\n%s", thumb_path, response.reason)
-                # Todo: resize?
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
         bio = BytesIO()

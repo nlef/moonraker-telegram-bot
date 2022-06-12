@@ -1181,7 +1181,7 @@ def parse_sensors(message_parts_loc):
     for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
         klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
-    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan")]:
+    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan") or key.startswith("fan")]:
         if message_parts_loc[heater_fan]:
             klippy.update_sensror(heater_fan.replace("heater_fan ", ""), message_parts_loc[heater_fan])
 
