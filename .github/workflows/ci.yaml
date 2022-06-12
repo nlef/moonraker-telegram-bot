@@ -29,3 +29,6 @@ jobs:
       - name: Run pre-commit on all files
         run: |
           pre-commit run --all-files --show-diff-on-failure --color=always
+      - name: Test with pytest
+        run: |
+          pytest -v

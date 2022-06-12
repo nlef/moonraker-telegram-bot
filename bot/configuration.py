@@ -49,6 +49,8 @@ class ConfigHelper:
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ) -> None:
+        if not self._config.has_option(self._SECTION, option):
+            return
         if above is not None and value <= above:
             self._parsing_errors.append(f"Option '{option}: {value}': value is not above {above}")
         if below is not None and value >= below:
@@ -59,10 +61,14 @@ class ConfigHelper:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
     def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
+        if not self._config.has_option(self._SECTION, option):
+            return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
     def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
+        if not self._config.has_option(self._SECTION, option):
+            return
         unallowed_params = []
         if allowed_values is not None:
             for val in values:
@@ -147,12 +153,12 @@ class BotConfig(ConfigHelper):
         "chat_id",
         "debug",
         "log_parser",
-        "log_path",
         "power_device",
         "light_device",
         "user",
         "password",
         "api_token",
+        "upload_path",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -170,8 +176,18 @@ class BotConfig(ConfigHelper):
         self.poweroff_device_name: str = self._getstring("power_device", default="")
         self.debug: bool = self._getboolean("debug", default=False)
         self.log_file: str = self._getstring("log_path", default="/tmp")
+        self.upload_path: str = self._getstring("upload_path", default="")
 
         self.log_parser: bool = self._getboolean("log_parser", default=False)
+
+    @property
+    def formated_upload_path(self):
+        if not self.upload_path:
+            return ""
+        if not self.upload_path.endswith("/"):
+            return self.upload_path + "/"
+        else:
+            return self.upload_path
 
     def log_path_update(self, logfile: str) -> None:
         if logfile:
@@ -280,8 +296,9 @@ class TelegramUIConfig(ConfigHelper):
         "buttons",
         "require_confirmation_macro",
         "include_macros_in_command_list",
-        "disabled_macros",
-        "show_hidden_macros",
+        "hidden_macros",
+        "hidden_bot_commands",
+        "show_private_macros",
         "eta_source",
         "status_message_sensors",
         "status_message_heaters",
@@ -321,12 +338,14 @@ class TelegramUIConfig(ConfigHelper):
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.progress_update_message: bool = self._getboolean("progress_update_message", default=True)
         self.silent_progress: bool = self._getboolean("silent_progress", default=False)
         self.silent_commands: bool = self._getboolean("silent_commands", default=False)
         self.silent_status: bool = self._getboolean("silent_status", default=False)
         self.include_macros_in_command_list: bool = self._getboolean("include_macros_in_command_list", default=True)
-        self.disabled_macros: List[str] = self._getlist("disabled_macros", default=[])
-        self.show_hidden_macros: bool = self._getboolean("show_hidden_macros", default=False)
+        self.hidden_macros: List[str] = list(map(lambda el: el.upper(), self._getlist("hidden_macros", default=[])))
+        self.hidden_bot_commands: List[str] = self._getlist("hidden_bot_commands", default=[])
+        self.show_private_macros: bool = self._getboolean("show_private_macros", default=False)
         self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
         self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
         self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)

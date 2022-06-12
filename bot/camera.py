@@ -233,17 +233,24 @@ class Camera:
         self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         for prop_name, value in self._cv2_params:
-            if value.isnumeric():
-                val = int(value)
-            elif self._isfloat(value):
-                val = float(value)
+            if prop_name.upper() == "CAP_PROP_FOURCC":
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))
+                except AttributeError as err:
+                    logger.error(err, err)
             else:
-                val = value
-            try:
-                prop = getattr(cv2, prop_name.upper())
-                self.cam_cam.set(prop, val)
-            except AttributeError as err:
-                logger.error(err, err)
+                if value.isnumeric():
+                    val = int(value)
+                elif self._isfloat(value):
+                    val = float(value)
+                else:
+                    val = value
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, val)
+                except AttributeError as err:
+                    logger.error(err, err)
 
     @cam_light_toggle
     def take_photo(self) -> BytesIO:
@@ -514,9 +521,9 @@ class Camera:
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
-    def cleanup(self, lapse_filename: str) -> None:
+    def cleanup(self, lapse_filename: str, force: bool = False) -> None:
         lapse_dir = f"{self._base_dir}/{lapse_filename}"
-        if self._cleanup:
+        if self._cleanup or force:
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
                 os.remove(filename)
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
@@ -528,6 +535,7 @@ class Camera:
             for filename in glob.glob(f"{glob.escape(self.lapse_dir)}/*"):
                 os.remove(filename)
 
+    # Todo: check if lapse was in subfolder ( alike gcode folders)
     # Todo: refactor into timelapse class
     # Todo: check for 64 symbols length in lapse names
     def detect_unfinished_lapses(self) -> List[str]:
@@ -538,3 +546,7 @@ class Camera:
                 glob.glob(f"{self._base_dir}/*/*.lock"),
             )
         )
+
+    def cleanup_unfinished_lapses(self):
+        for lapse_name in self.detect_unfinished_lapses():
+            self.cleanup(lapse_name, force=True)

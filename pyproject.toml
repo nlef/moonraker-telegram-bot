@@ -29,6 +29,7 @@ good-names = [
     "ex",
     "fh",
 ]
+ignore-paths='tests'
 
 [tool.black]
 line-length = 200

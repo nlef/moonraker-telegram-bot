@@ -32,3 +32,10 @@ repos:
         entry: pylint
         language: system
         types: [python]
+#      - id: pytest
+#        name: pytest
+#        language: system
+#        types: [python]
+#        entry: pytest -v
+#        pass_filenames: false
+#        always_run: true

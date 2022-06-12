@@ -31,8 +31,8 @@ class Klippy:
         logging_handler: logging.Handler = None,
     ):
         self._host: str = config.bot.host
-        self._disabled_macros: List[str] = config.telegram_ui.disabled_macros + [self._DATA_MACRO]
-        self.show_hidden_macros: bool = config.telegram_ui.show_hidden_macros
+        self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
+        self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.telegram_ui.status_message_content
         self._eta_source: str = config.telegram_ui.eta_source
         self._light_device: PowerDevice = light_device
@@ -74,7 +74,8 @@ class Klippy:
         self._refresh_token: str = ""
 
         # Todo: create sensors class!!
-        self.sensors_dict: dict = {}
+        self._sensors_dict: dict = {}
+        self._power_devices: dict = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -84,7 +85,7 @@ class Klippy:
         self._auth_moonraker()
 
     def prepare_sens_dict_subscribe(self):
-        self.sensors_dict = {}
+        self._sensors_dict = {}
         sens_dict = {}
         for heat in self._heaters_list:
             if heat in ["extruder", "heater_bed"]:
@@ -95,17 +96,20 @@ class Klippy:
         for sens in self._sensors_list:
             sens_dict[f"temperature_sensor {sens}"] = None
 
-        for sens in self._heater_fans_list:
-            sens_dict[f"heater_fan {sens}"] = None
+        for h_fan in self._heater_fans_list:
+            if h_fan in ["fan"]:
+                sens_dict[h_fan] = None
+            else:
+                sens_dict[f"heater_fan {h_fan}"] = None
 
-        for sens in self._controller_fans:
-            sens_dict[f"controller_fan {sens}"] = None
+        for c_fan in self._controller_fans:
+            sens_dict[f"controller_fan {c_fan}"] = None
 
-        for sens in self._temp_fans_list:
-            sens_dict[f"temperature_fan {sens}"] = None
+        for t_fan in self._temp_fans_list:
+            sens_dict[f"temperature_fan {t_fan}"] = None
 
-        for sens in self._generic_fans:
-            sens_dict[f"fan_generic {sens}"] = None
+        for g_fan in self._generic_fans:
+            sens_dict[f"fan_generic {g_fan}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -185,7 +189,7 @@ class Klippy:
         # Todo: add response status check!
         resp = response.json()["result"]
         self._printing_filename = new_value
-        self.file_estimated_time = resp["estimated_time"]
+        self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
         self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
         self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
         self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
@@ -194,8 +198,14 @@ class Klippy:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
             file_dir = resp["filename"].rpartition("/")[0]
             if file_dir:
-                self._thumbnail_path = file_dir + "/"
-            self._thumbnail_path += thumb["relative_path"]
+                self._thumbnail_path = f'{file_dir}/{thumb["relative_path"]}'
+            else:
+                self._thumbnail_path = thumb["relative_path"]
+        else:
+            if "filename" not in resp:
+                logger.error('"filename" field is not present in response: %s', resp.json())
+            if "thumbnails" not in resp:
+                logger.error('"thumbnails" field is not present in response: %s', resp.json())
 
     @property
     def printing_filename_with_time(self) -> str:
@@ -206,11 +216,11 @@ class Klippy:
         if not resp.ok:
             return []
         macro_lines = list(filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"]))
-        loaded_macros = list(map(lambda el: el.split(" ")[1], macro_lines))
+        loaded_macros = list(map(lambda el: el.split(" ")[1].upper(), macro_lines))
         return loaded_macros
 
     def _get_marco_list(self) -> List[str]:
-        return [key for key in self._get_full_marco_list() if key not in self._disabled_macros and (True if self.show_hidden_macros else not key.startswith("_"))]
+        return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
 
     def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
@@ -253,22 +263,22 @@ class Klippy:
             return "Connection failed."
 
     def update_sensror(self, name: str, value) -> None:
-        if name in self.sensors_dict:
+        if name in self._sensors_dict:
             if "temperature" in value:
-                self.sensors_dict[name]["temperature"] = value["temperature"]
+                self._sensors_dict[name]["temperature"] = value["temperature"]
             if "target" in value:
-                self.sensors_dict[name]["target"] = value["target"]
+                self._sensors_dict[name]["target"] = value["target"]
             if "power" in value:
-                self.sensors_dict[name]["power"] = value["power"]
+                self._sensors_dict[name]["power"] = value["power"]
             if "speed" in value:
-                self.sensors_dict[name]["speed"] = value["speed"]
+                self._sensors_dict[name]["speed"] = value["speed"]
             if "rpm" in value:
-                self.sensors_dict[name]["rpm"] = value["rpm"]
+                self._sensors_dict[name]["rpm"] = value["rpm"]
         elif value:
-            self.sensors_dict[name] = value
+            self._sensors_dict[name] = value
 
     @staticmethod
-    def sensor_message(name: str, value) -> str:
+    def _sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         message = ""
         if "power" in value:
@@ -284,7 +294,7 @@ class Klippy:
             if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
                 message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
             if "speed" in value:
-                message += f" {round(value['speed']*100)}%"
+                message += f" {round(value['speed'] * 100)}%"
             if "rpm" in value and value["rpm"] is not None:
                 message += f" {round(value['rpm'])} RPM"
         elif "temperature" in value:
@@ -293,18 +303,48 @@ class Klippy:
             message += "\n"
         return message
 
+    def update_power_device(self, name: str, value) -> None:
+        if name in self._power_devices:
+            if "device" in value:
+                self._power_devices[name]["device"] = value["device"]
+            if "status" in value:
+                self._power_devices[name]["status"] = value["status"]
+            if "locked_while_printing" in value:
+                self._power_devices[name]["locked_while_printing"] = value["locked_while_printing"]
+            if "type" in value:
+                self._power_devices[name]["type"] = value["type"]
+            if "is_shutdown" in value:
+                self._power_devices[name]["is_shutdown"] = value["is_shutdown"]
+        else:
+            self._power_devices[name] = value
+
+    @staticmethod
+    def _device_message(name: str, value, emoji_symbol: str = ":vertical_traffic_light:") -> str:
+        message = emoji.emojize(f" {emoji_symbol} ", language="alias") + f"{name}: "
+        if "status" in value:
+            message += f" {value['status']} "
+        if "locked_while_printing" in value and value["locked_while_printing"] == "True":
+            message += emoji.emojize(" :lock: ", language="alias")
+        if message:
+            message += "\n"
+        return message
+
     def _get_sensors_message(self) -> str:
         message = ""
-        for name, value in self.sensors_dict.items():
-            message += self.sensor_message(name, value)
+        for name, value in self._sensors_dict.items():
+            message += self._sensor_message(name, value)
         return message
 
     def _get_power_devices_mess(self) -> str:
         message = ""
-        if self._light_device and self._light_device.name in self._devices_list:
-            message += emoji.emojize(" :flashlight: Light: ", language="alias") + f"{'on' if self._light_device.device_state else 'off'}\n"
-        if self._psu_device and self._psu_device.name in self._devices_list:
-            message += emoji.emojize(" :electric_plug: PSU: ", language="alias") + f"{'on' if self._psu_device.device_state else 'off'}\n"
+        for name, value in self._power_devices.items():
+            if name in self._devices_list:
+                if name == self._light_device.name:
+                    message += self._device_message(name, value, ":flashlight:")
+                elif name == self._psu_device.name:
+                    message += self._device_message(name, value, ":electric_plug:")
+                else:
+                    message += self._device_message(name, value)
         return message
 
     def execute_command(self, *command) -> None:
@@ -325,8 +365,8 @@ class Klippy:
 
     def _populate_with_thumb(self, thumb_path: str, message: str) -> Tuple[str, BytesIO]:
         if not thumb_path:
-            # Todo: resize?
             img = Image.open("../imgs/nopreview.png").convert("RGB")
+            logger.warning("Empty thumbnail_path")
         else:
             response = self._make_request(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", "GET", stream=True)
             if response.ok:
@@ -334,7 +374,6 @@ class Klippy:
                 img = Image.open(response.raw).convert("RGB")
             else:
                 logger.error("Thumbnail download failed for %s \n\n%s", thumb_path, response.reason)
-                # Todo: resize?
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
         bio = BytesIO()
@@ -372,10 +411,7 @@ class Klippy:
         return message
 
     def get_print_stats(self, message_pre: str = "") -> str:
-        message = self._get_printing_file_info(message_pre) + self._get_sensors_message()
-        if "power_devices" in self._message_parts:
-            message += self._get_power_devices_mess()
-        return message
+        return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     def get_status(self) -> str:
         response = self._make_request(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", "GET")
@@ -442,16 +478,14 @@ class Klippy:
 
         return self._populate_with_thumb(thumb_path, message)
 
-    # TOdo: add scrolling
     def get_gcode_files(self):
         response = self._make_request(f"http://{self._host}/server/files/list?root=gcodes", "GET")
         resp = response.json()
-        # files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)[:10]
         files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
-    def upload_file(self, file: BytesIO) -> bool:
-        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file})
+    def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
+        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file, "root": "gcodes", "path": upload_path})
         return response.ok
 
     def start_printing_file(self, filename: str) -> bool:
@@ -460,6 +494,11 @@ class Klippy:
 
     def stop_all(self) -> None:
         self._reset_file_info()
+
+    def add_bot_announcements_feed(self):
+        res = self._make_request(f"http://{self._host}/server/announcements/feed?name=moonraker-telegram-bot", "POST")
+        if not res.ok:
+            logger.warning("Failed adding announcements bot feed.\n\n%s", res.reason)
 
     # moonraker databse section
     def get_param_from_db(self, param_name: str):

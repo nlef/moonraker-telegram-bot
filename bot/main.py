@@ -13,13 +13,26 @@ import re
 import signal
 import sys
 import time
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
-from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message, MessageEntity, ReplyKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    ChatAction,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaAudio,
+    InputMediaDocument,
+    InputMediaPhoto,
+    InputMediaVideo,
+    Message,
+    MessageEntity,
+    ReplyKeyboardMarkup,
+    Update,
+)
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
@@ -183,6 +196,14 @@ def check_unfinished_lapses():
             InlineKeyboardButton(
                 emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
+            )
+        ]
+    )
+    files_keys.append(
+        [
+            InlineKeyboardButton(
+                emoji.emojize(":wastebasket: Cleanup unfinished", language="alias"),
+                callback_data="cleanup_timelapse_unfinished",
             )
         ]
     )
@@ -571,6 +592,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == "resume_printing":
         manage_printing("resume")
         query.delete_message()
+    elif query.data == "cleanup_timelapse_unfinished":
+        context.bot.send_message(chat_id=configWrap.bot.chat_id, text="Removing unfinished timelapses data")
+        cameraWrap.cleanup_unfinished_lapses()
+        query.delete_message()
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
     elif query.data == "shutdown_host":
@@ -696,7 +721,7 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or text")
         return
 
-    if not update.effective_message.text == "/gcode":
+    if update.effective_message.text != "/gcode":
         command = update.effective_message.text.replace("/gcode ", "")
         klippy.execute_command(command)
     else:
@@ -820,9 +845,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                     )
                     return
 
-    if klippy.upload_file(sending_bio):
+    if klippy.upload_gcode_file(sending_bio, configWrap.bot.upload_path):
         start_pre_mess = "Successfully uploaded file:"
-        mess, thumb = klippy.get_file_info_by_name(sending_bio.name, f"{start_pre_mess}{sending_bio.name}")
+        mess, thumb = klippy.get_file_info_by_name(f"{configWrap.bot.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot.formated_upload_path}{sending_bio.name}")
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
         keyboard = [
             [
@@ -843,7 +868,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             reply_markup=reply_markup,
             disable_notification=notifier.silent_commands,
             quote=True,
-            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(sending_bio.name))],
+            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot.formated_upload_path}{sending_bio.name}"))],
         )
         thumb.close()
         # Todo: delete uploaded file
@@ -881,30 +906,34 @@ def create_keyboard():
     return keyboard
 
 
+def bot_commands() -> Dict[str, str]:
+    commands = {
+        "help": "list bot commands",
+        "status": "send klipper status",
+        "pause": "pause printing",
+        "resume": "resume printing",
+        "cancel": "cancel printing",
+        "files": "list gcode files. you can start printing one from menu",
+        "logs": "get klipper, moonraker, bot logs",
+        "macros": "list all visible macros from klipper",
+        "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
+        "video": "will take mp4 video from camera",
+        "power": "toggle moonraker power device from config",
+        "light": "toggle light",
+        "emergency": "emergency stop printing",
+        "bot_restart": "restarts the bot service, useful for config updates",
+        "shutdown": "shutdown Pi gracefully",
+    }
+    return {c: a for c, a in commands.items() if c not in configWrap.telegram_ui.hidden_bot_commands}
+
+
 def help_command(update: Update, _: CallbackContext) -> None:
     if update.effective_message is None:
         logger.warning("Undefined effective message")
         return
     mess = (
-        escape_markdown(
-            "The following commands are known:\n\n"
-            "/status - send klipper status\n"
-            "/pause - pause printing\n"
-            "/resume - resume printing\n"
-            "/cancel - cancel printing\n"
-            "/files - list last 5 files(you can start printing one from menu)\n"
-            "/logs - get klipper, moonraker, bot logs\n"
-            "/macros - list all visible macros from klipper\n"
-            "/gcode - run any gcode command, spaces are supported (/gcode G28 Z)\n"
-            "/video - will take mp4 video from camera\n"
-            "/power - toggle moonraker power device from config\n"
-            "/light - toggle light\n"
-            "/emergency - emergency stop printing\n"
-            "/bot_restart - restarts the bot service, useful for config updates\n"
-            "/shutdown - shutdown Pi gracefully",
-            version=2,
-        )
-        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional inforamtion"
+        escape_markdown("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]), version=2)
+        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional information"
     )
     update.effective_message.reply_text(
         text=mess,
@@ -913,11 +942,28 @@ def help_command(update: Update, _: CallbackContext) -> None:
     )
 
 
-def greeting_message():
+def prepare_commands_list(macros: List[str], add_macros: bool):
+    def prepare_command(marco: str):
+        try:
+            return BotCommand(marco.lower(), marco)
+        except Exception as ex:
+            logger.error("Bad macro name '%s'\n%s", marco, ex)
+            return None
+
+    commands = list(bot_commands().items())
+    if add_macros:
+        commands += list(filter(lambda el: el, map(prepare_command, macros)))
+        if len(commands) >= 100:
+            logger.warning("Commands list too large!")
+            commands = commands[0:99]
+    return commands
+
+
+def greeting_message() -> None:
     if configWrap.bot.chat_id == 0:
         return
     response = klippy.check_connection()
-    mess = f"Bot online, no moonraker connection!\n {response} \nFailing..." if response else "Printer online" + configWrap.configuration_errors
+    mess = escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2) if response else "Printer online" + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
@@ -927,29 +973,8 @@ def greeting_message():
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )
-    commands = [
-        ("help", "list bot commands"),
-        ("status", "send klipper status"),
-        ("pause", "pause printing"),
-        ("resume", "resume printing"),
-        ("cancel", "cancel printing"),
-        ("files", "list last 5 files. you can start printing one from menu"),
-        ("logs", "get klipper, moonraker, bot logs"),
-        ("macros", "list all visible macros from klipper"),
-        ("gcode", 'run any gcode command, spaces are supported. "gcode G28 Z"'),
-        ("video", "will take mp4 video from camera"),
-        ("power", "toggle moonraker power device from config"),
-        ("light", "toggle light"),
-        ("emergency", "emergency stop printing"),
-        ("bot_restart", "restarts the bot service, useful for config updates"),
-        ("shutdown", "shutdown Pi gracefully"),
-    ]
-    if configWrap.telegram_ui.include_macros_in_command_list:
-        commands += list(map(lambda el: (el.lower(), el), filter(lambda e: len(e) < 32, klippy.macros)))
-        if len(commands) >= 100:
-            logger.warning("Commands list too large!")
-            commands = commands[0:99]
-    bot_updater.bot.set_my_commands(commands=commands)
+    bot_updater.bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
+    klippy.add_bot_announcements_feed()
     check_unfinished_lapses()
 
 
@@ -1156,7 +1181,7 @@ def parse_sensors(message_parts_loc):
     for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
         klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
-    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan")]:
+    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan") or key.startswith("fan")]:
         if message_parts_loc[heater_fan]:
             klippy.update_sensror(heater_fan.replace("heater_fan ", ""), message_parts_loc[heater_fan])
 
@@ -1242,6 +1267,7 @@ def parse_print_stats(message_params):
 def power_device_state(device):
     device_name = device["device"]
     device_state = bool(device["status"] == "on")
+    klippy.update_power_device(device_name, device)
     if psu_power_device and psu_power_device.name == device_name:
         psu_power_device.device_state = device_state
     if light_power_device and light_power_device.name == device_name:
@@ -1379,6 +1405,11 @@ if __name__ == "__main__":
     conf.read(system_args.configfile)
     configWrap = ConfigWrapper(conf)
     configWrap.bot.log_path_update(system_args.logfile)
+
+    with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
+        f.write("\nCurrent Monraker telegram bot config\n")
+        conf.write(f)
+        f.write("\n")
 
     rotatingHandler = RotatingFileHandler(
         configWrap.bot.log_file,
