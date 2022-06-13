@@ -1406,9 +1406,13 @@ if __name__ == "__main__":
     configWrap = ConfigWrapper(conf)
     configWrap.bot.log_path_update(system_args.logfile)
 
+    conf_copy = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
+    conf_copy.read(system_args.configfile)
+    conf_copy.set("bot", "bot_token", "")
+    conf_copy.set("bot", "chat_id", "")
     with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
         f.write("\nCurrent Monraker telegram bot config\n")
-        conf.write(f)
+        conf_copy.write(f)
         f.write("\n")
 
     rotatingHandler = RotatingFileHandler(
