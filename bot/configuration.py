@@ -295,6 +295,7 @@ class TelegramUIConfig(ConfigHelper):
         "status_message_content",
         "buttons",
         "require_confirmation_macro",
+        "progress_update_message",
         "include_macros_in_command_list",
         "hidden_macros",
         "hidden_bot_commands",
