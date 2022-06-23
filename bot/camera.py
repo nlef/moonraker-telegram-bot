@@ -10,11 +10,12 @@ from pathlib import Path
 from queue import Queue
 import threading
 import time
-from typing import List, Tuple
+from typing import List, Tuple, Callable, Optional
 
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
 from telegram import Message
+from telegram.error import RetryAfter
 
 from configuration import ConfigWrapper
 from klippy import Klippy
@@ -58,6 +59,28 @@ def cam_light_toggle(func):
         return result
 
     return wrapper
+
+
+def retryable_notification(required: bool, func: Callable[[None], None], debug_info: Optional[str]=None) -> None:
+    if not required and time.time() < retryable_notification.minimum_time:
+        logger.debug("Proactively skipping not required message due to previous throttle request{}".format((": " + debug_info) if debug_info else ""))
+        return
+
+    try:
+        func()
+    except RetryAfter as exc:
+        retryable_notification.minimum_time = time.time() + exc.retry_after
+
+        if not required:
+            logger.debug("Skipping not required Telegram notification due to throttle{}".format((": " + debug_info) if debug_info else ""))
+            return
+
+        logger.debug(f"Sleeping for {exc.retry_after} seconds because of Telegram's throttling")
+        time.sleep(exc.retry_after)
+        retryable_notification(required=required, func=func)
+
+
+retryable_notification.minimum_time = time.time()
 
 
 class Camera:
@@ -485,15 +508,15 @@ class Camera:
             )
 
             info_mess.edit_text(text="Images recoding")
-            last_update_time = time.time()
             for fnum, filename in enumerate(photos):
-                if time.time() >= last_update_time + 3:
-                    info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
-                    last_update_time = time.time()
+                text = f"Images recoded {fnum}/{photo_count}"
+                retryable_notification(required=False, func=lambda: info_mess.edit_text(text=text), debug_info=text)
 
                 out.write(cv2.imread(filename))
 
-            info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
+            text = f"Repeating last image for {self._last_frame_duration} seconds"
+            retryable_notification(required=True, func=lambda: info_mess.edit_text(text=text), debug_info=text)
+
             for _ in range(lapse_fps * self._last_frame_duration):
                 out.write(img)
 
