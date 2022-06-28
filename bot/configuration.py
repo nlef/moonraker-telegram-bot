@@ -197,7 +197,7 @@ class BotConfig(ConfigHelper):
             self.log_file += "/telegram.log"
         if self.log_file != "/tmp" or pathlib.PurePath(self.log_file).parent != "/tmp":
             Path(pathlib.PurePath(self.log_file).parent).mkdir(parents=True, exist_ok=True)
-        self.log_path = pathlib.PurePath(self.log_file).parent
+        self.log_path = pathlib.PurePath(self.log_file).parent.as_posix()
 
 
 class CameraConfig(ConfigHelper):
