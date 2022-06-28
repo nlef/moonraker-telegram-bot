@@ -942,14 +942,19 @@ def help_command(update: Update, _: CallbackContext) -> None:
     )
 
 
-def prepare_commands_list(macros: List[str], add_macros: bool):
-    def prepare_command(marco: str):
+def prepare_command(marco: str):
+    if re.match("^[a-zA-Z0-9_]{1,32}$", marco):
         try:
             return BotCommand(marco.lower(), marco)
         except Exception as ex:
             logger.error("Bad macro name '%s'\n%s", marco, ex)
             return None
+    else:
+        logger.warning("Bad macro name '%s'", marco)
+        return None
 
+
+def prepare_commands_list(macros: List[str], add_macros: bool):
     commands = list(bot_commands().items())
     if add_macros:
         commands += list(filter(lambda el: el, map(prepare_command, macros)))
