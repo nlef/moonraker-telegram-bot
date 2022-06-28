@@ -1,4 +1,4 @@
-from bot.main import prepare_command
+from bot.main import prepare_command  # type: ignore
 
 
 def test_bot_commands_preparation():

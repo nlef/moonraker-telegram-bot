@@ -634,7 +634,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif "macroc:" in query.data:
         command = query.data.replace("macroc:", "")
         query.edit_message_text(
-            text=f"Execute marco {command}?",
+            text=f"Execute macro {command}?",
             reply_markup=confirm_keyboard(f"macro:{command}"),
         )
     elif "gcode_files_offset:" in query.data:
