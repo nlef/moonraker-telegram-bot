@@ -175,6 +175,7 @@ class BotConfig(ConfigHelper):
         self.light_device_name: str = self._getstring("light_device", default="")
         self.poweroff_device_name: str = self._getstring("power_device", default="")
         self.debug: bool = self._getboolean("debug", default=False)
+        self.log_path: str = self._getstring("log_path", default="/tmp")
         self.log_file: str = self._getstring("log_path", default="/tmp")
         self.upload_path: str = self._getstring("upload_path", default="")
 
@@ -196,6 +197,7 @@ class BotConfig(ConfigHelper):
             self.log_file += "/telegram.log"
         if self.log_file != "/tmp" or pathlib.PurePath(self.log_file).parent != "/tmp":
             Path(pathlib.PurePath(self.log_file).parent).mkdir(parents=True, exist_ok=True)
+        self.log_path = pathlib.PurePath(self.log_file).parent
 
 
 class CameraConfig(ConfigHelper):

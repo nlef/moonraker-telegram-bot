@@ -376,14 +376,14 @@ def send_logs(update: Update, _: CallbackContext) -> None:
 
     update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
-    if Path(f"{configWrap.bot.log_file}/telegram.log").exists():
-        with open(f"{configWrap.bot.log_file}/telegram.log", "rb") as fh:
+    if Path(configWrap.bot.log_file).exists():
+        with open(configWrap.bot.log_file, "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="telegram.log"))
-    if Path(f"{configWrap.bot.log_file}/klippy.log").exists():
-        with open(f"{configWrap.bot.log_file}/klippy.log", "rb") as fh:
+    if Path(f"{configWrap.bot.log_path}/klippy.log").exists():
+        with open(f"{configWrap.bot.log_path}/klippy.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="klippy.log"))
-    if Path(f"{configWrap.bot.log_file}/moonraker.log").exists():
-        with open(f"{configWrap.bot.log_file}/moonraker.log", "rb") as fh:
+    if Path(f"{configWrap.bot.log_path}/moonraker.log").exists():
+        with open(f"{configWrap.bot.log_path}/moonraker.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="moonraker.log"))
     if logs_list:
         update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
