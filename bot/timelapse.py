@@ -40,7 +40,6 @@ class Timelapse:
         self._max_lapse_duration: int = config.timelapse.max_lapse_duration
         self._last_frame_duration: int = config.timelapse.last_frame_duration
 
-        # Todo: add to runtime params section!
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
         self._after_photo_gcode: str = config.timelapse.after_photo_gcode
@@ -126,7 +125,7 @@ class Timelapse:
     @min_lapse_duration.setter
     def min_lapse_duration(self, new_value: int):
         if new_value >= 0:
-            if new_value <= self._max_lapse_duration and not new_value == 0:
+            if new_value <= self._max_lapse_duration and new_value != 0:
                 logger.warning("Min lapse duration %s is lower than max lapse duration %s", new_value, self._max_lapse_duration)
             self._min_lapse_duration = new_value
             self._camera.min_lapse_duration = new_value
@@ -138,7 +137,7 @@ class Timelapse:
     @max_lapse_duration.setter
     def max_lapse_duration(self, new_value: int):
         if new_value >= 0:
-            if new_value <= self._min_lapse_duration and not new_value == 0:
+            if new_value <= self._min_lapse_duration and new_value != 0:
                 logger.warning("Max lapse duration %s is lower than min lapse duration %s", new_value, self._min_lapse_duration)
             self._max_lapse_duration = new_value
             self._camera.max_lapse_duration = new_value

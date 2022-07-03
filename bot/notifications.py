@@ -37,7 +37,7 @@ class Notifier:
         self._notify_groups: List[int] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
 
-        self._progress_update_message = config.telegram_ui.progress_update_message  # Todo: implement
+        self._progress_update_message = config.telegram_ui.progress_update_message
         self._silent_progress: bool = config.telegram_ui.silent_progress
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
@@ -117,9 +117,6 @@ class Notifier:
         elif new_value > 0:
             self._interval = new_value
             self._reschedule_notifier_timer()
-
-    def kurlyk_notification(self):
-        pass
 
     def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if not group_only:
@@ -413,7 +410,7 @@ class Notifier:
                 max_instances=1,
                 replace_existing=True,
             )
-        # Todo: reset something?
+        # Todo: reset something? or check if reseted by setting new filename?
 
     def _send_print_finish(self) -> None:
         self._schedule_notification(message="Finished printing")

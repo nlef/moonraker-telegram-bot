@@ -1411,14 +1411,13 @@ if __name__ == "__main__":
     configWrap = ConfigWrapper(conf)
     configWrap.bot.log_path_update(system_args.logfile)
 
-    conf_copy = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-    conf_copy.read(system_args.configfile)
-    conf_copy.set("bot", "bot_token", "")
-    conf_copy.set("bot", "chat_id", "")
+    conf.set("bot", "bot_token", "")
+    conf.set("bot", "chat_id", "")
     with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
-        f.write("\nCurrent Monraker telegram bot config\n")
-        conf_copy.write(f)
-        f.write("\n")
+        f.write("\n*******************************************************************\n")
+        f.write("Current Monraker telegram bot config\n")
+        conf.write(f)
+        f.write("\n*******************************************************************\n")
 
     rotatingHandler = RotatingFileHandler(
         configWrap.bot.log_file,
