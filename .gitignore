@@ -1,3 +1,8 @@
 venv
 .idea
 __pycache__
+timelapse
+logs
+telegram.log
+telegram_dev.conf
+.mypy_cache
