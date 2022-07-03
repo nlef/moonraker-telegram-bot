@@ -271,8 +271,8 @@ class TimelapseConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._SECTION)
-        self.base_dir: str = self._getstring("basedir", default="/tmp/timelapse")  # Fixme: relative path failed! ~/timelapse
-        self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")  # Fixme: relative path failed! ~/timelapse
+        self.base_dir: str = self._getstring("basedir", default="~/moonraker-telegram-bot-timelapse")
+        self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")
         self.cleanup: bool = self._getboolean("cleanup", default=True)
         self.height: float = self._getfloat("height", default=0.0, min_value=0.0)
         self.interval: int = self._getint("time", default=0, min_value=0)
@@ -285,6 +285,14 @@ class TimelapseConfig(ConfigHelper):
         self.send_finished_lapse: bool = self._getboolean("send_finished_lapse", default=True)
         self.mode_manual: bool = self._getboolean("manual_mode", default=False)
         self.after_photo_gcode: str = self._getstring("after_photo_gcode", default="")
+
+        self.init_paths()
+
+    def init_paths(self):
+        self.base_dir = Path(self.base_dir).resolve().as_posix()
+        Path(self.base_dir).mkdir(parents=True, exist_ok=True)
+        if self.ready_dir:
+            self.ready_dir = Path(self.ready_dir).resolve().as_posix()
 
 
 class TelegramUIConfig(ConfigHelper):
