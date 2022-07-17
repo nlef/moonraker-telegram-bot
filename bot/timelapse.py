@@ -56,7 +56,7 @@ class Timelapse:
         self._camera.last_frame_duration = self._last_frame_duration
 
         self._sched: BaseScheduler = scheduler
-        self._chat_id: int = config.bot.chat_id
+        self._chat_id: int = config.secrets.chat_id
         self._bot: Bot = bot
 
         self._running: bool = False

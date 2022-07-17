@@ -8,7 +8,7 @@ from telegram.utils.helpers import escape_markdown
 
 
 class ConfigHelper:
-    _SECTION: str
+    _section: str
     _KNOWN_ITEMS: List[str]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -22,21 +22,21 @@ class ConfigHelper:
     @property
     def parsing_errors(self) -> str:
         if self._parsing_errors:
-            return f"Config errors in section [{self._SECTION}]:\n  " + "\n  ".join(self._parsing_errors) + "\n"
+            return f"Config errors in section [{self._section}]:\n  " + "\n  ".join(self._parsing_errors) + "\n"
         else:
             return ""
 
     def _check_config(self) -> str:
-        if not self._config.has_section(self._SECTION):
+        if not self._config.has_section(self._section):
             return ""
         unknwn = list(
             map(
                 lambda fil: f"  {fil[0]}: {fil[1]}\n",
-                filter(lambda el: el[0] not in self._KNOWN_ITEMS, self._config.items(self._SECTION)),
+                filter(lambda el: el[0] not in self._KNOWN_ITEMS, self._config.items(self._section)),
             )
         )
         if unknwn:
-            return f"Unknown/bad items in section [{self._SECTION}]:\n{''.join(unknwn)}\n"
+            return f"Unknown/bad items in section [{self._section}]:\n{''.join(unknwn)}\n"
         else:
             return ""
 
@@ -49,7 +49,7 @@ class ConfigHelper:
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ) -> None:
-        if not self._config.has_option(self._SECTION, option):
+        if not self._config.has_option(self._section, option):
             return
         if above is not None and value <= above:
             self._parsing_errors.append(f"Option '{option}: {value}': value is not above {above}")
@@ -61,13 +61,13 @@ class ConfigHelper:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
     def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
-        if not self._config.has_option(self._SECTION, option):
+        if not self._config.has_option(self._section, option):
             return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
     def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
-        if not self._config.has_option(self._SECTION, option):
+        if not self._config.has_option(self._section, option):
             return
         unallowed_params = []
         if allowed_values is not None:
@@ -79,7 +79,7 @@ class ConfigHelper:
 
     def _get_option_value(self, func: Callable, option: str, default: Optional[Any] = None) -> Any:
         try:
-            val = func(self._SECTION, option, fallback=default) if default is not None else func(self._SECTION, option)
+            val = func(self._section, option, fallback=default) if default is not None else func(self._section, option)
         except Exception as ex:
             if default is not None:
                 self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
@@ -124,7 +124,7 @@ class ConfigHelper:
         return val
 
     def _getlist(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List:
-        if self._config.has_option(self._SECTION, option):
+        if self._config.has_option(self._section, option):
             try:
                 val = [el_type(el.strip()) for el in self._getstring(option).split(",")]
             except Exception as ex:
@@ -144,20 +144,42 @@ class ConfigHelper:
         return val
 
 
+class SecretsConfig(ConfigHelper):
+    _section = "secrets"
+    _KNOWN_ITEMS = [
+        "bot_token",
+        "chat_id",
+        "user",
+        "password",
+        "api_token",
+    ]
+
+    def __init__(self, config: configparser.ConfigParser):
+        secrets_path = config.get("secrets", "secrets_path", fallback="")
+        if secrets_path:
+            conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
+            conf.read(secrets_path)
+            super().__init__(conf)
+        else:
+            self._section = "bot"
+            super().__init__(config)
+
+        self.token: str = self._getstring("bot_token")
+        self.chat_id: int = self._getint("chat_id", default=0)
+        self.user: str = self._getstring("user", default="")
+        self.passwd: str = self._getstring("password", default="")
+        self.api_token: str = self._getstring("api_token", default="")
+
+
 class BotConfig(ConfigHelper):
-    _SECTION = "bot"
+    _section = "bot"
     _KNOWN_ITEMS = [
         "server",
         "socks_proxy",
-        "bot_token",
-        "chat_id",
         "debug",
         "log_parser",
         "power_device",
         "light_device",
-        "user",
-        "password",
-        "api_token",
         "upload_path",
     ]
 
@@ -165,13 +187,8 @@ class BotConfig(ConfigHelper):
         super().__init__(config)
 
         self.host: str = self._getstring("server", default="localhost")
-        self.token: str = self._getstring("bot_token")
-        self.chat_id: int = self._getint("chat_id", default=0)
         self.api_url: str = self._getstring("api_url", default="https://api.telegram.org/bot")
         self.socks_proxy: str = self._getstring("socks_proxy", default="")
-        self.user: str = self._getstring("user", default="")
-        self.passwd: str = self._getstring("password", default="")
-        self.api_token: str = self._getstring("api_token", default="")
         self.light_device_name: str = self._getstring("light_device", default="")
         self.poweroff_device_name: str = self._getstring("power_device", default="")
         self.debug: bool = self._getboolean("debug", default=False)
@@ -201,7 +218,7 @@ class BotConfig(ConfigHelper):
 
 
 class CameraConfig(ConfigHelper):
-    _SECTION = "camera"
+    _section = "camera"
     _KNOWN_ITEMS = [
         "host",
         "threads",
@@ -218,7 +235,7 @@ class CameraConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.enabled: bool = config.has_section(self._SECTION)
+        self.enabled: bool = config.has_section(self._section)
         self.host: str = self._getstring("host", default="")
         self.stream_fps: int = self._getint("fps", default=0, above=0)
         self.flip_vertically: bool = self._getboolean("flip_vertically", default=False)
@@ -237,12 +254,12 @@ class CameraConfig(ConfigHelper):
 
 
 class NotifierConfig(ConfigHelper):
-    _SECTION = "progress_notification"
+    _section = "progress_notification"
     _KNOWN_ITEMS = ["percent", "height", "time", "groups", "group_only"]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.enabled: bool = config.has_section(self._SECTION)
+        self.enabled: bool = config.has_section(self._section)
         self.percent: int = self._getint("percent", default=0, min_value=0)
         self.height: float = self._getfloat("height", default=0, min_value=0.0)
         self.interval: int = self._getint("time", default=0, min_value=0)
@@ -251,7 +268,7 @@ class NotifierConfig(ConfigHelper):
 
 
 class TimelapseConfig(ConfigHelper):
-    _SECTION = "timelapse"
+    _section = "timelapse"
     _KNOWN_ITEMS = [
         "basedir",
         "copy_finished_timelapse_dir",
@@ -270,7 +287,7 @@ class TimelapseConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.enabled: bool = config.has_section(self._SECTION)
+        self.enabled: bool = config.has_section(self._section)
         self.base_dir: str = self._getstring("basedir", default="~/moonraker-telegram-bot-timelapse")
         self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")
         self.cleanup: bool = self._getboolean("cleanup", default=True)
@@ -296,7 +313,7 @@ class TimelapseConfig(ConfigHelper):
 
 
 class TelegramUIConfig(ConfigHelper):
-    _SECTION = "telegram_ui"
+    _section = "telegram_ui"
     _KNOWN_ITEMS = [
         "silent_progress",
         "silent_commands",
@@ -336,7 +353,7 @@ class TelegramUIConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.eta_source: str = self._getstring("eta_source", default="slicer", allowed_values=["slicer", "file"])
-        self.buttons_default: bool = bool(not config.has_option(self._SECTION, "buttons"))
+        self.buttons_default: bool = bool(not config.has_option(self._section, "buttons"))
         self.buttons: List[List[str]] = list(
             map(
                 lambda el: list(
@@ -371,13 +388,18 @@ class TelegramUIConfig(ConfigHelper):
 
 class ConfigWrapper:
     def __init__(self, config: configparser.ConfigParser):
+        self.secrets = SecretsConfig(config)
         self.bot = BotConfig(config)
         self.camera = CameraConfig(config)
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
-        self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
-        self.parsing_errors = self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
+        self.unknown_fields = (
+            self.secrets.unknown_fields + self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
+        )
+        self.parsing_errors = (
+            self.secrets.parsing_errors + self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
+        )
 
     @property
     def configuration_errors(self) -> str:

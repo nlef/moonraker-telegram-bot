@@ -154,7 +154,7 @@ def status(update: Update, _: CallbackContext) -> None:
         mess = escape_markdown(klippy.get_status(), version=2)
         if cameraWrap.enabled:
             with cameraWrap.take_photo() as bio:
-                update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_PHOTO)
+                update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_PHOTO)
                 update.effective_message.reply_photo(
                     photo=bio,
                     caption=mess,
@@ -163,7 +163,7 @@ def status(update: Update, _: CallbackContext) -> None:
                 )
                 bio.close()
         else:
-            update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+            update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
             update.effective_message.reply_text(
                 mess,
                 parse_mode=PARSEMODE_MARKDOWN_V2,
@@ -176,7 +176,7 @@ def check_unfinished_lapses():
     files = cameraWrap.detect_unfinished_lapses()
     if not files:
         return
-    bot_updater.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    bot_updater.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     files_keys = list(
         map(
             list,
@@ -229,7 +229,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
             disable_notification=notifier.silent_commands,
             quote=True,
         )
-        update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
+        update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
         with cameraWrap.take_video_generator() as (video_bio, thumb_bio, width, height):
             info_reply.edit_text(text="Uploading video")
             if video_bio.getbuffer().nbytes > 52428800:
@@ -245,7 +245,7 @@ def get_video(update: Update, _: CallbackContext) -> None:
                     disable_notification=notifier.silent_commands,
                     quote=True,
                 )
-                update.effective_message.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_reply.message_id)
+                update.effective_message.bot.delete_message(chat_id=configWrap.secrets.chat_id, message_id=info_reply.message_id)
 
             video_bio.close()
             thumb_bio.close()
@@ -290,7 +290,7 @@ def pause_printing(update: Update, __: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Pause printing?",
         reply_markup=confirm_keyboard("pause_printing"),
@@ -304,7 +304,7 @@ def resume_printing(update: Update, __: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Resume printing?",
         reply_markup=confirm_keyboard("resume_printing"),
@@ -318,7 +318,7 @@ def cancel_printing(update: Update, __: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Cancel printing?",
         reply_markup=confirm_keyboard("cancel_printing"),
@@ -332,7 +332,7 @@ def emergency_stop(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Execute emergency stop?",
         reply_markup=confirm_keyboard("emergency_stop"),
@@ -346,7 +346,7 @@ def shutdown_host(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Shutdown host?",
         reply_markup=confirm_keyboard("shutdown_host"),
@@ -360,7 +360,7 @@ def bot_restart(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Restart bot?",
         reply_markup=confirm_keyboard("bot_restart"),
@@ -374,7 +374,7 @@ def send_logs(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     if Path(configWrap.bot.log_file).exists():
         with open(configWrap.bot.log_file, "rb") as fh:
@@ -407,7 +407,7 @@ def power(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     if psu_power_device:
         if psu_power_device.device_state:
             update.effective_message.reply_text(
@@ -471,11 +471,11 @@ def button_lapse_handler(update: Update, context: CallbackContext) -> None:
         )
     )[0].text
     info_mess: Message = context.bot.send_message(
-        chat_id=configWrap.bot.chat_id,
+        chat_id=configWrap.secrets.chat_id,
         text=f"Starting time-lapse assembly for {lapse_name}",
         disable_notification=notifier.silent_commands,
     )
-    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.RECORD_VIDEO)
+    context.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
     # Todo: refactor all timelapse cals
     (
         video_bio,
@@ -490,7 +490,7 @@ def button_lapse_handler(update: Update, context: CallbackContext) -> None:
         info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
     else:
         context.bot.send_video(
-            configWrap.bot.chat_id,
+            configWrap.secrets.chat_id,
             video=video_bio,
             thumb=thumb_bio,
             width=width,
@@ -499,7 +499,7 @@ def button_lapse_handler(update: Update, context: CallbackContext) -> None:
             timeout=120,
             disable_notification=notifier.silent_commands,
         )
-        context.bot.delete_message(chat_id=configWrap.bot.chat_id, message_id=info_mess.message_id)
+        context.bot.delete_message(chat_id=configWrap.secrets.chat_id, message_id=info_mess.message_id)
         cameraWrap.cleanup(lapse_name)
 
     video_bio.close()
@@ -570,7 +570,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         logger.error("Undefined callback_query.data for %s", query.to_json())
         return
 
-    context.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    context.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
 
     query.answer()
     if query.data == "do_nothing":
@@ -593,7 +593,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         manage_printing("resume")
         query.delete_message()
     elif query.data == "cleanup_timelapse_unfinished":
-        context.bot.send_message(chat_id=configWrap.bot.chat_id, text="Removing unfinished timelapses data")
+        context.bot.send_message(chat_id=configWrap.secrets.chat_id, text="Removing unfinished timelapses data")
         cameraWrap.cleanup_unfinished_lapses()
         query.delete_message()
     elif update.effective_message.reply_to_message is None:
@@ -666,7 +666,7 @@ def get_gcode_files(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
         "Gcode files to print:",
         reply_markup=gcode_files_keyboard(),
@@ -733,7 +733,7 @@ def get_macros(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.TYPING)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     files_keys: List[List[InlineKeyboardButton]] = list(
         map(
             lambda el: [
@@ -785,7 +785,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message or bot")
         return
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.bot.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     doc = update.effective_message.document
     if doc is None or doc.file_name is None:
         update.effective_message.reply_text(
@@ -965,14 +965,14 @@ def prepare_commands_list(macros: List[str], add_macros: bool):
 
 
 def greeting_message() -> None:
-    if configWrap.bot.chat_id == 0:
+    if configWrap.secrets.chat_id == 0:
         return
     response = klippy.check_connection()
     mess = escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2) if response else "Printer online" + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
-        configWrap.bot.chat_id,
+        configWrap.secrets.chat_id,
         text=mess,
         parse_mode=PARSEMODE_MARKDOWN_V2,
         reply_markup=reply_markup,
@@ -1000,7 +1000,7 @@ def start_bot(bot_token, socks):
 
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(MessageHandler(~Filters.chat(configWrap.bot.chat_id), unknown_chat))
+    dispatcher.add_handler(MessageHandler(~Filters.chat(configWrap.secrets.chat_id), unknown_chat))
 
     dispatcher.add_handler(CallbackQueryHandler(button_lapse_handler, pattern="lapse:"))
     dispatcher.add_handler(CallbackQueryHandler(print_file_dialog_handler, pattern=re.compile("^\\S[^\\:]+\\.gcode$")))
@@ -1411,8 +1411,6 @@ if __name__ == "__main__":
     configWrap = ConfigWrapper(conf)
     configWrap.bot.log_path_update(system_args.logfile)
 
-    conf.set("bot", "bot_token", "")
-    conf.set("bot", "chat_id", "")
     with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
         f.write("\n*******************************************************************\n")
         f.write("Current Monraker telegram bot config\n")
@@ -1438,7 +1436,7 @@ if __name__ == "__main__":
 
     klippy = Klippy(configWrap, light_power_device, psu_power_device, rotatingHandler)
     cameraWrap = Camera(configWrap, klippy, light_power_device, rotatingHandler)
-    bot_updater = start_bot(configWrap.bot.token, configWrap.bot.socks_proxy)
+    bot_updater = start_bot(configWrap.secrets.token, configWrap.bot.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)
 
