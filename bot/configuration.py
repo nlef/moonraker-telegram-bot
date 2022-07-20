@@ -174,6 +174,11 @@ class SecretsConfig(ConfigHelper):
 class BotConfig(ConfigHelper):
     _section = "bot"
     _KNOWN_ITEMS = [
+        "bot_token",
+        "chat_id",
+        "user",
+        "password",
+        "api_token",
         "server",
         "socks_proxy",
         "debug",
@@ -394,9 +399,7 @@ class ConfigWrapper:
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
-        self.unknown_fields = (
-            self.secrets.unknown_fields + self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
-        )
+        self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
         self.parsing_errors = (
             self.secrets.parsing_errors + self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
         )
