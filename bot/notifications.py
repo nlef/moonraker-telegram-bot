@@ -25,7 +25,7 @@ class Notifier:
         logging_handler: logging.Handler = None,
     ):
         self._bot: Bot = bot
-        self._chat_id: int = config.bot.chat_id
+        self._chat_id: int = config.secrets.chat_id
         self._cam_wrap: Camera = camera_wrapper
         self._sched: BaseScheduler = scheduler
         self._klippy: Klippy = klippy

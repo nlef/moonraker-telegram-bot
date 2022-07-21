@@ -45,9 +45,9 @@ class Klippy:
         self._generic_fans: List[str] = config.telegram_ui.status_message_generic_fans
 
         self._devices_list: List[str] = config.telegram_ui.status_message_devices
-        self._user: str = config.bot.user
-        self._passwd: str = config.bot.passwd
-        self._api_token: str = config.bot.api_token
+        self._user: str = config.secrets.user
+        self._passwd: str = config.secrets.passwd
+        self._api_token: str = config.secrets.api_token
 
         self._dbname: str = "telegram-bot"
 
