@@ -1413,7 +1413,7 @@ if __name__ == "__main__":
 
     with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
         f.write("\n*******************************************************************\n")
-        f.write("Current Monraker telegram bot config\n")
+        f.write("Current Moonraker telegram bot config\n")
         conf.write(f)
         f.write("\n*******************************************************************\n")
 
