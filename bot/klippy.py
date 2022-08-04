@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 class Klippy:
     _DATA_MACRO = "bot_data"
 
+    _SENSOR_PARAMS = {"temperature": "temperature", "target": "target", "power": "power", "speed": "speed", "rpm": "rpm"}
+
+    _POWER_DEVICE_PARAMS = {"device": "device", "status": "status", "locked_while_printing": "locked_while_printing", "type": "type", "is_shutdown": "is_shutdown"}
+
     def __init__(
         self,
         config: ConfigWrapper,
@@ -263,19 +267,11 @@ class Klippy:
             return "Connection failed."
 
     def update_sensror(self, name: str, value) -> None:
-        if name in self._sensors_dict:
-            if "temperature" in value:
-                self._sensors_dict[name]["temperature"] = value["temperature"]
-            if "target" in value:
-                self._sensors_dict[name]["target"] = value["target"]
-            if "power" in value:
-                self._sensors_dict[name]["power"] = value["power"]
-            if "speed" in value:
-                self._sensors_dict[name]["speed"] = value["speed"]
-            if "rpm" in value:
-                self._sensors_dict[name]["rpm"] = value["rpm"]
-        elif value:
-            self._sensors_dict[name] = value
+        if name not in self._sensors_dict:
+            self._sensors_dict[name] = {}
+        for key, val in self._SENSOR_PARAMS.items():
+            if key in value:
+                self._sensors_dict[name][key] = value[val]
 
     @staticmethod
     def _sensor_message(name: str, value) -> str:
@@ -304,19 +300,11 @@ class Klippy:
         return message
 
     def update_power_device(self, name: str, value) -> None:
-        if name in self._power_devices:
-            if "device" in value:
-                self._power_devices[name]["device"] = value["device"]
-            if "status" in value:
-                self._power_devices[name]["status"] = value["status"]
-            if "locked_while_printing" in value:
-                self._power_devices[name]["locked_while_printing"] = value["locked_while_printing"]
-            if "type" in value:
-                self._power_devices[name]["type"] = value["type"]
-            if "is_shutdown" in value:
-                self._power_devices[name]["is_shutdown"] = value["is_shutdown"]
-        else:
-            self._power_devices[name] = value
+        if name not in self._power_devices:
+            self._power_devices[name] = {}
+        for key, val in self._POWER_DEVICE_PARAMS.items():
+            if key in value:
+                self._power_devices[name][key] = value[val]
 
     @staticmethod
     def _device_message(name: str, value, emoji_symbol: str = ":vertical_traffic_light:") -> str:
