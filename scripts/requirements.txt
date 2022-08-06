@@ -1,3 +1,4 @@
+APScheduler~=3.9.1
 emoji==2.0.0
 Pillow==9.2.0
 PySocks==1.7.1

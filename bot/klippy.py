@@ -37,18 +37,19 @@ class Klippy:
         self._host: str = config.bot.host
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
-        self._message_parts: List[str] = config.telegram_ui.status_message_content
+        self._message_parts: List[str] = config.status_message_content.content
         self._eta_source: str = config.telegram_ui.eta_source
         self._light_device: PowerDevice = light_device
         self._psu_device: PowerDevice = psu_device
-        self._sensors_list: List[str] = config.telegram_ui.status_message_sensors
-        self._heaters_list: List[str] = config.telegram_ui.status_message_heaters
-        self._heater_fans_list: List[str] = config.telegram_ui.status_message_heater_fans
-        self._controller_fans: List[str] = config.telegram_ui.status_message_controller_fans
-        self._temp_fans_list: List[str] = config.telegram_ui.status_message_temperature_fans
-        self._generic_fans: List[str] = config.telegram_ui.status_message_generic_fans
+        self._sensors_list: List[str] = config.status_message_content.sensors
+        self._heaters_list: List[str] = config.status_message_content.heaters
+        self._fans_list: List[str] = config.status_message_content.fans
+        # self._heater_fans_list: List[str] = config.telegram_ui.status_message_heater_fans
+        # self._controller_fans: List[str] = config.telegram_ui.status_message_controller_fans
+        # self._temp_fans_list: List[str] = config.telegram_ui.status_message_temperature_fans
+        # self._generic_fans: List[str] = config.telegram_ui.status_message_generic_fans
 
-        self._devices_list: List[str] = config.telegram_ui.status_message_devices
+        self._devices_list: List[str] = config.status_message_content.moonraker_devices
         self._user: str = config.secrets.user
         self._passwd: str = config.secrets.passwd
         self._api_token: str = config.secrets.api_token
@@ -78,6 +79,7 @@ class Klippy:
         self._refresh_token: str = ""
 
         # Todo: create sensors class!!
+        self._objects_list: list = []
         self._sensors_dict: dict = {}
         self._power_devices: dict = {}
 
@@ -91,29 +93,18 @@ class Klippy:
     def prepare_sens_dict_subscribe(self):
         self._sensors_dict = {}
         sens_dict = {}
-        for heat in self._heaters_list:
-            if heat in ["extruder", "heater_bed"]:
-                sens_dict[heat] = None
-            else:
-                sens_dict[f"heater_generic {heat}"] = None
 
-        for sens in self._sensors_list:
-            sens_dict[f"temperature_sensor {sens}"] = None
+        for elem in self._objects_list:
+            for heat in self._heaters_list:
+                if elem.split(" ")[-1] == heat:
+                    sens_dict[elem] = None
+            for sens in self._sensors_list:
+                if elem.split(" ")[-1] == sens and "sensor" in elem:  # add adc\thermistor
+                    sens_dict[elem] = None
+            for fan in self._fans_list:
+                if elem.split(" ")[-1] == fan and "fan" in elem:
+                    sens_dict[elem] = None
 
-        for h_fan in self._heater_fans_list:
-            if h_fan in ["fan"]:
-                sens_dict[h_fan] = None
-            else:
-                sens_dict[f"heater_fan {h_fan}"] = None
-
-        for c_fan in self._controller_fans:
-            sens_dict[f"controller_fan {c_fan}"] = None
-
-        for t_fan in self._temp_fans_list:
-            sens_dict[f"temperature_fan {t_fan}"] = None
-
-        for g_fan in self._generic_fans:
-            sens_dict[f"fan_generic {g_fan}"] = None
         return sens_dict
 
     def _filament_weight_used(self) -> float:
@@ -129,6 +120,7 @@ class Klippy:
         self.printing = False
         self.paused = False
         self._reset_file_info()
+        self._update_printer_objects()
 
     # Todo: save macros list until klippy restart
     @property
@@ -164,6 +156,13 @@ class Klippy:
             logger.error(resp.reason)
             res = ""
         return res
+
+    def _update_printer_objects(self):
+        resp = self._make_request(f"http://{self._host}/printer/objects/list", "GET")
+        if resp.ok:
+            self._objects_list = resp.json()["result"]["objects"]
+        else:
+            logger.error(resp.reason)
 
     def _reset_file_info(self) -> None:
         self.printing_duration = 0.0
@@ -216,10 +215,7 @@ class Klippy:
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
     def _get_full_marco_list(self) -> List[str]:
-        resp = self._make_request(f"http://{self._host}/printer/objects/list", "GET")
-        if not resp.ok:
-            return []
-        macro_lines = list(filter(lambda it: "gcode_macro" in it, resp.json()["result"]["objects"]))
+        macro_lines = list(filter(lambda it: "gcode_macro" in it, self._objects_list))
         loaded_macros = list(map(lambda el: el.split(" ")[1].upper(), macro_lines))
         return loaded_macros
 
@@ -266,7 +262,7 @@ class Klippy:
             logger.error(ex, exc_info=True)
             return "Connection failed."
 
-    def update_sensror(self, name: str, value) -> None:
+    def update_sensor(self, name: str, value) -> None:
         if name not in self._sensors_dict:
             self._sensors_dict[name] = {}
         for key, val in self._SENSOR_PARAMS.items():
