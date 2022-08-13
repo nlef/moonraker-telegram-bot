@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from telegram import Bot, ChatAction, InputMediaPhoto, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
+from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
 
 from camera import Camera
@@ -123,7 +124,11 @@ class Notifier:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
             if self._status_message and not manual:
                 if self._bzz_mess_id != 0:
-                    self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+                    try:
+                        self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+                    except BadRequest as badreq:
+                        logger.warning("Failed deleting bzz message \n%s", badreq)
+                        self._bzz_mess_id = 0
 
                 if self._status_message.caption:
                     self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
@@ -171,7 +176,11 @@ class Notifier:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
                     if self._status_message and not manual:
                         if self._bzz_mess_id != 0:
-                            self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+                            try:
+                                self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+                            except BadRequest as badreq:
+                                logger.warning("Failed deleting bzz message \n%s", badreq)
+                                self._bzz_mess_id = 0
 
                         # Fixme: check if media in message!
                         self._status_message.edit_media(media=InputMediaPhoto(photo))
@@ -291,11 +300,14 @@ class Notifier:
         self._last_m117_status = ""
         self._last_tgnotify_status = ""
         self._status_message = None
-        bzz_mess_id = self._bzz_mess_id
-        self._bzz_mess_id = 0
         self._groups_status_mesages = {}
-        if bzz_mess_id != 0:
-            self._bot.delete_message(self._chat_id, bzz_mess_id)
+        if self._bzz_mess_id != 0:
+            try:
+                self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+            except BadRequest as badreq:
+                logger.warning("Failed deleting bzz message \n%s", badreq)
+            finally:
+                self._bzz_mess_id = 0
 
     def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:
         mess = escape_markdown(self._klippy.get_print_stats(message), version=2)

@@ -4,6 +4,7 @@ import time
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from telegram import Bot, ChatAction, Message
+from telegram.error import BadRequest
 
 from camera import Camera
 from configuration import ConfigWrapper
@@ -277,7 +278,11 @@ class Timelapse:
                         timeout=120,
                         disable_notification=self._silent_progress,
                     )
-                    self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                    try:
+                        self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                    except BadRequest as badreq:
+                        logger.warning("Failed deleting message \n%s", badreq)
+                        self._bzz_mess_id = 0
                     self._camera.cleanup(lapse_filename)
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
