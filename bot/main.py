@@ -8,12 +8,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
-import random
 import re
 import signal
 import sys
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
@@ -37,8 +36,6 @@ from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
-import ujson
-import websocket  # type: ignore
 from websocket_helper import WebSocketHelper
 
 from camera import Camera
@@ -105,15 +102,14 @@ scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
 bot_updater: Updater
 configWrap: ConfigWrapper
-myId = random.randint(0, 300000)
 main_pid = os.getpid()
 cameraWrap: Camera
 timelapse: Timelapse
 notifier: Notifier
-ws: Optional[websocket.WebSocketApp] = None
 klippy: Klippy
 light_power_device: PowerDevice
 psu_power_device: PowerDevice
+ws_helper: WebSocketHelper
 
 
 def echo_unknown(update: Update, _: CallbackContext) -> None:
@@ -252,24 +248,6 @@ def get_video(update: Update, _: CallbackContext) -> None:
             thumb_bio.close()
 
 
-def manage_printing(command: str) -> None:
-    if ws is None:
-        return
-    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": myId}))
-
-
-def emergency_stop_printer():
-    if ws is None:
-        return
-    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": myId}))
-
-
-def shutdown_pi_host():
-    if ws is None:
-        return
-    ws.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": myId}))
-
-
 def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
     keyboard = [
         [
@@ -398,8 +376,8 @@ def send_logs(update: Update, _: CallbackContext) -> None:
 
 def restart_bot() -> None:
     scheduler.shutdown(wait=False)
-    if ws:
-        ws.close()
+    if ws_helper.websocket:
+        ws_helper.websocket.close()
     os.kill(main_pid, signal.SIGTERM)
 
 
@@ -582,16 +560,16 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             )
         query.delete_message()
     elif query.data == "emergency_stop":
-        emergency_stop_printer()
+        ws_helper.emergency_stop_printer()
         query.delete_message()
     elif query.data == "cancel_printing":
-        manage_printing("cancel")
+        ws_helper.manage_printing("cancel")
         query.delete_message()
     elif query.data == "pause_printing":
-        manage_printing("pause")
+        ws_helper.manage_printing("pause")
         query.delete_message()
     elif query.data == "resume_printing":
-        manage_printing("resume")
+        ws_helper.manage_printing("resume")
         query.delete_message()
     elif query.data == "cleanup_timelapse_unfinished":
         context.bot.send_message(chat_id=configWrap.secrets.chat_id, text="Removing unfinished timelapses data")
@@ -602,7 +580,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == "shutdown_host":
         update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
         query.delete_message()
-        shutdown_pi_host()
+        ws_helper.shutdown_pi_host()
     elif query.data == "bot_restart":
         update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
         query.delete_message()

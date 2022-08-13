@@ -1,33 +1,31 @@
+import logging
+import random
+import time
+
+from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import ujson
-from apscheduler.schedulers.background import BackgroundScheduler# type: ignore
+import websocket  # type: ignore
 
 from configuration import ConfigWrapper
 from klippy import Klippy
-import logging
-import time
 from notifications import Notifier
 from power_device import PowerDevice
 from timelapse import Timelapse
-
-import random
-
-import websocket  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 
 class WebSocketHelper:
-
     def __init__(
-            self,
-            config: ConfigWrapper,
-            klippy: Klippy,
-            notifier: Notifier,
-            timelapse: Timelapse,
-            scheduler: BackgroundScheduler,
-            light_power_device:PowerDevice,
-            psu_power_device:PowerDevice,
-            logging_handler: logging.Handler = None,
+        self,
+        config: ConfigWrapper,
+        klippy: Klippy,
+        notifier: Notifier,
+        timelapse: Timelapse,
+        scheduler: BackgroundScheduler,
+        light_power_device: PowerDevice,
+        psu_power_device: PowerDevice,
+        logging_handler: logging.Handler = None,
     ):
         self._host: str = config.bot.host
         self._klippy: Klippy = klippy
@@ -38,14 +36,14 @@ class WebSocketHelper:
         self._psu_power_device: PowerDevice = psu_power_device
         self._log_parser: bool = config.bot.log_parser
 
-        self._myId = random.randint(0, 300000)
+        self._my_id = random.randint(0, 300000)
 
         if config.bot.debug:
             logger.setLevel(logging.DEBUG)
         if logging_handler:
             logger.addHandler(logging_handler)
 
-        self.ws = websocket.WebSocketApp(
+        self.websocket = websocket.WebSocketApp(
             f"ws://{self._host}/websocket{self._klippy.one_shot_token}",
             on_message=self.websocket_to_message,
             on_open=self.on_open,
@@ -83,18 +81,18 @@ class WebSocketHelper:
                     "jsonrpc": "2.0",
                     "method": "printer.objects.subscribe",
                     "params": {"objects": subscribe_objects},
-                    "id": self._myId,
+                    "id": self._my_id,
                 }
             )
         )
 
     def on_open(self, websock):
-        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._myId}))
-        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._myId}))
+        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
+        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
 
     def reshedule(self):
-        if not self._klippy.connected and self.ws.keep_running:
-            self.on_open(self.ws)
+        if not self._klippy.connected and self.websocket.keep_running:
+            self.on_open(self.websocket)
 
     def stop_all(self):
         self._klippy.stop_all()
@@ -319,7 +317,7 @@ class WebSocketHelper:
                             replace_existing=True,
                         )
                         state_message = message_result["state_message"]
-                        if not self._klippy.state_message == state_message and not klippy_state == "startup":
+                        if self._klippy.state_message != state_message and klippy_state != "startup":
                             self._klippy.state_message = state_message
                             self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{self._klippy.state_message}")
                     else:
@@ -338,9 +336,6 @@ class WebSocketHelper:
                     for device in message_result["devices"]:
                         self.power_device_state(device)
                     return
-
-                # if debug:
-                #     bot_updater.bot.send_message(chatId, text=f"{message_result}")
 
             if "error" in json_message:
                 self._notifier.send_error(f"{json_message['error']['message']}")
@@ -374,6 +369,21 @@ class WebSocketHelper:
             if message_method == "notify_status_update":
                 self.notify_status_update(message_params)
 
+    def manage_printing(self, command: str) -> None:
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
+
+    def emergency_stop_printer(self):
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
+
+    def shutdown_pi_host(self):
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
+
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:
             lines = file.readlines()
@@ -382,7 +392,7 @@ class WebSocketHelper:
         messages = list(map(lambda el: el.split(" - ")[-1].replace("\n", ""), wslines))
 
         for mes in messages:
-            self.websocket_to_message(self.ws, mes)
+            self.websocket_to_message(self.websocket, mes)
             time.sleep(0.01)
         print("lalal")
 
@@ -394,4 +404,4 @@ class WebSocketHelper:
 
         self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
 
-        self.ws.run_forever(skip_utf8_validation=True)
+        self.websocket.run_forever(skip_utf8_validation=True)

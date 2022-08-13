@@ -44,10 +44,6 @@ class Klippy:
         self._sensors_list: List[str] = config.status_message_content.sensors
         self._heaters_list: List[str] = config.status_message_content.heaters
         self._fans_list: List[str] = config.status_message_content.fans
-        # self._heater_fans_list: List[str] = config.telegram_ui.status_message_heater_fans
-        # self._controller_fans: List[str] = config.telegram_ui.status_message_controller_fans
-        # self._temp_fans_list: List[str] = config.telegram_ui.status_message_temperature_fans
-        # self._generic_fans: List[str] = config.telegram_ui.status_message_generic_fans
 
         self._devices_list: List[str] = config.status_message_content.moonraker_devices
         self._user: str = config.secrets.user
