@@ -1417,6 +1417,8 @@ if __name__ == "__main__":
     rotatingHandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(rotatingHandler)
 
+    logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)
+
     if configWrap.bot.debug:
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)

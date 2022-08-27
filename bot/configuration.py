@@ -164,7 +164,10 @@ class SecretsConfig(ConfigHelper):
             self._section = "bot"
             super().__init__(config)
 
-        self.token: str = self._getstring("bot_token")
+        if not self._config.has_option(self._section, "bot_token"):
+            self._parsing_errors.append("Option 'bot_token': value is not provided")
+
+        self.token: str = self._getstring("bot_token", default="")
         self.chat_id: int = self._getint("chat_id", default=0)
         self.user: str = self._getstring("user", default="")
         self.passwd: str = self._getstring("password", default="")
