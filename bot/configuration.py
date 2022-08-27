@@ -394,10 +394,10 @@ class StatusMessageContentConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.content: List[str] = self._getlist("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
-        self.sensors: List[str] = self._getlist("sensors", default=[])
-        self.heaters: List[str] = self._getlist("heaters", default=[])
-        self.fans: List[str] = self._getlist("fans", default=[])
-        self.moonraker_devices: List[str] = self._getlist("moonraker_devices", default=[])
+        self.sensors: List[str] = list(x.lower() for x in self._getlist("sensors", default=[]))
+        self.heaters: List[str] = list(x.lower() for x in self._getlist("heaters", default=[]))
+        self.fans: List[str] = list(x.lower() for x in self._getlist("fans", default=[]))
+        self.moonraker_devices: List[str] = list(x.lower() for x in self._getlist("moonraker_devices", default=[]))
 
 
 class ConfigWrapper:
