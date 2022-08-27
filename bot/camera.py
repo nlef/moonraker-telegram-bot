@@ -340,8 +340,8 @@ class Camera:
             while video_lock.locked():
                 try:
                     frame_local = frame_queue.get(block=False)
-                except Exception as ex:
-                    logger.warning("Reading video frames queue exception %s", ex)
+                except Exception as exc:
+                    logger.warning("Reading video frames queue exception %s", exc)
                     frame_local = frame_queue.get()
 
                 out.write(process_video_frame(frame_local))

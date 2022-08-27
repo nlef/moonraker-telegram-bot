@@ -324,7 +324,6 @@ class TelegramUIConfig(ConfigHelper):
         "silent_commands",
         "silent_status",
         "pin_status_single_message",
-        "status_message_content",
         "buttons",
         "require_confirmation_macro",
         "progress_update_message",
@@ -333,13 +332,6 @@ class TelegramUIConfig(ConfigHelper):
         "hidden_bot_commands",
         "show_private_macros",
         "eta_source",
-        "status_message_sensors",
-        "status_message_heaters",
-        "status_message_devices",
-        "status_message_heater_fans",
-        "status_message_controller_fans",
-        "status_message_temperature_fans",
-        "status_message_generic_fans",
         "status_message_m117_update",
     ]
     _MESSAGE_CONTENT = [
@@ -371,7 +363,7 @@ class TelegramUIConfig(ConfigHelper):
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
-        self.progress_update_message: bool = self._getboolean("progress_update_message", default=True)
+        self.progress_update_message: bool = self._getboolean("progress_update_message", default=False)
         self.silent_progress: bool = self._getboolean("silent_progress", default=False)
         self.silent_commands: bool = self._getboolean("silent_commands", default=False)
         self.silent_status: bool = self._getboolean("silent_status", default=False)
@@ -380,15 +372,32 @@ class TelegramUIConfig(ConfigHelper):
         self.hidden_bot_commands: List[str] = self._getlist("hidden_bot_commands", default=[])
         self.show_private_macros: bool = self._getboolean("show_private_macros", default=False)
         self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
-        self.status_message_content: List[str] = self._getlist("status_message_content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
         self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
-        self.status_message_sensors: List[str] = self._getlist("status_message_sensors", default=[])
-        self.status_message_heaters: List[str] = self._getlist("status_message_heaters", default=[])
-        self.status_message_heater_fans: List[str] = self._getlist("status_message_heater_fans", default=[])
-        self.status_message_controller_fans: List[str] = self._getlist("status_message_controller_fans", default=[])
-        self.status_message_temperature_fans: List[str] = self._getlist("status_message_temperature_fans", default=[])
-        self.status_message_generic_fans: List[str] = self._getlist("status_message_generic_fans", default=[])
-        self.status_message_devices: List[str] = self._getlist("status_message_devices", default=[])
+
+
+class StatusMessageContentConfig(ConfigHelper):
+    _section = "status_message_content"
+    _KNOWN_ITEMS = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
+    _MESSAGE_CONTENT = [
+        "progress",
+        "height",
+        "filament_length",
+        "filament_weight",
+        "print_duration",
+        "eta",
+        "finish_time",
+        "m117_status",
+        "tgnotify_status",
+        "last_update_time",
+    ]
+
+    def __init__(self, config: configparser.ConfigParser):
+        super().__init__(config)
+        self.content: List[str] = self._getlist("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
+        self.sensors: List[str] = self._getlist("sensors", default=[])
+        self.heaters: List[str] = self._getlist("heaters", default=[])
+        self.fans: List[str] = self._getlist("fans", default=[])
+        self.moonraker_devices: List[str] = self._getlist("moonraker_devices", default=[])
 
 
 class ConfigWrapper:
@@ -399,9 +408,23 @@ class ConfigWrapper:
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
-        self.unknown_fields = self.bot.unknown_fields + self.camera.unknown_fields + self.notifications.unknown_fields + self.timelapse.unknown_fields + self.telegram_ui.unknown_fields
+        self.status_message_content = StatusMessageContentConfig(config)
+        self.unknown_fields = (
+            self.bot.unknown_fields
+            + self.camera.unknown_fields
+            + self.notifications.unknown_fields
+            + self.timelapse.unknown_fields
+            + self.telegram_ui.unknown_fields
+            + self.status_message_content.unknown_fields
+        )
         self.parsing_errors = (
-            self.secrets.parsing_errors + self.bot.parsing_errors + self.camera.parsing_errors + self.notifications.parsing_errors + self.timelapse.parsing_errors + self.telegram_ui.parsing_errors
+            self.secrets.parsing_errors
+            + self.bot.parsing_errors
+            + self.camera.parsing_errors
+            + self.notifications.parsing_errors
+            + self.timelapse.parsing_errors
+            + self.telegram_ui.parsing_errors
+            + self.status_message_content.parsing_errors
         )
 
     @property

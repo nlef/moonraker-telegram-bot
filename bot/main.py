@@ -1184,26 +1184,18 @@ def notify_status_update(message_params):
 
 def parse_sensors(message_parts_loc):
     for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
-        klippy.update_sensror(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
+        klippy.update_sensor(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
-    for heater_fan in [key for key in message_parts_loc if key.startswith("heater_fan") or key.startswith("fan")]:
-        if message_parts_loc[heater_fan]:
-            klippy.update_sensror(heater_fan.replace("heater_fan ", ""), message_parts_loc[heater_fan])
-
-    for controller_fan in [key for key in message_parts_loc if key.startswith("controller_fan")]:
-        if message_parts_loc[controller_fan]:
-            klippy.update_sensror(controller_fan.replace("controller_fan ", ""), message_parts_loc[controller_fan])
-
-    for temperature_fan in [key for key in message_parts_loc if key.startswith("temperature_fan")]:
-        if message_parts_loc[temperature_fan]:
-            klippy.update_sensror(temperature_fan.replace("temperature_fan ", ""), message_parts_loc[temperature_fan])
-
-    for generic_fan in [key for key in message_parts_loc if key.startswith("fan_generic")]:
-        if message_parts_loc[generic_fan]:
-            klippy.update_sensror(generic_fan.replace("fan_generic ", ""), message_parts_loc[generic_fan])
+    for fan in [
+        key for key in message_parts_loc if key.startswith("heater_fan") or key == "fan" or key.startswith("controller_fan") or key.startswith("temperature_fan") or key.startswith("fan_generic")
+    ]:
+        klippy.update_sensor(
+            fan.replace("heater_fan ", "").replace("controller_fan ", "").replace("temperature_fan ", "").replace("fan_generic ", ""),
+            message_parts_loc[fan],
+        )
 
     for heater in [key for key in message_parts_loc if key.startswith("extruder") or key.startswith("heater_bed") or key.startswith("heater_generic")]:
-        klippy.update_sensror(
+        klippy.update_sensor(
             heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
             message_parts_loc[heater],
         )
@@ -1413,7 +1405,7 @@ if __name__ == "__main__":
 
     with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
         f.write("\n*******************************************************************\n")
-        f.write("Current Monraker telegram bot config\n")
+        f.write("Current Moonraker telegram bot config\n")
         conf.write(f)
         f.write("\n*******************************************************************\n")
 

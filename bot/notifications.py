@@ -43,7 +43,7 @@ class Notifier:
         self._silent_status: bool = config.telegram_ui.silent_status
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
         self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
-        self._message_parts: List[str] = config.telegram_ui.status_message_content
+        self._message_parts: List[str] = config.status_message_content.content
 
         self._last_height: int = 0
         self._last_percent: int = 0
