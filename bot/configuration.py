@@ -155,16 +155,19 @@ class SecretsConfig(ConfigHelper):
     ]
 
     def __init__(self, config: configparser.ConfigParser):
-        secrets_path = config.get("secrets", "secrets_path", fallback="")
-        if secrets_path:
+        secrets_path = Path(config.get("secrets", "secrets_path", fallback="")).absolute()
+        if secrets_path and secrets_path.is_file():
             conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-            conf.read(secrets_path)
+            conf.read(secrets_path.as_posix())
             super().__init__(conf)
         else:
             self._section = "bot"
             super().__init__(config)
 
-        self.token: str = self._getstring("bot_token")
+        if not self._config.has_option(self._section, "bot_token"):
+            self._parsing_errors.append("Option 'bot_token': value is not provided")
+
+        self.token: str = self._getstring("bot_token", default="")
         self.chat_id: int = self._getint("chat_id", default=0)
         self.user: str = self._getstring("user", default="")
         self.passwd: str = self._getstring("password", default="")

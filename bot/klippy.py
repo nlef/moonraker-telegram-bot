@@ -269,26 +269,27 @@ class Klippy:
     def _sensor_message(name: str, value) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         message = ""
+
         if "power" in value:
-            message = emoji.emojize(" :hotsprings: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
-            if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
-                message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
-            if value["power"] > 0.0:
-                message += emoji.emojize(" :fire: ", language="alias")
+            message = emoji.emojize(":hotsprings: ", language="alias")
         elif "speed" in value:
-            message = emoji.emojize(" :tornado: ", language="alias") + f"{sens_name.title()}:"
-            if "temperature" in value:
-                message += f" {round(value['temperature'])}"
-            if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
-                message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])}"
-            if "speed" in value:
-                message += f" {round(value['speed'] * 100)}%"
-            if "rpm" in value and value["rpm"] is not None:
-                message += f" {round(value['rpm'])} RPM"
+            message = emoji.emojize(":tornado: ", language="alias")
         elif "temperature" in value:
-            message = emoji.emojize(" :thermometer: ", language="alias") + f"{sens_name.title()}: {round(value['temperature'])}"
-        if message:
-            message += "\n"
+            message = emoji.emojize(":thermometer: ", language="alias")
+
+        message += f"{sens_name.title()}:"
+
+        if "temperature" in value:
+            message += f" {round(value['temperature'])} \N{DEGREE SIGN}C"
+        if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
+            message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])} \N{DEGREE SIGN}C"
+        if "power" in value and value["power"] > 0.0:
+            message += emoji.emojize(" :fire:", language="alias")
+        if "speed" in value:
+            message += f" {round(value['speed'] * 100)}%"
+        if "rpm" in value and value["rpm"] is not None:
+            message += f" {round(value['rpm'])} RPM"
+
         return message
 
     def update_power_device(self, name: str, value) -> None:
@@ -310,10 +311,7 @@ class Klippy:
         return message
 
     def _get_sensors_message(self) -> str:
-        message = ""
-        for name, value in self._sensors_dict.items():
-            message += self._sensor_message(name, value)
-        return message
+        return "\n".join([self._sensor_message(n, v) for n, v in self._sensors_dict.items()])
 
     def _get_power_devices_mess(self) -> str:
         message = ""
