@@ -282,7 +282,6 @@ class Timelapse:
                         self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
                     except BadRequest as badreq:
                         logger.warning("Failed deleting message \n%s", badreq)
-                        self._bzz_mess_id = 0
                     self._camera.cleanup(lapse_filename)
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
