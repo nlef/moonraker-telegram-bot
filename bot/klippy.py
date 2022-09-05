@@ -181,6 +181,7 @@ class Klippy:
     @printing_filename.setter
     def printing_filename(self, new_value: str):
         if not new_value:
+            logger.info("'filename' has the same value as the current: %s", new_value)
             self._reset_file_info()
             return
 
