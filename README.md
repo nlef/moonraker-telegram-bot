@@ -25,6 +25,7 @@ When writing issues/contacting for support please attach the 'telegram.log' as w
 
 
 ### Happy Printing!
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=KCKKK5WLXNEFE)
 
 
 
