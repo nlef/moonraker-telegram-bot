@@ -10,11 +10,12 @@ from pathlib import Path
 from queue import Queue
 import threading
 import time
-from typing import List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
 from telegram import Message
+from telegram.error import RetryAfter
 
 from configuration import ConfigWrapper
 from klippy import Klippy
@@ -145,6 +146,8 @@ class Camera:
         cv2.setNumThreads(self._threads)
         self.cam_cam = cv2.VideoCapture()
         self._set_cv2_params()
+
+        self.retryable_notification_minimum_time = time.time()
 
     @property
     def light_need_off(self) -> bool:
@@ -441,6 +444,24 @@ class Camera:
             logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
             return self._target_fps
 
+    def retryable_notification(self, required: bool, func: Callable[[], Any], debug_info: Optional[str] = None) -> None:
+        if not required and time.time() < self.retryable_notification_minimum_time:
+            logger.debug("Proactively skipping not required message due to previous throttle request%s", (": " + debug_info) if debug_info else "")
+            return
+
+        try:
+            func()
+        except RetryAfter as exc:
+            self.retryable_notification_minimum_time = time.time() + exc.retry_after
+
+            if not required:
+                logger.debug("Skipping not required Telegram notification due to throttle%s", (": " + debug_info) if debug_info else "")
+                return
+
+            logger.debug("Sleeping for %i seconds because of Telegram's throttling", exc.retry_after)
+            time.sleep(exc.retry_after)
+            self.retryable_notification(required=required, func=func)
+
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")
@@ -485,15 +506,16 @@ class Camera:
             )
 
             info_mess.edit_text(text="Images recoding")
-            last_update_time = time.time()
             for fnum, filename in enumerate(photos):
-                if time.time() >= last_update_time + 3:
-                    info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
-                    last_update_time = time.time()
+                text = f"Images recoded {fnum}/{photo_count}"
+                self.retryable_notification(required=False, func=lambda: info_mess.edit_text(text=text), debug_info=text)  # pylint: disable=cell-var-from-loop
+                # it's a blocking call so the value won't be different while lambda is being executed
 
                 out.write(cv2.imread(filename))
 
-            info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
+            text = f"Repeating last image for {self._last_frame_duration} seconds"
+            self.retryable_notification(required=True, func=lambda: info_mess.edit_text(text=text), debug_info=text)
+
             for _ in range(lapse_fps * self._last_frame_duration):
                 out.write(img)
 
