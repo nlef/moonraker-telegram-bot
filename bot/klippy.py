@@ -145,7 +145,7 @@ class Klippy:
         if (not self._user and not self._jwt_token) and not self._api_token:
             return ""
 
-        resp = requests.get(f"http://{self._host}/access/oneshot_token", headers=self._headers)
+        resp = requests.get(f"http://{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
         if resp.ok:
             res = f"?token={resp.json()['result']}"
         else:
@@ -223,10 +223,7 @@ class Klippy:
         if not self._user or not self._passwd:
             return
         # TOdo: add try catch
-        res = requests.post(
-            f"http://{self._host}/access/login",
-            json={"username": self._user, "password": self._passwd},
-        )
+        res = requests.post(f"http://{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
         if res.ok:
             self._jwt_token = res.json()["result"]["token"]
             self._refresh_token = res.json()["result"]["refresh_token"]
@@ -236,7 +233,7 @@ class Klippy:
     def _refresh_moonraker_token(self) -> None:
         if not self._refresh_token:
             return
-        res = requests.post(f"http://{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token})
+        res = requests.post(f"http://{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15)
         if res.ok:
             logger.debug("JWT token successfully refreshed")
             self._jwt_token = res.json()["result"]["token"]
@@ -244,11 +241,11 @@ class Klippy:
             logger.error("Failed to refresh token: %s", res.reason)
 
     def _make_request(self, url, method, json=None, stream=None, files=None) -> requests.Response:
-        res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files)
+        res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files, timeout=30)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files)
+            res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files, timeout=30)
         return res
 
     def check_connection(self) -> str:
