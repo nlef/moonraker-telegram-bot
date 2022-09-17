@@ -379,10 +379,20 @@ class WebSocketHelper:
             return
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
 
+    def firmware_restart_printer(self):
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
+
     def shutdown_pi_host(self):
         if self.websocket is None:
             return
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
+
+    def restart_system_service(self, service_name: str):
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
 
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:

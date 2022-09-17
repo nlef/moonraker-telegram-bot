@@ -176,20 +176,7 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS = [
-        "bot_token",
-        "chat_id",
-        "user",
-        "password",
-        "api_token",
-        "server",
-        "socks_proxy",
-        "debug",
-        "log_parser",
-        "power_device",
-        "light_device",
-        "upload_path",
-    ]
+    _KNOWN_ITEMS = ["bot_token", "chat_id", "user", "password", "api_token", "server", "socks_proxy", "debug", "log_parser", "power_device", "light_device", "upload_path", "services"]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
@@ -203,7 +190,7 @@ class BotConfig(ConfigHelper):
         self.log_path: str = self._getstring("log_path", default="/tmp")
         self.log_file: str = self._getstring("log_path", default="/tmp")
         self.upload_path: str = self._getstring("upload_path", default="")
-
+        self.services: List[str] = self._getlist("services", ["klipper", "moonraker"])
         self.log_parser: bool = self._getboolean("log_parser", default=False)
 
     @property
@@ -362,7 +349,7 @@ class TelegramUIConfig(ConfigHelper):
                         el.replace("[", "").replace("]", "").split(","),
                     )
                 ),
-                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[status,pause,cancel,resume],[files,emergency,macros,shutdown]")),
+                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)

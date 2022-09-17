@@ -264,88 +264,46 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def pause_printing(update: Update, __: CallbackContext) -> None:
+def command_confirm_message(update: Update, text: str, callback_mess: str) -> None:
     if update.effective_message is None or update.effective_message.bot is None:
         logger.warning("Undefined effective message or bot")
         return
 
     update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     update.effective_message.reply_text(
-        "Pause printing?",
-        reply_markup=confirm_keyboard("pause_printing"),
+        text,
+        reply_markup=confirm_keyboard(callback_mess),
         disable_notification=notifier.silent_commands,
         quote=True,
     )
+
+
+def pause_printing(update: Update, __: CallbackContext) -> None:
+    command_confirm_message(update, text="Pause printing?", callback_mess="pause_printing")
 
 
 def resume_printing(update: Update, __: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
-
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    update.effective_message.reply_text(
-        "Resume printing?",
-        reply_markup=confirm_keyboard("resume_printing"),
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+    command_confirm_message(update, text="Resume printing?", callback_mess="resume_printing")
 
 
 def cancel_printing(update: Update, __: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
-
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    update.effective_message.reply_text(
-        "Cancel printing?",
-        reply_markup=confirm_keyboard("cancel_printing"),
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+    command_confirm_message(update, text="Cancel printing?", callback_mess="cancel_printing")
 
 
 def emergency_stop(update: Update, _: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
+    command_confirm_message(update, text="Execute emergency stop?", callback_mess="emergency_stop")
 
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    update.effective_message.reply_text(
-        "Execute emergency stop?",
-        reply_markup=confirm_keyboard("emergency_stop"),
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+
+def firmware_restart(update: Update, _: CallbackContext) -> None:
+    command_confirm_message(update, text="Restart klipper firmware?", callback_mess="firmware_restart")
 
 
 def shutdown_host(update: Update, _: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
-
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    update.effective_message.reply_text(
-        "Shutdown host?",
-        reply_markup=confirm_keyboard("shutdown_host"),
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+    command_confirm_message(update, text="Shutdown host?", callback_mess="shutdown_host")
 
 
 def bot_restart(update: Update, _: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
-
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    update.effective_message.reply_text(
-        "Restart bot?",
-        reply_markup=confirm_keyboard("bot_restart"),
-        disable_notification=notifier.silent_commands,
-        quote=True,
-    )
+    command_confirm_message(update, text="Restart bot?", callback_mess="bot_restart")
 
 
 def send_logs(update: Update, _: CallbackContext) -> None:
@@ -562,6 +520,9 @@ def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == "emergency_stop":
         ws_helper.emergency_stop_printer()
         query.delete_message()
+    elif query.data == "firmware_restart":
+        ws_helper.firmware_restart_printer()
+        query.delete_message()
     elif query.data == "cancel_printing":
         ws_helper.manage_printing("cancel")
         query.delete_message()
@@ -634,7 +595,21 @@ def button_handler(update: Update, context: CallbackContext) -> None:
                 query.edit_message_text(text=f"Failed start printing file {filename}")
             elif query.message.caption:
                 query.message.edit_caption(caption=f"Failed start printing file {filename}")
-
+    elif "rstrt_srvc:" in query.data:
+        service_name = query.data.replace("rstrt_srvc:", "")
+        query.edit_message_text(
+            text=f'Restart service "{service_name}"?',
+            reply_markup=confirm_keyboard(f"rstrt_srv:{service_name}"),
+        )
+    elif "rstrt_srv:" in query.data:
+        service_name = query.data.replace("rstrt_srv:", "")
+        update.effective_message.reply_to_message.reply_text(
+            f"Restarting service: {service_name}",
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        query.delete_message()
+        ws_helper.restart_system_service(service_name)
     else:
         logger.debug("unknown message from inline keyboard query: %s", query.data)
         query.delete_message()
@@ -692,6 +667,30 @@ def gcode_files_keyboard(offset: int = 0):
         files_keys += [arrows]
 
     return InlineKeyboardMarkup(files_keys)
+
+
+def services_keyboard(update: Update, _: CallbackContext) -> None:
+    def create_service_button(element) -> List[InlineKeyboardButton]:
+        return [
+            InlineKeyboardButton(
+                element,
+                callback_data="rstrt_srvc:" + element,
+            )
+        ]
+
+    services = configWrap.bot.services
+    service_keys: List[List[InlineKeyboardButton]] = list(map(create_service_button, services))
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
+    update.effective_message.reply_text(
+        "Services to operate:",
+        reply_markup=InlineKeyboardMarkup(service_keys),
+        disable_notification=notifier.silent_commands,
+        quote=True,
+    )
 
 
 def exec_gcode(update: Update, _: CallbackContext) -> None:
@@ -995,6 +994,8 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
     dispatcher.add_handler(CommandHandler("bot_restart", bot_restart))
+    dispatcher.add_handler(CommandHandler("fw_restart", firmware_restart))
+    dispatcher.add_handler(CommandHandler("services", services_keyboard))
     dispatcher.add_handler(CommandHandler("files", get_gcode_files, run_async=True))
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
