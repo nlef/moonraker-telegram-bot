@@ -280,8 +280,8 @@ class WebSocketHelper:
             self._light_power_device.device_state = device_state
 
     def websocket_to_message(self, ws_loc, ws_message):
-        json_message = ujson.loads(ws_message)
         logger.debug(ws_message)
+        json_message = ujson.loads(ws_message)
 
         # Todo: log and rework!
         if "error" in json_message:

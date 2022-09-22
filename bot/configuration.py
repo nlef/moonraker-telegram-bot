@@ -1,4 +1,5 @@
 import configparser
+import os
 import pathlib
 from pathlib import Path
 import re
@@ -155,7 +156,7 @@ class SecretsConfig(ConfigHelper):
     ]
 
     def __init__(self, config: configparser.ConfigParser):
-        secrets_path = Path(config.get("secrets", "secrets_path", fallback="")).absolute()
+        secrets_path = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="")))
         if secrets_path and secrets_path.is_file():
             conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
             conf.read(secrets_path.as_posix())
@@ -314,10 +315,10 @@ class TimelapseConfig(ConfigHelper):
         self.init_paths()
 
     def init_paths(self):
-        self.base_dir = Path(self.base_dir).resolve().as_posix()
+        self.base_dir = os.path.expanduser(self.base_dir)
         Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
-            self.ready_dir = Path(self.ready_dir).resolve().as_posix()
+            self.ready_dir = os.path.expanduser(self.ready_dir)
 
 
 class TelegramUIConfig(ConfigHelper):
