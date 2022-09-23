@@ -187,6 +187,8 @@ class Klippy:
 
         response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}", "GET")
         # Todo: add response status check!
+        if not response.ok:
+            logger.warning("bad response for file request %s", response.reason)
         resp = response.json()["result"]
         self._printing_filename = new_value
         self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
@@ -203,9 +205,9 @@ class Klippy:
                 self._thumbnail_path = thumb["relative_path"]
         else:
             if "filename" not in resp:
-                logger.error('"filename" field is not present in response: %s', resp.json())
+                logger.error('"filename" field is not present in response: %s', resp)
             if "thumbnails" not in resp:
-                logger.error('"thumbnails" field is not present in response: %s', resp.json())
+                logger.error('"thumbnails" field is not present in response: %s', resp)
 
     @property
     def printing_filename_with_time(self) -> str:
