@@ -674,7 +674,7 @@ def services_keyboard(update: Update, _: CallbackContext) -> None:
         return [
             InlineKeyboardButton(
                 element,
-                callback_data="rstrt_srvc:" + element,
+                callback_data=f"rstrt_srvc:{element}" if configWrap.telegram_ui.require_confirmation_macro else f"rstrt_srv:{element}",
             )
         ]
 

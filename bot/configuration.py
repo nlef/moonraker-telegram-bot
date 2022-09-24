@@ -316,6 +316,7 @@ class TelegramUIConfig(ConfigHelper):
         "pin_status_single_message",
         "buttons",
         "require_confirmation_macro",
+        "require_confirmation_services",
         "progress_update_message",
         "include_macros_in_command_list",
         "hidden_macros",
@@ -353,6 +354,7 @@ class TelegramUIConfig(ConfigHelper):
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.require_confirmation_services: bool = self._getboolean("require_confirmation_services", default=True)
         self.progress_update_message: bool = self._getboolean("progress_update_message", default=False)
         self.silent_progress: bool = self._getboolean("silent_progress", default=False)
         self.silent_commands: bool = self._getboolean("silent_commands", default=False)
