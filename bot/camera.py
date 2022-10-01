@@ -487,7 +487,7 @@ class Camera:
             info_mess.edit_text(text="Images recoding")
             last_update_time = time.time()
             for fnum, filename in enumerate(photos):
-                if time.time() >= last_update_time + 3:
+                if time.time() >= last_update_time + 10:
                     info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
                     last_update_time = time.time()
 
