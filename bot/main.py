@@ -206,7 +206,7 @@ def check_unfinished_lapses():
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
     bot_updater.bot.send_message(
-        configWrap.bot.chat_id,
+        configWrap.secrets.chat_id,
         text="Unfinished timelapses found\nBuild unfinished timelapse?",
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
