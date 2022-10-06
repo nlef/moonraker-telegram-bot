@@ -30,7 +30,7 @@ body:
       label: If needed, paste the relevant bot log contents here.
       description: |
         If you think your issue is caused by a bug or software errors, please attach the bot log.
-      placeholder: Paste telegram.log contents here.
+      placeholder: Attach the full log here. The FULL log. Not a part. THE FULL LOG.
   - type: textarea
     id: journalctl
     attributes:
@@ -38,7 +38,7 @@ body:
       description: |
         If you think your issue is caused by a bug or software errors, please attach the journal content
         You can get it by entering `sudo journalctl -r -u moonraker-telegram-bot` into the console.
-      placeholder: Paste journal contents here.
+      placeholder: Attach the journal file here.
   - type: dropdown
     id: version
     attributes:
@@ -52,7 +52,8 @@ body:
     id: terms
     attributes:
       label: Reports only on latest master or development branches!
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com)
+      description: |
+        Please, do meaningful reports and try to read the logs before opening issues.
       options:
         - label: I have updated to latest development/master version before submitting the bug
           required: true
