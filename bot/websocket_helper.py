@@ -389,6 +389,11 @@ class WebSocketHelper:
             return
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
 
+    def reboot_pi_host(self):
+        if self.websocket is None:
+            return
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
+
     def restart_system_service(self, service_name: str):
         if self.websocket is None:
             return

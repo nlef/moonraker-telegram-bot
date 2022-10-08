@@ -302,6 +302,10 @@ def shutdown_host(update: Update, _: CallbackContext) -> None:
     command_confirm_message(update, text="Shutdown host?", callback_mess="shutdown_host")
 
 
+def reboot_host(update: Update, _: CallbackContext) -> None:
+    command_confirm_message(update, text="Reboot host?", callback_mess="reboot_host")
+
+
 def bot_restart(update: Update, _: CallbackContext) -> None:
     command_confirm_message(update, text="Restart bot?", callback_mess="bot_restart")
 
@@ -542,6 +546,10 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
         query.delete_message()
         ws_helper.shutdown_pi_host()
+    elif query.data == "reboot_host":
+        update.effective_message.reply_to_message.reply_text("Rebooting host", quote=True)
+        query.delete_message()
+        ws_helper.reboot_pi_host()
     elif query.data == "bot_restart":
         update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
         query.delete_message()
@@ -901,6 +909,7 @@ def bot_commands() -> Dict[str, str]:
         "emergency": "emergency stop printing",
         "bot_restart": "restarts the bot service, useful for config updates",
         "shutdown": "shutdown Pi gracefully",
+        "reboot": "reboot Pi gracefully",
     }
     return {c: a for c, a in commands.items() if c not in configWrap.telegram_ui.hidden_bot_commands}
 
@@ -993,6 +1002,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("light", light_toggle))
     dispatcher.add_handler(CommandHandler("emergency", emergency_stop))
     dispatcher.add_handler(CommandHandler("shutdown", shutdown_host))
+    dispatcher.add_handler(CommandHandler("reboot", reboot_host))
     dispatcher.add_handler(CommandHandler("bot_restart", bot_restart))
     dispatcher.add_handler(CommandHandler("fw_restart", firmware_restart))
     dispatcher.add_handler(CommandHandler("services", services_keyboard))
