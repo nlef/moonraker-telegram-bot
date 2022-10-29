@@ -36,16 +36,12 @@ ok_msg(){
 
 # Main functions
 init_config_path() {
-  if [ -z ${klipper_cfg_loc+x} ]; then
-    report_status "Telegram bot configuration file location selection"
-    echo -e "\n"
-	  echo "Enter the path for the configuration files location. Subfolders for multiple instances wil be created under this path."
-	  echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
-    read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
-    KLIPPER_CONF_DIR=${klip_conf_dir}
-  else
-    KLIPPER_CONF_DIR=${klipper_cfg_loc}
-  fi
+  report_status "Telegram bot configuration file location selection"
+  echo -e "\n"
+  echo "Enter the path for the configuration files location. Subfolders for multiple instances wil be created under this path."
+  echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
+  read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
+  KLIPPER_CONF_DIR=${klip_conf_dir}
 
   if ! [ -z ${LPATH+x} ]; then
     KLIPPER_LOGS_DIR=${LPATH}
