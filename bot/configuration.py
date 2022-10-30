@@ -177,20 +177,7 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS = [
-        "bot_token",
-        "chat_id",
-        "user",
-        "password",
-        "api_token",
-        "server",
-        "socks_proxy",
-        "debug",
-        "log_parser",
-        "power_device",
-        "light_device",
-        "upload_path",
-    ]
+    _KNOWN_ITEMS = ["bot_token", "chat_id", "user", "password", "api_token", "server", "socks_proxy", "debug", "log_parser", "power_device", "light_device", "upload_path", "services"]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
@@ -204,7 +191,7 @@ class BotConfig(ConfigHelper):
         self.log_path: str = self._getstring("log_path", default="/tmp")
         self.log_file: str = self._getstring("log_path", default="/tmp")
         self.upload_path: str = self._getstring("upload_path", default="")
-
+        self.services: List[str] = self._getlist("services", ["klipper", "moonraker"])
         self.log_parser: bool = self._getboolean("log_parser", default=False)
 
     @property
@@ -330,6 +317,7 @@ class TelegramUIConfig(ConfigHelper):
         "pin_status_single_message",
         "buttons",
         "require_confirmation_macro",
+        "require_confirmation_services",
         "progress_update_message",
         "include_macros_in_command_list",
         "hidden_macros",
@@ -363,10 +351,11 @@ class TelegramUIConfig(ConfigHelper):
                         el.replace("[", "").replace("]", "").split(","),
                     )
                 ),
-                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[status,pause,cancel,resume],[files,emergency,macros,shutdown]")),
+                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
             )
         )
         self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
+        self.require_confirmation_services: bool = self._getboolean("require_confirmation_services", default=True)
         self.progress_update_message: bool = self._getboolean("progress_update_message", default=False)
         self.silent_progress: bool = self._getboolean("silent_progress", default=False)
         self.silent_commands: bool = self._getboolean("silent_commands", default=False)
