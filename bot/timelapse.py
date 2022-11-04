@@ -321,6 +321,12 @@ class Timelapse:
                 elif "manual_mode" in part:
                     self.manual_mode = bool(int(part.split(sep="=").pop()))
                     response += f"manual_mode={self.manual_mode} "
+                elif "after_photo_gcode" in part:
+                    self._after_photo_gcode = part.split(sep="=").pop()
+                    response += f"after_photo_gcode={self._after_photo_gcode} "
+                elif "send_finished_lapse" in part:
+                    self._send_finished_lapse = bool(int(part.split(sep="=").pop()))
+                    response += f"send_finished_lapse={self._send_finished_lapse} "
                 elif "height" in part:
                     self.height = float(part.split(sep="=").pop())
                     response += f"height={self.height} "
@@ -342,12 +348,6 @@ class Timelapse:
                 elif "after_lapse_gcode" in part:
                     self._after_lapse_gcode = part.split(sep="=").pop()
                     response += f"after_lapse_gcode={self._after_lapse_gcode} "
-                elif "send_finished_lapse" in part:
-                    self._send_finished_lapse = bool(int(part.split(sep="=").pop()))
-                    response += f"send_finished_lapse={self._send_finished_lapse} "
-                elif "after_photo_gcode" in part:
-                    self._after_photo_gcode = part.split(sep="=").pop()
-                    response += f"after_photo_gcode={self._after_photo_gcode} "
                 else:
                     self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
             except Exception as ex:
