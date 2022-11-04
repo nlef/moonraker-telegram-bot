@@ -447,13 +447,13 @@ class Notifier:
         response = ""
         for part in mass_parts:
             try:
-                if "percent" in part:
+                if part.startswith("percent="):
                     self.percent = int(part.split(sep="=").pop())
                     response += f"percent={self.percent} "
-                elif "height" in part:
+                elif part.startswith("height="):
                     self.height = float(part.split(sep="=").pop())
                     response += f"height={self.height} "
-                elif "time" in part:
+                elif part.startswith("time="):
                     self.interval = int(part.split(sep="=").pop())
                     response += f"time={self.interval} "
                 else:

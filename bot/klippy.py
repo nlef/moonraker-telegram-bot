@@ -508,11 +508,9 @@ class Klippy:
     def save_data_to_marco(self, lapse_size: int, filename: str, path: str) -> None:
         full_macro_list = self._get_full_marco_list()
         if self._DATA_MACRO in full_macro_list:
-            self.execute_command(
-                f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}",
-                f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='\"{filename}\"'",
-                f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='\"{path}\"'",
-            )
+            self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}")
+            self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='\"{filename}\"'")
+            self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='\"{path}\"'")
 
         else:
             logger.error("Marco %s not defined", self._DATA_MACRO)

@@ -578,7 +578,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
             quote=True,
         )
         query.delete_message()
-        klippy.execute_command(command)
+        klippy.execute_gcode_script(command)
     elif "macroc:" in query.data:
         command = query.data.replace("macroc:", "")
         query.edit_message_text(
@@ -709,7 +709,7 @@ def exec_gcode(update: Update, _: CallbackContext) -> None:
 
     if update.effective_message.text != "/gcode":
         command = update.effective_message.text.replace("/gcode ", "")
-        klippy.execute_command(command)
+        klippy.execute_gcode_script(command)
     else:
         update.effective_message.reply_text("No command provided", quote=True)
 
@@ -756,7 +756,7 @@ def macros_handler(update: Update, _: CallbackContext) -> None:
                 quote=True,
             )
         else:
-            klippy.execute_command(command)
+            klippy.execute_gcode_script(command)
             update.effective_message.reply_text(
                 f"Running macro: {command}",
                 disable_notification=notifier.silent_commands,

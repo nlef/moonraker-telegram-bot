@@ -292,7 +292,7 @@ class Timelapse:
             if self._after_lapse_gcode:
                 # Todo: add exception handling
                 self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f"{gcode_name}.mp4")
-                self._klippy.execute_command(self._after_lapse_gcode.strip())
+                self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
 
     def send_timelapse(self) -> None:
         self._sched.add_job(
@@ -315,39 +315,39 @@ class Timelapse:
         response = ""
         for part in mass_parts:
             try:
-                if "enabled" in part:
+                if part.startswith("enabled="):
                     self.enabled = bool(int(part.split(sep="=").pop()))
                     response += f"enabled={self.enabled} "
-                elif "manual_mode" in part:
+                elif part.startswith("manual_mode="):
                     self.manual_mode = bool(int(part.split(sep="=").pop()))
                     response += f"manual_mode={self.manual_mode} "
-                elif "after_photo_gcode" in part:
-                    self._after_photo_gcode = part.split(sep="=").pop()
-                    response += f"after_photo_gcode={self._after_photo_gcode} "
-                elif "send_finished_lapse" in part:
-                    self._send_finished_lapse = bool(int(part.split(sep="=").pop()))
-                    response += f"send_finished_lapse={self._send_finished_lapse} "
-                elif "height" in part:
+                elif part.startswith("height="):
                     self.height = float(part.split(sep="=").pop())
                     response += f"height={self.height} "
-                elif "time" in part:
+                elif part.startswith("time="):
                     self.interval = int(part.split(sep="=").pop())
                     response += f"time={self.interval} "
-                elif "target_fps" in part:
+                elif part.startswith("target_fps="):
                     self.target_fps = int(part.split(sep="=").pop())
                     response += f"target_fps={self.target_fps} "
-                elif "last_frame_duration" in part:
+                elif part.startswith("last_frame_duration="):
                     self.last_frame_duration = int(part.split(sep="=").pop())
                     response += f"last_frame_duration={self.last_frame_duration} "
-                elif "min_lapse_duration" in part:
+                elif part.startswith("min_lapse_duration="):
                     self.min_lapse_duration = int(part.split(sep="=").pop())
                     response += f"min_lapse_duration={self.min_lapse_duration} "
-                elif "max_lapse_duration" in part:
+                elif part.startswith("max_lapse_duration="):
                     self.max_lapse_duration = int(part.split(sep="=").pop())
                     response += f"max_lapse_duration={self.max_lapse_duration} "
-                elif "after_lapse_gcode" in part:
+                elif part.startswith("after_lapse_gcode="):
                     self._after_lapse_gcode = part.split(sep="=").pop()
                     response += f"after_lapse_gcode={self._after_lapse_gcode} "
+                elif part.startswith("send_finished_lapse="):
+                    self._send_finished_lapse = bool(int(part.split(sep="=").pop()))
+                    response += f"send_finished_lapse={self._send_finished_lapse} "
+                elif part.startswith("after_photo_gcode="):
+                    self._after_photo_gcode = part.split(sep="=").pop()
+                    response += f"after_photo_gcode={self._after_photo_gcode} "
                 else:
                     self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
             except Exception as ex:
@@ -362,6 +362,9 @@ class Timelapse:
                 f"last_frame_duration={self.last_frame_duration} "
                 f"min_lapse_duration={self.min_lapse_duration} "
                 f"max_lapse_duration={self.max_lapse_duration} "
+                f"after_lapse_gcode={self._after_lapse_gcode} "
+                f"send_finished_lapse={self._send_finished_lapse} "
+                f"after_photo_gcode={self._after_photo_gcode} "
             )
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

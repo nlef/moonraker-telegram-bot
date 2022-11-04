@@ -409,7 +409,7 @@ class Camera:
             filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
             if gcode:
                 try:
-                    self._klippy.execute_command(gcode.strip())
+                    self._klippy.execute_gcode_script(gcode.strip())
                 except Exception as ex:
                     logger.error(ex)
             with open(filename, "wb") as outfile:
