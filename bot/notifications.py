@@ -457,10 +457,10 @@ class Notifier:
                     self.interval = int(part.split(sep="=").pop())
                     response += f"time={self.interval} "
                 else:
-                    self._klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
+                    self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
             except Exception as ex:
-                self._klippy.execute_command(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
+                self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = f"percent={self.percent} height={self.height} time={self.interval} "
-            self._klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
-            self._klippy.execute_command(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
+            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
+            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')

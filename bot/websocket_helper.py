@@ -399,6 +399,9 @@ class WebSocketHelper:
             return
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
 
+    def execute_ws_gcode_script(self, gcode: str) -> None:
+        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
+
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:
             lines = file.readlines()

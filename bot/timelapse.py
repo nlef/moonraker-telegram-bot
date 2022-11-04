@@ -339,10 +339,19 @@ class Timelapse:
                 elif "max_lapse_duration" in part:
                     self.max_lapse_duration = int(part.split(sep="=").pop())
                     response += f"max_lapse_duration={self.max_lapse_duration} "
+                elif "after_lapse_gcode" in part:
+                    self._after_lapse_gcode = part.split(sep="=").pop()
+                    response += f"after_lapse_gcode={self._after_lapse_gcode} "
+                elif "send_finished_lapse" in part:
+                    self._send_finished_lapse = bool(int(part.split(sep="=").pop()))
+                    response += f"send_finished_lapse={self._send_finished_lapse} "
+                elif "after_photo_gcode" in part:
+                    self._after_photo_gcode = part.split(sep="=").pop()
+                    response += f"after_photo_gcode={self._after_photo_gcode} "
                 else:
-                    self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
+                    self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
             except Exception as ex:
-                self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
+                self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = (
                 f"enabled={self.enabled} "
@@ -354,5 +363,5 @@ class Timelapse:
                 f"min_lapse_duration={self.min_lapse_duration} "
                 f"max_lapse_duration={self.max_lapse_duration} "
             )
-            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
-            self._klippy.execute_command(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')
+            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
+            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

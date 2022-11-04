@@ -311,7 +311,7 @@ class Klippy:
         return message
 
     def _get_sensors_message(self) -> str:
-        return "\n".join([self._sensor_message(n, v) for n, v in self._sensors_dict.items()])
+        return "\n".join([self._sensor_message(n, v) for n, v in self._sensors_dict.items()]) + "\n"
 
     def _get_power_devices_mess(self) -> str:
         message = ""
@@ -328,6 +328,11 @@ class Klippy:
     def execute_command(self, *command) -> None:
         data = {"commands": list(map(lambda el: f"{el}", command))}
         res = self._make_request(f"http://{self._host}/api/printer/command", "POST", json=data)
+        if not res.ok:
+            logger.error(res.reason)
+
+    def execute_gcode_script(self, gcode: str) -> None:
+        res = self._make_request(f"http://{self._host}/printer/gcode/script?script={gcode}", "GET")
         if not res.ok:
             logger.error(res.reason)
 
