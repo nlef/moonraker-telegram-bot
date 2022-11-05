@@ -478,6 +478,23 @@ class Klippy:
     def stop_all(self) -> None:
         self._reset_file_info()
 
+    def get_versions_info(self, bot_only: bool = False) -> str:
+        response = self._make_request(f"http://{self._host}/machine/update/status?refresh=false", "GET")
+        if not response.ok:
+            logger.warning(response.reason)
+            return ""
+        version_info = response.json()["result"]["version_info"]
+        version_message = ""
+        for comp, inf in version_info.items():
+            if comp == "system":
+                continue
+            if bot_only and comp != "moonraker-telegram-bot":
+                continue
+            version_message += f"{comp}: {inf['version']}\n"
+        if version_message:
+            version_message += "\n"
+        return version_message
+
     def add_bot_announcements_feed(self):
         res = self._make_request(f"http://{self._host}/server/announcements/feed?name=moonraker-telegram-bot", "POST")
         if not res.ok:

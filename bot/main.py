@@ -316,6 +316,7 @@ def send_logs(update: Update, _: CallbackContext) -> None:
         return
 
     update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    update.effective_message.reply_text(text=klippy.get_versions_info(), disable_notification=notifier.silent_commands, quote=True)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     if Path(configWrap.bot.log_file).exists():
         with open(configWrap.bot.log_file, "rb") as fh:
@@ -919,7 +920,8 @@ def help_command(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message")
         return
     mess = (
-        escape_markdown("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]), version=2)
+        escape_markdown(klippy.get_versions_info(bot_only=True), version=2)
+        + escape_markdown("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]), version=2)
         + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional information"
     )
     update.effective_message.reply_text(
@@ -955,7 +957,13 @@ def greeting_message() -> None:
     if configWrap.secrets.chat_id == 0:
         return
     response = klippy.check_connection()
-    mess = escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2) if response else "Printer online" + configWrap.configuration_errors
+    mess = ""
+    if response:
+        mess += escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2)
+    else:
+        mess += "Printer online"
+        if configWrap.configuration_errors:
+            mess += escape_markdown(klippy.get_versions_info(bot_only=True), version=2) + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot_updater.bot.send_message(
