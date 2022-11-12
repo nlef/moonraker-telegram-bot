@@ -174,18 +174,15 @@ def check_unfinished_lapses(bot: telegram.Bot):
     if not files:
         return
     bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
-    files_keys = list(
+    files_keys: List[List[InlineKeyboardButton]] = list(
         map(
-            list,
-            zip(
-                map(
-                    lambda el: InlineKeyboardButton(
-                        text=el,
-                        callback_data=f"lapse:{hashlib.md5(el.encode()).hexdigest()}",
-                    ),
-                    files,
+            lambda el: [
+                InlineKeyboardButton(
+                    text=el,
+                    callback_data=f"lapse:{hashlib.md5(el.encode()).hexdigest()}",
                 )
-            ),
+            ],
+            files,
         )
     )
     files_keys.append(
