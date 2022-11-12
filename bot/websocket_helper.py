@@ -266,6 +266,8 @@ class WebSocketHelper:
             self._notifier.remove_notifier_timer()
             # Fixme: check manual mode
             self._timelapse.is_running = False
+            if not self._timelapse.manual_mode:
+                self._timelapse.send_timelapse()
             self._notifier.send_printer_status_notification(f"Printer state change: {print_stats_loc['state']} \n")
         elif state:
             logger.error("Unknown state: %s", state)
