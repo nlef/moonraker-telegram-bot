@@ -66,7 +66,7 @@ class Camera:
         config: ConfigWrapper,
         klippy: Klippy,
         light_device: PowerDevice,
-        logging_handler: logging.Handler = None,
+        logging_handler: logging.Handler,
     ):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
@@ -131,7 +131,7 @@ class Camera:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if config.bot.debug:
+        if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"

@@ -23,7 +23,7 @@ class Notifier:
         klippy: Klippy,
         camera_wrapper: Camera,
         scheduler: BaseScheduler,
-        logging_handler: logging.Handler = None,
+        logging_handler: logging.Handler,
     ):
         self._bot: Bot = bot
         self._chat_id: int = config.secrets.chat_id
@@ -57,7 +57,7 @@ class Notifier:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if config.bot.debug:
+        if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
     @property

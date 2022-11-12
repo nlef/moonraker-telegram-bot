@@ -30,7 +30,7 @@ class Timelapse:
         camera: Camera,
         scheduler: BaseScheduler,
         bot: Bot,
-        logging_handler: logging.Handler = None,
+        logging_handler: logging.Handler,
     ):
         self._enabled: bool = config.timelapse.enabled and camera.enabled
         self._mode_manual: bool = config.timelapse.mode_manual
@@ -68,7 +68,7 @@ class Timelapse:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if config.bot.debug:
+        if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
     @property

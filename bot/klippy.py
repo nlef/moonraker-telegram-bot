@@ -7,7 +7,7 @@ import time
 from typing import List, Tuple
 import urllib
 
-from PIL import Image  # type: ignore
+from PIL import Image
 import emoji
 import requests
 import ujson
@@ -32,9 +32,9 @@ class Klippy:
         config: ConfigWrapper,
         light_device: PowerDevice,
         psu_device: PowerDevice,
-        logging_handler: logging.Handler = None,
+        logging_handler: logging.Handler,
     ):
-        self._host: str = config.bot.host
+        self._host: str = config.bot_config.host
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
@@ -81,7 +81,7 @@ class Klippy:
 
         if logging_handler:
             logger.addHandler(logging_handler)
-        if config.bot.debug:
+        if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
         self._auth_moonraker()

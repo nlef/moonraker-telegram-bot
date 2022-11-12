@@ -396,14 +396,14 @@ class StatusMessageContentConfig(ConfigHelper):
 class ConfigWrapper:
     def __init__(self, config: configparser.ConfigParser):
         self.secrets = SecretsConfig(config)
-        self.bot = BotConfig(config)
+        self.bot_config = BotConfig(config)
         self.camera = CameraConfig(config)
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
         self.status_message_content = StatusMessageContentConfig(config)
         self.unknown_fields = (
-            self.bot.unknown_fields
+            self.bot_config.unknown_fields
             + self.camera.unknown_fields
             + self.notifications.unknown_fields
             + self.timelapse.unknown_fields
@@ -412,7 +412,7 @@ class ConfigWrapper:
         )
         self.parsing_errors = (
             self.secrets.parsing_errors
-            + self.bot.parsing_errors
+            + self.bot_config.parsing_errors
             + self.camera.parsing_errors
             + self.notifications.parsing_errors
             + self.timelapse.parsing_errors

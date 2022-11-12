@@ -18,6 +18,7 @@ from zipfile import ZipFile
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
+import telegram
 from telegram import (
     BotCommand,
     ChatAction,
@@ -100,7 +101,6 @@ scheduler = BackgroundScheduler(
 )
 scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
-bot_updater: Updater
 configWrap: ConfigWrapper
 main_pid = os.getpid()
 cameraWrap: Camera
@@ -169,11 +169,11 @@ def status(update: Update, _: CallbackContext) -> None:
             )
 
 
-def check_unfinished_lapses():
+def check_unfinished_lapses(bot: telegram.Bot):
     files = cameraWrap.detect_unfinished_lapses()
     if not files:
         return
-    bot_updater.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
+    bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     files_keys = list(
         map(
             list,
@@ -205,7 +205,7 @@ def check_unfinished_lapses():
         ]
     )
     reply_markup = InlineKeyboardMarkup(files_keys)
-    bot_updater.bot.send_message(
+    bot.send_message(
         configWrap.secrets.chat_id,
         text="Unfinished timelapses found\nBuild unfinished timelapse?",
         reply_markup=reply_markup,
@@ -318,14 +318,14 @@ def send_logs(update: Update, _: CallbackContext) -> None:
     update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     update.effective_message.reply_text(text=klippy.get_versions_info(), disable_notification=notifier.silent_commands, quote=True)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
-    if Path(configWrap.bot.log_file).exists():
-        with open(configWrap.bot.log_file, "rb") as fh:
+    if Path(configWrap.bot_config.log_file).exists():
+        with open(configWrap.bot_config.log_file, "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="telegram.log"))
-    if Path(f"{configWrap.bot.log_path}/klippy.log").exists():
-        with open(f"{configWrap.bot.log_path}/klippy.log", "rb") as fh:
+    if Path(f"{configWrap.bot_config.log_path}/klippy.log").exists():
+        with open(f"{configWrap.bot_config.log_path}/klippy.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="klippy.log"))
-    if Path(f"{configWrap.bot.log_path}/moonraker.log").exists():
-        with open(f"{configWrap.bot.log_path}/moonraker.log", "rb") as fh:
+    if Path(f"{configWrap.bot_config.log_path}/moonraker.log").exists():
+        with open(f"{configWrap.bot_config.log_path}/moonraker.log", "rb") as fh:
             logs_list.append(InputMediaDocument(fh.read(), filename="moonraker.log"))
     if logs_list:
         update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
@@ -447,7 +447,7 @@ def button_lapse_handler(update: Update, context: CallbackContext) -> None:
     video_bio.close()
     thumb_bio.close()
     query.delete_message()
-    check_unfinished_lapses()
+    check_unfinished_lapses(context.bot)
 
 
 def print_file_dialog_handler(update: Update, context: CallbackContext) -> None:
@@ -687,7 +687,7 @@ def services_keyboard(update: Update, _: CallbackContext) -> None:
             )
         ]
 
-    services = configWrap.bot.services
+    services = configWrap.bot_config.services
     service_keys: List[List[InlineKeyboardButton]] = list(map(create_service_button, services))
     if update.effective_message is None or update.effective_message.bot is None:
         logger.warning("Undefined effective message or bot")
@@ -832,9 +832,9 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                     )
                     return
 
-    if klippy.upload_gcode_file(sending_bio, configWrap.bot.upload_path):
+    if klippy.upload_gcode_file(sending_bio, configWrap.bot_config.upload_path):
         start_pre_mess = "Successfully uploaded file:"
-        mess, thumb = klippy.get_file_info_by_name(f"{configWrap.bot.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot.formated_upload_path}{sending_bio.name}")
+        mess, thumb = klippy.get_file_info_by_name(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot_config.formated_upload_path}{sending_bio.name}")
         filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
         keyboard = [
             [
@@ -855,7 +855,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             reply_markup=reply_markup,
             disable_notification=notifier.silent_commands,
             quote=True,
-            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot.formated_upload_path}{sending_bio.name}"))],
+            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}"))],
         )
         thumb.close()
         # Todo: delete uploaded file
@@ -953,7 +953,7 @@ def prepare_commands_list(macros: List[str], add_macros: bool):
     return commands
 
 
-def greeting_message() -> None:
+def greeting_message(bot: telegram.Bot) -> None:
     if configWrap.secrets.chat_id == 0:
         return
     response = klippy.check_connection()
@@ -966,16 +966,16 @@ def greeting_message() -> None:
             mess += escape_markdown(klippy.get_versions_info(bot_only=True), version=2) + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
-    bot_updater.bot.send_message(
+    bot.send_message(
         configWrap.secrets.chat_id,
         text=mess,
         parse_mode=PARSEMODE_MARKDOWN_V2,
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )
-    bot_updater.bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
+    bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
     klippy.add_bot_announcements_feed()
-    check_unfinished_lapses()
+    check_unfinished_lapses(bot)
 
 
 def start_bot(bot_token, socks):
@@ -988,7 +988,7 @@ def start_bot(bot_token, socks):
 
     updater = Updater(
         token=bot_token,
-        base_url=configWrap.bot.api_url,
+        base_url=configWrap.bot_config.api_url,
         workers=4,
         request_kwargs=request_kwargs,
     )
@@ -1055,9 +1055,9 @@ if __name__ == "__main__":
 
     conf.read(system_args.configfile)
     configWrap = ConfigWrapper(conf)
-    configWrap.bot.log_path_update(system_args.logfile)
+    configWrap.bot_config.log_path_update(system_args.logfile)
 
-    with open(configWrap.bot.log_file, "a", encoding="utf-8") as f:
+    with open(configWrap.bot_config.log_file, "a", encoding="utf-8") as f:
         f.write("\n*******************************************************************\n")
         f.write("Current Moonraker telegram bot config\n")
         conf.remove_option("bot", "bot_token")
@@ -1066,7 +1066,7 @@ if __name__ == "__main__":
         f.write("\n*******************************************************************\n")
 
     rotatingHandler = RotatingFileHandler(
-        configWrap.bot.log_file,
+        configWrap.bot_config.log_file,
         maxBytes=26214400,
         backupCount=3,
     )
@@ -1075,18 +1075,18 @@ if __name__ == "__main__":
 
     logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)
 
-    if configWrap.bot.debug:
+    if configWrap.bot_config.debug:
         faulthandler.enable()
         logger.setLevel(logging.DEBUG)
         logging.getLogger("apscheduler").addHandler(rotatingHandler)
         logging.getLogger("apscheduler").setLevel(logging.DEBUG)
 
-    light_power_device = PowerDevice(configWrap.bot.light_device_name, configWrap.bot.host)
-    psu_power_device = PowerDevice(configWrap.bot.poweroff_device_name, configWrap.bot.host)
+    light_power_device = PowerDevice(configWrap.bot_config.light_device_name, configWrap.bot_config.host)
+    psu_power_device = PowerDevice(configWrap.bot_config.poweroff_device_name, configWrap.bot_config.host)
 
     klippy = Klippy(configWrap, light_power_device, psu_power_device, rotatingHandler)
     cameraWrap = Camera(configWrap, klippy, light_power_device, rotatingHandler)
-    bot_updater = start_bot(configWrap.secrets.token, configWrap.bot.socks_proxy)
+    bot_updater = start_bot(configWrap.secrets.token, configWrap.bot_config.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)
 
@@ -1094,7 +1094,7 @@ if __name__ == "__main__":
 
     scheduler.start()
 
-    greeting_message()
+    greeting_message(bot_updater.bot)
 
     ws_helper.run_forever()
 

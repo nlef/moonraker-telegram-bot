@@ -25,20 +25,20 @@ class WebSocketHelper:
         scheduler: BackgroundScheduler,
         light_power_device: PowerDevice,
         psu_power_device: PowerDevice,
-        logging_handler: logging.Handler = None,
+        logging_handler: logging.Handler,
     ):
-        self._host: str = config.bot.host
+        self._host: str = config.bot_config.host
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
         self._scheduler: BackgroundScheduler = scheduler
         self._light_power_device: PowerDevice = light_power_device
         self._psu_power_device: PowerDevice = psu_power_device
-        self._log_parser: bool = config.bot.log_parser
+        self._log_parser: bool = config.bot_config.log_parser
 
         self._my_id = random.randint(0, 300000)
 
-        if config.bot.debug:
+        if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
         if logging_handler:
             logger.addHandler(logging_handler)
