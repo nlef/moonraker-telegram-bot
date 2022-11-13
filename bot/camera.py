@@ -288,6 +288,9 @@ class Camera:
             image = None
             del image, success
 
+        if img.mode != "RGB":
+            logger.warning("img mode is %s", img.mode)
+            img = img.convert("RGB")
         bio = BytesIO()
         bio.name = f"status.{self._img_extension}"
         if self._img_extension in ["jpg", "jpeg"]:
