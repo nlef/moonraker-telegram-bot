@@ -154,11 +154,9 @@ class Klippy:
         return res
 
     def _update_printer_objects(self):
-        resp = self._make_request(f"http://{self._host}/printer/objects/list", "GET")
+        resp = self._make_request("GET", "/printer/objects/list")
         if resp.ok:
             self._objects_list = resp.json()["result"]["objects"]
-        else:
-            logger.error(resp.reason)
 
     def _reset_file_info(self) -> None:
         self.printing_duration = 0.0
@@ -185,7 +183,7 @@ class Klippy:
             self._reset_file_info()
             return
 
-        response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(new_value)}", "GET")
+        response = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         # Todo: add response status check!
         if not response.ok:
             logger.warning("bad response for file request %s", response.reason)
@@ -242,17 +240,20 @@ class Klippy:
         else:
             logger.error("Failed to refresh token: %s", res.reason)
 
-    def _make_request(self, url, method, json=None, stream=None, files=None) -> requests.Response:
-        res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files, timeout=30)
+    def _make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
+        _headers = headers if headers else self._headers
+        res = requests.request(method, f"http://{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, url, headers=self._headers, json=json, stream=stream, files=files, timeout=30)
+            res = requests.request(method, f"http://{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+        if not res.ok:
+            logger.error(res.reason)
         return res
 
     def check_connection(self) -> str:
         try:
-            response = requests.get(f"http://{self._host}/printer/info", headers=self._headers, timeout=2)
+            response = self._make_request("GET", "/printer/info", timeout=3)
             return "" if response.ok else f"Connection failed. {response.reason}"
         except Exception as ex:
             logger.error(ex, exc_info=True)
@@ -326,15 +327,10 @@ class Klippy:
         return message
 
     def execute_command(self, *command) -> None:
-        data = {"commands": list(map(lambda el: f"{el}", command))}
-        res = self._make_request(f"http://{self._host}/api/printer/command", "POST", json=data)
-        if not res.ok:
-            logger.error(res.reason)
+        self._make_request("POST", "/api/printer/command", json={"commands": list(map(lambda el: f"{el}", command))})
 
     def execute_gcode_script(self, gcode: str) -> None:
-        res = self._make_request(f"http://{self._host}/printer/gcode/script?script={gcode}", "GET")
-        if not res.ok:
-            logger.error(res.reason)
+        self._make_request("GET", f"/printer/gcode/script?script={gcode}")
 
     def _get_eta(self) -> timedelta:
         if self._eta_source == "slicer":
@@ -351,7 +347,7 @@ class Klippy:
             img = Image.open("../imgs/nopreview.png").convert("RGB")
             logger.warning("Empty thumbnail_path")
         else:
-            response = self._make_request(f"http://{self._host}/server/files/gcodes/{urllib.parse.quote(thumb_path)}", "GET", stream=True)
+            response = self._make_request("GET", f"/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True)
             if response.ok:
                 response.raw.decode_content = True
                 img = Image.open(response.raw).convert("RGB")
@@ -397,8 +393,7 @@ class Klippy:
         return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     def get_status(self) -> str:
-        response = self._make_request(f"http://{self._host}/printer/objects/query?webhooks&print_stats&display_status", "GET")
-        resp = response.json()["result"]["status"]
+        resp = self._make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").json()["result"]["status"]
         print_stats = resp["print_stats"]
         # webhook = resp['webhooks']
         # message = emoji.emojize(':robot: Klipper status: ', language='alias') + f"{webhook['state']}\n"
@@ -437,9 +432,7 @@ class Klippy:
         return message
 
     def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
-        response = self._make_request(f"http://{self._host}/server/files/metadata?filename={urllib.parse.quote(filename)}", "GET")
-        # Todo: add response status check!
-        resp = response.json()["result"]
+        resp = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").json()["result"]
         message += "\n"
         if "filament_total" in resp and resp["filament_total"] > 0.0:
             message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m"
@@ -462,24 +455,21 @@ class Klippy:
         return self._populate_with_thumb(thumb_path, message)
 
     def get_gcode_files(self):
-        response = self._make_request(f"http://{self._host}/server/files/list?root=gcodes", "GET")
-        resp = response.json()
-        files = sorted(resp["result"], key=lambda item: item["modified"], reverse=True)
+        response = self._make_request("GET", "/server/files/list?root=gcodes")
+        files = sorted(response.json()["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
     def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
-        response = self._make_request(f"http://{self._host}/server/files/upload", "POST", files={"file": file, "root": "gcodes", "path": upload_path})
-        return response.ok
+        return self._make_request("POST", "/server/files/upload", files={"file": file, "root": "gcodes", "path": upload_path}).ok
 
     def start_printing_file(self, filename: str) -> bool:
-        response = self._make_request(f"http://{self._host}/printer/print/start?filename={urllib.parse.quote(filename)}", "POST")
-        return response.ok
+        return self._make_request("POST", f"/printer/print/start?filename={urllib.parse.quote(filename)}").ok
 
     def stop_all(self) -> None:
         self._reset_file_info()
 
     def get_versions_info(self, bot_only: bool = False) -> str:
-        response = self._make_request(f"http://{self._host}/machine/update/status?refresh=false", "GET")
+        response = self._make_request("GET", "/machine/update/status?refresh=false")
         if not response.ok:
             logger.warning(response.reason)
             return ""
@@ -496,13 +486,13 @@ class Klippy:
         return version_message
 
     def add_bot_announcements_feed(self):
-        res = self._make_request(f"http://{self._host}/server/announcements/feed?name=moonraker-telegram-bot", "POST")
+        res = self._make_request("POST", "/server/announcements/feed?name=moonraker-telegram-bot")
         if not res.ok:
             logger.warning("Failed adding announcements bot feed.\n\n%s", res.reason)
 
     # moonraker databse section
     def get_param_from_db(self, param_name: str):
-        res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "GET")
+        res = self._make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.ok:
             return res.json()["result"]["value"]
         else:
@@ -512,12 +502,12 @@ class Klippy:
 
     def save_param_to_db(self, param_name: str, value) -> None:
         data = {"namespace": self._dbname, "key": param_name, "value": value}
-        res = self._make_request(f"http://{self._host}/server/database/item", "POST", json=data)
+        res = self._make_request("POST", "/server/database/item", json=data)
         if not res.ok:
             logger.error("Failed saving %s to %s \n\n%s", param_name, self._dbname, res.reason)
 
     def delete_param_from_db(self, param_name: str) -> None:
-        res = self._make_request(f"http://{self._host}/server/database/item?namespace={self._dbname}&key={param_name}", "DELETE")
+        res = self._make_request("DELETE", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if not res.ok:
             logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res.reason)
 
