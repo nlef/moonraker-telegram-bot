@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import signal
 import sys
+import tarfile
 import time
 from typing import Dict, List, Union
 from zipfile import ZipFile
@@ -779,7 +780,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
         )
         return
 
-    if not doc.file_name.endswith((".gcode", ".zip")):
+    if not doc.file_name.endswith((".gcode", ".zip", ".tar.gz", ".tar.bz2", ".tar.xz")):
         update.effective_message.reply_text(
             f"unknown filetype in {doc.file_name}",
             disable_notification=notifier.silent_commands,
@@ -814,55 +815,72 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                     disable_notification=notifier.silent_commands,
                     quote=True,
                 )
-                return
-
-            with my_zip_file.open(my_zip_file.namelist()[0]) as contained_file:
-                if contained_file.name.endswith(".gcode"):
+            else:
+                with my_zip_file.open(my_zip_file.namelist()[0]) as contained_file:
                     sending_bio.name = contained_file.name
                     sending_bio.write(contained_file.read())
                     sending_bio.seek(0)
-                else:
-                    update.effective_message.reply_text(
-                        f"Not a gcode file {doc.file_name}",
-                        disable_notification=notifier.silent_commands,
-                        quote=True,
-                    )
-                    return
 
-    if klippy.upload_gcode_file(sending_bio, configWrap.bot_config.upload_path):
-        start_pre_mess = "Successfully uploaded file:"
-        mess, thumb = klippy.get_file_info_by_name(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot_config.formated_upload_path}{sending_bio.name}")
-        filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    emoji.emojize(":robot: print file", language="alias"),
-                    callback_data=f"print_file:{filehash}",
-                ),
-                InlineKeyboardButton(
-                    emoji.emojize(":cross_mark: do nothing", language="alias"),
-                    callback_data="do_nothing",
-                ),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.effective_message.reply_photo(
-            photo=thumb,
-            caption=mess,
-            reply_markup=reply_markup,
-            disable_notification=notifier.silent_commands,
-            quote=True,
-            caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}"))],
-        )
-        thumb.close()
-        # Todo: delete uploaded file
-        # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
-    else:
-        update.effective_message.reply_text(
-            f"Failed uploading file: {sending_bio.name}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
+    elif doc.file_name.endswith((".tar.gz", ".tar.bz2", ".tar.xz")):
+        with tarfile.open(fileobj=uploaded_bio, mode="r:*") as tararch:
+            if len(tararch.getmembers()) > 1:
+                update.effective_message.reply_text(
+                    f"Multiple files in archive {doc.file_name}",
+                    disable_notification=notifier.silent_commands,
+                    quote=True,
+                )
+            else:
+                archived_file = tararch.getmembers()[0]
+                extracted_f = tararch.extractfile(archived_file)
+                if extracted_f:
+                    sending_bio.name = archived_file.name
+                    sending_bio.write(extracted_f.read())
+                    sending_bio.seek(0)
+
+    if sending_bio.name:
+        if not sending_bio.name.endswith(".gcode"):
+            update.effective_message.reply_text(
+                f"Not a gcode file {doc.file_name}",
+                disable_notification=notifier.silent_commands,
+                quote=True,
+            )
+        else:
+            if klippy.upload_gcode_file(sending_bio, configWrap.bot_config.upload_path):
+                start_pre_mess = "Successfully uploaded file:"
+                mess, thumb = klippy.get_file_info_by_name(
+                    f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot_config.formated_upload_path}{sending_bio.name}"
+                )
+                filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
+                keyboard = [
+                    [
+                        InlineKeyboardButton(
+                            emoji.emojize(":robot: print file", language="alias"),
+                            callback_data=f"print_file:{filehash}",
+                        ),
+                        InlineKeyboardButton(
+                            emoji.emojize(":cross_mark: do nothing", language="alias"),
+                            callback_data="do_nothing",
+                        ),
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                update.effective_message.reply_photo(
+                    photo=thumb,
+                    caption=mess,
+                    reply_markup=reply_markup,
+                    disable_notification=notifier.silent_commands,
+                    quote=True,
+                    caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}"))],
+                )
+                thumb.close()
+                # Todo: delete uploaded file
+                # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
+            else:
+                update.effective_message.reply_text(
+                    f"Failed uploading file: {sending_bio.name}",
+                    disable_notification=notifier.silent_commands,
+                    quote=True,
+                )
 
     uploaded_bio.close()
     sending_bio.close()
