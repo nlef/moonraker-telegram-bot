@@ -490,7 +490,10 @@ class Klippy:
                 continue
             if bot_only and comp != "moonraker-telegram-bot":
                 continue
-            version_message += f"{comp}: {inf['version']}\n"
+            if "full_version_string" in inf.keys():
+                version_message += f"{comp}: {inf['full_version_string']}\n"
+            else:
+                version_message += f"{comp}: {inf['version']}\n"
         if version_message:
             version_message += "\n"
         return version_message
