@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  moonraker-telegram-bot:
+    image: nlef/moonraker-telegram-bot:latest
+    restart: unless-stopped
+    volumes:
+      - ./timelapse:/opt/timelapse
+      - ./timelapse_finished:/opt/timelapse_finished
+      - ./log:/opt/printer_data/logs
+      - ./config:/opt/printer_data/config
