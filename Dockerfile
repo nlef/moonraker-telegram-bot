@@ -1,17 +1,11 @@
 FROM python:3.9-bullseye  as build
 
-ARG REPO=https://github.com/nlef/moonraker-telegram-bot
-ARG VERSION=development
-
 RUN apt update \
  && apt install -y python3-virtualenv
 
 WORKDIR /opt
 
-RUN git clone ${REPO} moonraker-telegram-bot \
- && cd moonraker-telegram-bot \
- && git checkout ${VERSION} \
- && rm -rf .git
+COPY . moonraker-telegram-bot/
 
 RUN virtualenv -p /usr/bin/python3 --system-site-packages venv \
  && venv/bin/pip install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.txt
