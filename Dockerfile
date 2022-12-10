@@ -14,7 +14,6 @@ FROM python:3.9-slim-bullseye as run
 
 RUN apt update \
  && apt install -y \
-      python3-virtualenv \
       python3-cryptography \
       python3-gevent \
       python3-opencv \
