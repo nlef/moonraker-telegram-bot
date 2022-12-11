@@ -36,7 +36,6 @@ jobs:
   docker:
     needs: pre-commit
     runs-on: ubuntu-latest
-#    if: contains(github.base_ref, 'master') || contains(github.base_ref, 'development')
     steps:
       -
         name: Set up QEMU
@@ -68,3 +67,4 @@ jobs:
         with:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
