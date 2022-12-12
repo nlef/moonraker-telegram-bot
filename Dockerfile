@@ -2,6 +2,7 @@ FROM python:3.9-slim-bullseye
 
 RUN apt update \
  && apt install -y \
+      python3-virtualenv \
       python3-cryptography \
       python3-gevent \
       python3-opencv \
@@ -19,8 +20,8 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
  && chown -R moonraker-telegram-bot:moonraker-telegram-bot /opt/*
 
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
-RUN python3 -m venv venv \
- && venv/bin/pip install -r moonraker-telegram-bot/scripts/requirements.txt
+RUN virtualenv -p /usr/bin/python3 --system-site-packages venv \
+ && venv/bin/pip install  --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.txt
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]
