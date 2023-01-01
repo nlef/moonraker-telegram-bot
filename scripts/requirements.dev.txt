@@ -1,14 +1,14 @@
 -r requirements.txt
 black==22.12.0
-isort==5.11.1
+isort==5.11.4
 memory_profiler==0.61.0
 mypy==0.982
 numpy~=1.21.6
 opencv-python~=3.4.17.63
-pre-commit==2.20.0
-pylint==2.15.8
+pre-commit==2.21.0
+pylint==2.15.9
 pytest==7.2.0
 types-emoji==2.1.0.1
 types-Pillow==9.3.0.4
-types-requests==2.28.11.5
+types-requests==2.28.11.7
 types-ujson==5.6.0.0
