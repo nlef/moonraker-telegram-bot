@@ -20,7 +20,7 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
 
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
 RUN virtualenv -p /usr/bin/python3 --system-site-packages venv \
- && venv/bin/pip install  --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.txt
+ && venv/bin/pip install  --no-use-pep517 --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.txt
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]
