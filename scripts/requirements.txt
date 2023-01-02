@@ -1,5 +1,5 @@
 emoji==2.2.0
-Pillow==9.3.0
+Pillow==9.4.0
 PySocks==1.7.1
 python-telegram-bot==13.15
 rel==0.4.7
