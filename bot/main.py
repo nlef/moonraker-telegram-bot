@@ -1115,4 +1115,5 @@ if __name__ == "__main__":
 
     logger.info("Exiting! Moonraker connection lost!")
 
+    scheduler.shutdown(wait=False)
     bot_updater.stop()
