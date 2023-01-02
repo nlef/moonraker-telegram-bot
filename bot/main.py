@@ -539,6 +539,8 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         context.bot.send_message(chat_id=configWrap.secrets.chat_id, text="Removing unfinished timelapses data")
         cameraWrap.cleanup_unfinished_lapses()
         query.delete_message()
+    elif "gcode:" in query.data:
+        ws_helper.execute_ws_gcode_script(query.data.replace("gcode:", ""))
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
     elif query.data == "shutdown_host":

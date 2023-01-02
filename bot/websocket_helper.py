@@ -1,8 +1,11 @@
 import logging
 import random
+import re
 import time
+from typing import List
 
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import ujson
 import websocket  # type: ignore
 
@@ -130,6 +133,40 @@ class WebSocketHelper:
 
         self.parse_sensors(status_resp)
 
+    def parse_custom_keyboard(self, message: str):
+        def parse_button(mess: str):
+            name = re.search(r"name=\'(.[^\']*)\'", mess)
+            command = re.search(r"command=\'(.[^\']*)\'", mess)
+            if name and command:
+                gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
+                return InlineKeyboardButton(name.group(1), callback_data=gcode)
+            else:
+                logger.warning("Bad command!")
+                return None
+
+        keyboard: List[List[InlineKeyboardButton]] = list(
+            map(
+                lambda el: list(
+                    filter(
+                        None,
+                        map(
+                            parse_button,
+                            re.findall(r"\{.[^\}]*\}", el),
+                        ),
+                    )
+                ),
+                re.findall(r"\[.[^\]]*\]", message),
+            )
+        )
+
+        title_mathc = re.search(r"message=\'(.[^\']*)\'", message)
+        if title_mathc:
+            title = title_mathc.group(1)
+        else:
+            title = ""
+
+        self._notifier.send_custom_keyboard(title, InlineKeyboardMarkup(keyboard))
+
     def notify_gcode_reponse(self, message_params):
         if self._timelapse.manual_mode:
             if "timelapse start" in message_params:
@@ -166,6 +203,8 @@ class WebSocketHelper:
             self._timelapse.parse_timelapse_params(message_params_loc)
         if message_params_loc.startswith("set_notify_params "):
             self._notifier.parse_notification_params(message_params_loc)
+        if message_params_loc.startswith("tgcustom_keyboard "):
+            self.parse_custom_keyboard(message_params_loc)
 
     def notify_status_update(self, message_params):
         message_params_loc = message_params[0]
