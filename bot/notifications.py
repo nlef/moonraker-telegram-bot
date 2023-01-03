@@ -4,9 +4,9 @@ from typing import Dict, List, Optional
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaPhoto, Message
-from telegram.constants import PARSEMODE_MARKDOWN_V2
+from telegram.constants import PARSEMODE_HTML
 from telegram.error import BadRequest
-from telegram.utils.helpers import escape_markdown
+from telegram.utils.helpers import escape
 
 from camera import Camera
 from configuration import ConfigWrapper
@@ -131,9 +131,9 @@ class Notifier:
                         self._bzz_mess_id = 0
 
                 if self._status_message.caption:
-                    self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_HTML)
                 else:
-                    self._status_message.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    self._status_message.edit_text(text=message, parse_mode=PARSEMODE_HTML)
 
                 if self._progress_update_message:
                     mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
@@ -142,7 +142,7 @@ class Notifier:
                 sent_message = self._bot.send_message(
                     self._chat_id,
                     text=message,
-                    parse_mode=PARSEMODE_MARKDOWN_V2,
+                    parse_mode=PARSEMODE_HTML,
                     disable_notification=silent,
                 )
                 if not self._status_message and not manual:
@@ -153,14 +153,14 @@ class Notifier:
             if group in self._groups_status_mesages and not manual:
                 mess = self._groups_status_mesages[group]
                 if mess.caption:
-                    mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    mess.edit_caption(caption=message, parse_mode=PARSEMODE_HTML)
                 else:
-                    mess.edit_text(text=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                    mess.edit_text(text=message, parse_mode=PARSEMODE_HTML)
             else:
                 sent_message = self._bot.send_message(
                     group,
                     text=message,
-                    parse_mode=PARSEMODE_MARKDOWN_V2,
+                    parse_mode=PARSEMODE_HTML,
                     disable_notification=silent,
                 )
                 if group in self._groups_status_mesages or manual:
@@ -184,7 +184,7 @@ class Notifier:
 
                         # Fixme: check if media in message!
                         self._status_message.edit_media(media=InputMediaPhoto(photo))
-                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                        self._status_message.edit_caption(caption=message, parse_mode=PARSEMODE_HTML)
 
                         if self._progress_update_message:
                             mes = self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
@@ -195,7 +195,7 @@ class Notifier:
                             self._chat_id,
                             photo=photo,
                             caption=message,
-                            parse_mode=PARSEMODE_MARKDOWN_V2,
+                            parse_mode=PARSEMODE_HTML,
                             disable_notification=silent,
                         )
                         if not self._status_message and not manual:
@@ -207,13 +207,13 @@ class Notifier:
                     if group in self._groups_status_mesages and not manual:
                         mess = self._groups_status_mesages[group]
                         mess.edit_media(media=InputMediaPhoto(photo))
-                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_MARKDOWN_V2)
+                        mess.edit_caption(caption=message, parse_mode=PARSEMODE_HTML)
                     else:
                         sent_message = self._bot.send_photo(
                             group,
                             photo=photo,
                             caption=message,
-                            parse_mode=PARSEMODE_MARKDOWN_V2,
+                            parse_mode=PARSEMODE_HTML,
                             disable_notification=silent,
                         )
                         if group in self._groups_status_mesages or manual:
@@ -227,7 +227,7 @@ class Notifier:
         self._sched.add_job(
             self._send_message,
             kwargs={
-                "message": escape_markdown(message, version=2),
+                "message": message,
                 "silent": False,
                 "manual": True,
             },
@@ -241,7 +241,7 @@ class Notifier:
         self._sched.add_job(
             self._notify,
             kwargs={
-                "message": escape_markdown(message, version=2),
+                "message": message,
                 "silent": False,
                 "manual": True,
             },
@@ -255,7 +255,7 @@ class Notifier:
         self._sched.add_job(
             self._send_message,
             kwargs={
-                "message": escape_markdown(message, version=2),
+                "message": message,
                 "silent": self._silent_status,
                 "manual": True,
             },
@@ -269,7 +269,7 @@ class Notifier:
         self._sched.add_job(
             self._send_message,
             kwargs={
-                "message": escape_markdown(message, version=2),
+                "message": message,
                 "silent": self._silent_commands,
                 "manual": True,
             },
@@ -283,7 +283,7 @@ class Notifier:
         self._sched.add_job(
             self._notify,
             kwargs={
-                "message": escape_markdown(message, version=2),
+                "message": message,
                 "silent": self._silent_commands,
                 "manual": True,
             },
@@ -310,13 +310,13 @@ class Notifier:
                 self._bzz_mess_id = 0
 
     def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:
-        mess = escape_markdown(self._klippy.get_print_stats(message), version=2)
+        mess = self._klippy.get_print_stats(message)
         if self._last_m117_status and "m117_status" in self._message_parts:
-            mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
+            mess += f"{self._last_m117_status}\n"
         if self._last_tgnotify_status and "tgnotify_status" in self._message_parts:
-            mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
+            mess += f"{self._last_tgnotify_status}\n"
         if "last_update_time" in self._message_parts:
-            mess += f"_Last update at {datetime.now():%H:%M:%S}_"
+            mess += f"<i>Last update at {datetime.now():%H:%M:%S}</i>"
         if schedule:
             self._sched.add_job(
                 self._notify,
@@ -395,7 +395,7 @@ class Notifier:
             status_message = self._bot.send_photo(
                 self._chat_id,
                 photo=bio,
-                caption=message,
+                caption=escape(message),
                 disable_notification=self.silent_status,
             )
             for group_ in self._notify_groups:
@@ -403,14 +403,14 @@ class Notifier:
                 self._groups_status_mesages[group_] = self._bot.send_photo(
                     group_,
                     photo=bio,
-                    caption=message,
+                    caption=escape(message),
                     disable_notification=self.silent_status,
                 )
             bio.close()
         else:
-            status_message = self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
+            status_message = self._bot.send_message(self._chat_id, escape(message), disable_notification=self.silent_status)
             for group_ in self._notify_groups:
-                self._groups_status_mesages[group_] = self._bot.send_message(group_, message, disable_notification=self.silent_status)
+                self._groups_status_mesages[group_] = self._bot.send_message(group_, escape(message), disable_notification=self.silent_status)
         self._status_message = status_message
 
     def send_print_start_info(self) -> None:

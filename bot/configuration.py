@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 from typing import Any, Callable, List, Optional, Union
 
-from telegram.utils.helpers import escape_markdown
+from telegram.utils.helpers import escape
 
 
 class ConfigHelper:
@@ -424,9 +424,9 @@ class ConfigWrapper:
     def configuration_errors(self) -> str:
         error_message: str = ""
         if self.unknown_fields:
-            error_message += escape_markdown(f"\n{self.unknown_fields}", version=2)
+            error_message += escape(f"\n{self.unknown_fields}")
         if self.parsing_errors:
-            error_message += escape_markdown(f"\n{self.parsing_errors}", version=2)
+            error_message += escape(f"\n{self.parsing_errors}")
         if error_message:
-            error_message += "Please correct the configuration according to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki/Sample-config)"
+            error_message += 'Please correct the configuration according to the <a href="https://github.com/nlef/moonraker-telegram-bot/wiki">wiki</a>'
         return error_message

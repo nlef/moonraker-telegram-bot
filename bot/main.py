@@ -34,10 +34,10 @@ from telegram import (
     ReplyKeyboardMarkup,
     Update,
 )
-from telegram.constants import PARSEMODE_MARKDOWN_V2
+from telegram.constants import PARSEMODE_HTML
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
-from telegram.utils.helpers import escape_markdown
+from telegram.utils.helpers import escape
 from websocket_helper import WebSocketHelper
 
 from camera import Camera
@@ -130,10 +130,10 @@ def unknown_chat(update: Update, _: CallbackContext) -> None:
     if update.effective_chat.id < 0 or update.effective_message is None:
         return
 
-    mess = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n||This incident will be reported.||"
+    mess = f"Unauthorized access detected with chat_id: {update.effective_chat.id}.\n<tg-spoiler>This incident will be reported.</tg-spoiler>"
     update.effective_message.reply_text(
-        escape_markdown(mess, version=2),
-        parse_mode=PARSEMODE_MARKDOWN_V2,
+        mess,
+        parse_mode=PARSEMODE_HTML,
         quote=True,
     )
     logger.error("Unauthorized access detected from `%s` with chat_id `%s`. Message: %s", update.effective_chat.username, update.effective_chat.id, update.effective_message.to_json())
@@ -149,14 +149,14 @@ def status(update: Update, _: CallbackContext) -> None:
         time.sleep(configWrap.camera.light_timeout + 1.5)
         update.effective_message.delete()
     else:
-        mess = escape_markdown(klippy.get_status(), version=2)
+        mess = escape(klippy.get_status())
         if cameraWrap.enabled:
             with cameraWrap.take_photo() as bio:
                 update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_PHOTO)
                 update.effective_message.reply_photo(
                     photo=bio,
                     caption=mess,
-                    parse_mode=PARSEMODE_MARKDOWN_V2,
+                    parse_mode=PARSEMODE_HTML,
                     disable_notification=notifier.silent_commands,
                 )
                 bio.close()
@@ -164,7 +164,7 @@ def status(update: Update, _: CallbackContext) -> None:
             update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
             update.effective_message.reply_text(
                 mess,
-                parse_mode=PARSEMODE_MARKDOWN_V2,
+                parse_mode=PARSEMODE_HTML,
                 disable_notification=notifier.silent_commands,
                 quote=True,
             )
@@ -380,7 +380,7 @@ def light_toggle(update: Update, _: CallbackContext) -> None:
         mess = f"Device `{light_power_device.name}` toggled " + ("on" if light_power_device.toggle_device() else "off")
         update.effective_message.reply_text(
             mess,
-            parse_mode=PARSEMODE_MARKDOWN_V2,
+            parse_mode=PARSEMODE_HTML,
             disable_notification=notifier.silent_commands,
             quote=True,
         )
@@ -559,7 +559,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         psu_power_device.switch_device(False)
         update.effective_message.reply_to_message.reply_text(
             f"Device `{psu_power_device.name}` toggled off",
-            parse_mode=PARSEMODE_MARKDOWN_V2,
+            parse_mode=PARSEMODE_HTML,
             quote=True,
         )
         query.delete_message()
@@ -567,7 +567,7 @@ def button_handler(update: Update, context: CallbackContext) -> None:
         psu_power_device.switch_device(True)
         update.effective_message.reply_to_message.reply_text(
             f"Device `{psu_power_device.name}` toggled on",
-            parse_mode=PARSEMODE_MARKDOWN_V2,
+            parse_mode=PARSEMODE_HTML,
             quote=True,
         )
         query.delete_message()
@@ -937,13 +937,13 @@ def help_command(update: Update, _: CallbackContext) -> None:
         logger.warning("Undefined effective message")
         return
     mess = (
-        escape_markdown(klippy.get_versions_info(bot_only=True), version=2)
-        + escape_markdown("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]), version=2)
-        + "\n\nPlease refer to the [wiki](https://github.com/nlef/moonraker-telegram-bot/wiki) for additional information"
+        escape(klippy.get_versions_info(bot_only=True))
+        + escape("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]))
+        + '\n\nPlease refer to the <a href="https://github.com/nlef/moonraker-telegram-bot/wiki">wiki</a> for additional information'
     )
     update.effective_message.reply_text(
         text=mess,
-        parse_mode=PARSEMODE_MARKDOWN_V2,
+        parse_mode=PARSEMODE_HTML,
         quote=True,
     )
 
@@ -976,17 +976,17 @@ def greeting_message(bot: telegram.Bot) -> None:
     response = klippy.check_connection()
     mess = ""
     if response:
-        mess += escape_markdown(f"Bot online, no moonraker connection!\n {response} \nFailing...", version=2)
+        mess += escape(f"Bot online, no moonraker connection!\n {response} \nFailing...")
     else:
         mess += "Printer online"
         if configWrap.configuration_errors:
-            mess += escape_markdown(klippy.get_versions_info(bot_only=True), version=2) + configWrap.configuration_errors
+            mess += escape(klippy.get_versions_info(bot_only=True)) + configWrap.configuration_errors
 
     reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot.send_message(
         configWrap.secrets.chat_id,
         text=mess,
-        parse_mode=PARSEMODE_MARKDOWN_V2,
+        parse_mode=PARSEMODE_HTML,
         reply_markup=reply_markup,
         disable_notification=notifier.silent_status,
     )
