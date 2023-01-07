@@ -1,3 +1,4 @@
+from functools import wraps
 import logging
 import random
 import time
@@ -13,6 +14,18 @@ from power_device import PowerDevice
 from timelapse import Timelapse
 
 logger = logging.getLogger(__name__)
+
+
+def websocket_alive(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.websocket is None:
+            logger.warning("Websocket call `%s` on non initialized ws", func.__name__)
+            return None
+        else:
+            return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class WebSocketHelper:
@@ -35,8 +48,6 @@ class WebSocketHelper:
         self._light_power_device: PowerDevice = light_power_device
         self._psu_power_device: PowerDevice = psu_power_device
         self._log_parser: bool = config.bot_config.log_parser
-
-        self._my_id = random.randint(0, 300000)
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
@@ -61,6 +72,10 @@ class WebSocketHelper:
     @staticmethod
     def on_error(_, error):
         logger.error(error)
+
+    @property
+    def _my_id(self) -> int:
+        return random.randint(0, 300000)
 
     def subscribe(self, websock):
         subscribe_objects = {
@@ -285,8 +300,8 @@ class WebSocketHelper:
         logger.debug(ws_message)
         json_message = ujson.loads(ws_message)
 
-        # Todo: log and rework!
         if "error" in json_message:
+            logger.warning("Error received from websocket: %s", json_message["error"])
             return
 
         if "id" in json_message:
@@ -371,36 +386,31 @@ class WebSocketHelper:
             if message_method == "notify_status_update":
                 self.notify_status_update(message_params)
 
+    @websocket_alive
     def manage_printing(self, command: str) -> None:
-        if self.websocket is None:
-            return
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
 
-    def emergency_stop_printer(self):
-        if self.websocket is None:
-            return
+    @websocket_alive
+    def emergency_stop_printer(self) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
 
-    def firmware_restart_printer(self):
-        if self.websocket is None:
-            return
+    @websocket_alive
+    def firmware_restart_printer(self) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
 
-    def shutdown_pi_host(self):
-        if self.websocket is None:
-            return
+    @websocket_alive
+    def shutdown_pi_host(self) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
 
-    def reboot_pi_host(self):
-        if self.websocket is None:
-            return
+    @websocket_alive
+    def reboot_pi_host(self) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
 
-    def restart_system_service(self, service_name: str):
-        if self.websocket is None:
-            return
+    @websocket_alive
+    def restart_system_service(self, service_name: str) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
 
+    @websocket_alive
     def execute_ws_gcode_script(self, gcode: str) -> None:
         self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
 
