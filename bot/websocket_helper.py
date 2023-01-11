@@ -182,6 +182,13 @@ class WebSocketHelper:
         if message_params_loc.startswith("set_notify_params "):
             self._notifier.parse_notification_params(message_params_loc)
 
+        if message_params_loc.startswith("tg_send_image"):
+            self._notifier.send_image(message_params_loc)
+        if message_params_loc.startswith("tg_send_video"):
+            self._notifier.send_video(message_params_loc)
+        if message_params_loc.startswith("tg_send_document"):
+            self._notifier.send_document(message_params_loc)
+
     def notify_status_update(self, message_params):
         message_params_loc = message_params[0]
         if "display_status" in message_params_loc:
