@@ -444,10 +444,29 @@ class Notifier:
     def update_status(self) -> None:
         self._schedule_notification()
 
-    def _send_image(self, path: str, message: str):
+    @staticmethod
+    def _parse_message(ws_message) -> str:
+        message_match = re.search(r"message=\'(.[^\']*)\'", ws_message)
+        if message_match:
+            message = message_match.group(1)
+        else:
+            message = ""
+        return message
+
+    @staticmethod
+    def _parse_path(ws_message) -> str:
+        path_match = re.search(r"path=\'(.[^\']*)\'", ws_message)
+        if path_match:
+            path = path_match.group(1)
+        else:
+            path = ""
+        return path
+
+    def _send_image(self, path: str, message: str) -> None:
         path_obj = Path(path)
         if not path_obj.is_file():
             self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+            return
 
         bio = BytesIO()
         bio.name = path_obj.name
@@ -465,35 +484,24 @@ class Notifier:
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending image: {ex}", disable_notification=self._silent_commands)
-        finally:
-            bio.close()
 
-    def send_image(self, ws_message: str):
-        path_match = re.search(r"path=\'(.[^\']*)\'", ws_message)
-        if path_match:
-            path = path_match.group(1)
-        else:
-            path = ""
+        bio.close()
 
-        message_match = re.search(r"message=\'(.[^\']*)\'", ws_message)
-        if message_match:
-            message = message_match.group(1)
-        else:
-            message = ""
-
+    def send_image(self, ws_message: str) -> None:
         self._sched.add_job(
             self._send_image,
-            kwargs={"path": path, "message": message},
+            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
             replace_existing=False,
         )
 
-    def _send_video(self, path: str, message: str):
+    def _send_video(self, path: str, message: str) -> None:
         path_obj = Path(path)
         if not path_obj.is_file():
             self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+            return
 
         bio = BytesIO()
         bio.name = path_obj.name
@@ -511,35 +519,25 @@ class Notifier:
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending video: {ex}", disable_notification=self._silent_commands)
-        finally:
-            bio.close()
 
-    def send_video(self, ws_message: str):
-        path_match = re.search(r"path=\'(.[^\']*)\'", ws_message)
-        if path_match:
-            path = path_match.group(1)
-        else:
-            path = ""
+        bio.close()
 
-        message_match = re.search(r"message=\'(.[^\']*)\'", ws_message)
-        if message_match:
-            message = message_match.group(1)
-        else:
-            message = ""
+    def send_video(self, ws_message: str) -> None:
 
         self._sched.add_job(
             self._send_video,
-            kwargs={"path": path, "message": message},
+            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
             replace_existing=False,
         )
 
-    def _send_document(self, path: str, message: str):
+    def _send_document(self, path: str, message: str) -> None:
         path_obj = Path(path)
         if not path_obj.is_file():
             self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+            return
 
         bio = BytesIO()
         bio.name = path_obj.name
@@ -557,25 +555,13 @@ class Notifier:
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending document: {ex}", disable_notification=self._silent_commands)
-        finally:
-            bio.close()
 
-    def send_document(self, ws_message: str):
-        path_match = re.search(r"path=\'(.[^\']*)\'", ws_message)
-        if path_match:
-            path = path_match.group(1)
-        else:
-            path = ""
+        bio.close()
 
-        message_match = re.search(r"message=\'(.[^\']*)\'", ws_message)
-        if message_match:
-            message = message_match.group(1)
-        else:
-            message = ""
-
+    def send_document(self, ws_message: str) -> None:
         self._sched.add_job(
             self._send_document,
-            kwargs={"path": path, "message": message},
+            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,

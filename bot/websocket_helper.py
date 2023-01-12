@@ -165,6 +165,7 @@ class WebSocketHelper:
             self._timelapse.take_lapse_photo(manually=True, gcode=True)
         if "timelapse photo" in message_params:
             self._timelapse.take_lapse_photo(manually=True)
+
         message_params_loc = message_params[0]
         if message_params_loc.startswith("tgnotify "):
             self._notifier.send_notification(message_params_loc[9:])
