@@ -262,7 +262,6 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                # Todo: resize to cam resolution!
                 img = Image.open("../imgs/nosignal.png")
             else:
                 if self._hw_accel:
@@ -361,7 +360,7 @@ class Camera:
             video_written_event.set()
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
+            cv2.setNumThreads(self._threads)
             self.cam_cam.open(self._host)
             self._set_cv2_params()
             success, frame = self.cam_cam.read()
@@ -457,13 +456,12 @@ class Camera:
         if not lock_file.is_file():
             lock_file.touch()
 
-        # Todo: check for nonempty photos!
         photos = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}")
-        photos.sort(key=os.path.getmtime)
         photo_count = len(photos)
-
         if photo_count == 0:
             raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
+
+        photos.sort(key=os.path.getmtime)
 
         info_mess.edit_text(text="Creating thumbnail")
         last_photo = photos[-1]
@@ -479,7 +477,7 @@ class Camera:
         lapse_fps = self._calculate_fps(photo_count)
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)  # TOdo: check self set and remove!
+            cv2.setNumThreads(self._threads)
             out = cv2.VideoWriter(
                 video_filepath,
                 fourcc=cv2.VideoWriter_fourcc(*self._fourcc),

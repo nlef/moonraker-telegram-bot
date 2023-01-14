@@ -34,7 +34,7 @@ class Klippy:
         psu_device: PowerDevice,
         logging_handler: logging.Handler,
     ):
-        self._host: str = config.bot_config.host
+        self._host: str = f"{config.bot_config.protocol}{config.bot_config.host}"
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
@@ -95,7 +95,7 @@ class Klippy:
                 if elem.split(" ")[-1] == heat:
                     sens_dict[elem] = None
             for sens in self._sensors_list:
-                if elem.split(" ")[-1] == sens and "sensor" in elem:  # add adc\thermistor
+                if elem.split(" ")[-1] == sens and "sensor" in elem:  #Todo: add adc\thermistor
                     sens_dict[elem] = None
             for fan in self._fans_list:
                 if elem.split(" ")[-1] == fan and "fan" in elem:
@@ -145,7 +145,7 @@ class Klippy:
         if (not self._user and not self._jwt_token) and not self._api_token:
             return ""
 
-        resp = requests.get(f"http://{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
+        resp = requests.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
         if resp.ok:
             res = f"?token={resp.json()['result']}"
         else:
@@ -223,7 +223,7 @@ class Klippy:
         if not self._user or not self._passwd:
             return
         # TOdo: add try catch
-        res = requests.post(f"http://{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
+        res = requests.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
         if res.ok:
             self._jwt_token = res.json()["result"]["token"]
             self._refresh_token = res.json()["result"]["refresh_token"]
@@ -233,7 +233,7 @@ class Klippy:
     def _refresh_moonraker_token(self) -> None:
         if not self._refresh_token:
             return
-        res = requests.post(f"http://{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15)
+        res = requests.post(f"{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15)
         if res.ok:
             logger.debug("JWT token successfully refreshed")
             self._jwt_token = res.json()["result"]["token"]
@@ -242,11 +242,11 @@ class Klippy:
 
     def _make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
-        res = requests.request(method, f"http://{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+        res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, f"http://{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+            res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
         if not res.ok:
             logger.error(res.reason)
         return res
@@ -395,18 +395,7 @@ class Klippy:
     def get_status(self) -> str:
         resp = self._make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").json()["result"]["status"]
         print_stats = resp["print_stats"]
-        # webhook = resp['webhooks']
-        # message = emoji.emojize(':robot: Klipper status: ', language='alias') + f"{webhook['state']}\n"
         message = ""
-
-        # if 'display_status' in resp and 'message' in resp['display_status']:
-        #     msg = resp['display_status']['message']
-        #     if msg and msg is not None:
-        #         message += f"{msg}\n"
-        # if 'state_message' in webhook:
-        #     message += f"State message: {webhook['state_message']}\n"
-
-        # message += emoji.emojize(':mechanical_arm: Printing process status: ', language='alias') + f"{print_stats['state']} \n"
 
         if print_stats["state"] == "printing":
             if not self.printing_filename:
