@@ -446,7 +446,7 @@ class Notifier:
 
     @staticmethod
     def _parse_message(ws_message) -> str:
-        message_match = re.search(r"message=\'(.[^\']*)\'", ws_message)
+        message_match = re.search(r"message\s*=\s*\'(.[^\']*)\'", ws_message)
         if message_match:
             message = message_match.group(1)
         else:
@@ -455,7 +455,7 @@ class Notifier:
 
     @staticmethod
     def _parse_path(ws_message) -> str:
-        path_match = re.search(r"path=\'(.[^\']*)\'", ws_message)
+        path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
         if path_match:
             path = path_match.group(1)
         else:
