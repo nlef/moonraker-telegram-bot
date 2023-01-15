@@ -6,7 +6,7 @@ import re
 from typing import Dict, List, Optional
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, InputMediaPhoto, Message
+from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaPhoto, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
@@ -591,3 +591,11 @@ class Notifier:
             full_conf = f"percent={self.percent} height={self.height} time={self.interval} "
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
+
+    def send_custom_inline_keyboard(self, title: str, reply_inlinekeyboard: InlineKeyboardMarkup):
+        self._bot.send_message(
+            self._chat_id,
+            text=title,
+            reply_markup=reply_inlinekeyboard,
+            disable_notification=self._silent_commands,
+        )
