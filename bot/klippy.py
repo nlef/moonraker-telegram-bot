@@ -95,7 +95,7 @@ class Klippy:
                 if elem.split(" ")[-1] == heat:
                     sens_dict[elem] = None
             for sens in self._sensors_list:
-                if elem.split(" ")[-1] == sens and "sensor" in elem:  #Todo: add adc\thermistor
+                if elem.split(" ")[-1] == sens and "sensor" in elem:  # Todo: add adc\thermistor
                     sens_dict[elem] = None
             for fan in self._fans_list:
                 if elem.split(" ")[-1] == fan and "fan" in elem:
