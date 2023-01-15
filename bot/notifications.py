@@ -475,12 +475,15 @@ class Notifier:
             with open(path_obj, "rb") as fh:
                 bio.write(fh.read())
             bio.seek(0)
-            self._bot.send_photo(
-                self._chat_id,
-                photo=bio,
-                caption=message,
-                disable_notification=self._silent_commands,
-            )
+            if bio.getbuffer().nbytes > 10485760:
+                self._bot.send_message(text=f"Telegram bots have a 10mb filesize restriction for images, image couldn't be uploaded: `{path}`")
+            else:
+                self._bot.send_photo(
+                    self._chat_id,
+                    photo=bio,
+                    caption=message,
+                    disable_notification=self._silent_commands,
+                )
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending image: {ex}", disable_notification=self._silent_commands)
@@ -510,12 +513,15 @@ class Notifier:
             with open(path_obj, "rb") as fh:
                 bio.write(fh.read())
             bio.seek(0)
-            self._bot.send_video(
-                self._chat_id,
-                video=bio,
-                caption=message,
-                disable_notification=self._silent_commands,
-            )
+            if bio.getbuffer().nbytes > 52428800:
+                self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, video couldn't be uploaded: `{path}`")
+            else:
+                self._bot.send_video(
+                    self._chat_id,
+                    video=bio,
+                    caption=message,
+                    disable_notification=self._silent_commands,
+                )
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending video: {ex}", disable_notification=self._silent_commands)
@@ -523,7 +529,6 @@ class Notifier:
         bio.close()
 
     def send_video(self, ws_message: str) -> None:
-
         self._sched.add_job(
             self._send_video,
             kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
@@ -546,12 +551,15 @@ class Notifier:
             with open(path_obj, "rb") as fh:
                 bio.write(fh.read())
             bio.seek(0)
-            self._bot.send_document(
-                self._chat_id,
-                document=bio,
-                caption=message,
-                disable_notification=self._silent_commands,
-            )
+            if bio.getbuffer().nbytes > 52428800:
+                self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, document couldn't be uploaded: `{path}`")
+            else:
+                self._bot.send_document(
+                    self._chat_id,
+                    document=bio,
+                    caption=message,
+                    disable_notification=self._silent_commands,
+                )
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending document: {ex}", disable_notification=self._silent_commands)
