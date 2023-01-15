@@ -465,10 +465,10 @@ class Notifier:
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
-    def send_custom_keyboard(self, title: str, reply_markup: InlineKeyboardMarkup):
+    def send_custom_inline_keyboard(self, title: str, reply_inlinekeyboard: InlineKeyboardMarkup):
         self._bot.send_message(
             self._chat_id,
             text=title,
-            reply_markup=reply_markup,
+            reply_markup=reply_inlinekeyboard,
             disable_notification=self._silent_commands,
         )
