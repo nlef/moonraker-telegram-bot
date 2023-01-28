@@ -310,7 +310,7 @@ class Notifier:
                 self._bzz_mess_id = 0
 
     def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:
-        mess = self._klippy.get_print_stats(message)
+        mess = escape(self._klippy.get_print_stats(message))
         if self._last_m117_status and "m117_status" in self._message_parts:
             mess += f"{self._last_m117_status}\n"
         if self._last_tgnotify_status and "tgnotify_status" in self._message_parts:
