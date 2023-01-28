@@ -89,7 +89,7 @@ class ConfigHelper:
                 raise ex
         return val
 
-    def _getint(
+    def _get_int(
         self,
         option: str,
         default: Optional[int] = None,
@@ -102,7 +102,7 @@ class ConfigHelper:
         self._check_numerical_value(option, val, above, below, min_value, max_value)
         return val
 
-    def _getfloat(
+    def _get_float(
         self,
         option: str,
         default: Optional[float] = None,
@@ -115,19 +115,19 @@ class ConfigHelper:
         self._check_numerical_value(option, val, above, below, min_value, max_value)
         return val
 
-    def _getstring(self, option: str, default: Optional[str] = None, allowed_values: Optional[List[Any]] = None) -> str:
+    def _get_str(self, option: str, default: Optional[str] = None, allowed_values: Optional[List[Any]] = None) -> str:
         val = self._get_option_value(self._config.get, option, default)
         self._check_string_values(option, val, allowed_values)
         return val
 
-    def _getboolean(self, option: str, default: Optional[bool] = None) -> bool:
+    def _get_boolean(self, option: str, default: Optional[bool] = None) -> bool:
         val = self._get_option_value(self._config.getboolean, option, default)
         return val
 
-    def _getlist(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List:
+    def _get_list(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List:
         if self._config.has_option(self._section, option):
             try:
-                val = [el_type(el.strip()) for el in self._getstring(option).split(",")]
+                val = [el_type(el.strip()) for el in self._get_str(option).split(",")]
             except Exception as ex:
                 if default is not None:
                     self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
@@ -168,11 +168,11 @@ class SecretsConfig(ConfigHelper):
         if not self._config.has_option(self._section, "bot_token"):
             self._parsing_errors.append("Option 'bot_token': value is not provided")
 
-        self.token: str = self._getstring("bot_token", default="")
-        self.chat_id: int = self._getint("chat_id", default=0)
-        self.user: str = self._getstring("user", default="")
-        self.passwd: str = self._getstring("password", default="")
-        self.api_token: str = self._getstring("api_token", default="")
+        self.token: str = self._get_str("bot_token", default="")
+        self.chat_id: int = self._get_int("chat_id", default=0)
+        self.user: str = self._get_str("user", default="")
+        self.passwd: str = self._get_str("password", default="")
+        self.api_token: str = self._get_str("api_token", default="")
 
 
 class BotConfig(ConfigHelper):
@@ -182,17 +182,18 @@ class BotConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
 
-        self.host: str = self._getstring("server", default="localhost")
-        self.api_url: str = self._getstring("api_url", default="https://api.telegram.org/bot")
-        self.socks_proxy: str = self._getstring("socks_proxy", default="")
-        self.light_device_name: str = self._getstring("light_device", default="")
-        self.poweroff_device_name: str = self._getstring("power_device", default="")
-        self.debug: bool = self._getboolean("debug", default=False)
-        self.log_path: str = self._getstring("log_path", default="/tmp")
-        self.log_file: str = self._getstring("log_path", default="/tmp")
-        self.upload_path: str = self._getstring("upload_path", default="")
-        self.services: List[str] = self._getlist("services", ["klipper", "moonraker"])
-        self.log_parser: bool = self._getboolean("log_parser", default=False)
+        self.host: str = self._get_str("server", default="localhost")
+        self.protocol: str = "http://"
+        self.api_url: str = self._get_str("api_url", default="https://api.telegram.org/bot")
+        self.socks_proxy: str = self._get_str("socks_proxy", default="")
+        self.light_device_name: str = self._get_str("light_device", default="")
+        self.poweroff_device_name: str = self._get_str("power_device", default="")
+        self.debug: bool = self._get_boolean("debug", default=False)
+        self.log_path: str = self._get_str("log_path", default="/tmp")
+        self.log_file: str = self._get_str("log_path", default="/tmp")
+        self.upload_path: str = self._get_str("upload_path", default="")
+        self.services: List[str] = self._get_list("services", ["klipper", "moonraker"])
+        self.log_parser: bool = self._get_boolean("log_parser", default=False)
 
     @property
     def formated_upload_path(self):
@@ -232,20 +233,20 @@ class CameraConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.host: str = self._getstring("host", default="")
-        self.stream_fps: int = self._getint("fps", default=0, above=0)
-        self.flip_vertically: bool = self._getboolean("flip_vertically", default=False)
-        self.flip_horizontally: bool = self._getboolean("flip_horizontally", default=False)
-        self.rotate: str = self._getstring("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
-        self.fourcc: str = self._getstring("fourcc", default="x264", allowed_values=["x264", "mp4v"])
+        self.host: str = self._get_str("host", default="")
+        self.stream_fps: int = self._get_int("fps", default=0, above=0)
+        self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
+        self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
+        self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
+        self.fourcc: str = self._get_str("fourcc", default="x264", allowed_values=["x264", "mp4v"])
 
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
-        self.threads: int = self._getint("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
+        self.threads: int = self._get_int("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
 
-        self.video_duration: int = self._getint("video_duration", default=5, above=0)
-        self.video_buffer_size: int = self._getint("video_buffer_size", default=2, above=0)
-        self.light_timeout: int = self._getint("light_control_timeout", default=0, min_value=0)
-        self.picture_quality: str = self._getstring("picture_quality", default="high", allowed_values=["low", "high"])
+        self.video_duration: int = self._get_int("video_duration", default=5, above=0)
+        self.video_buffer_size: int = self._get_int("video_buffer_size", default=2, above=0)
+        self.light_timeout: int = self._get_int("light_control_timeout", default=0, min_value=0)
+        self.picture_quality: str = self._get_str("picture_quality", default="high", allowed_values=["low", "high"])
         self.cv2_params = config.items("camera.cv2") if config.has_section("camera.cv2") else []
 
 
@@ -256,11 +257,11 @@ class NotifierConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.percent: int = self._getint("percent", default=0, min_value=0)
-        self.height: float = self._getfloat("height", default=0, min_value=0.0)
-        self.interval: int = self._getint("time", default=0, min_value=0)
-        self.notify_groups: List[int] = self._getlist("groups", default=[], el_type=int)
-        self.group_only: bool = self._getboolean("group_only", default=False)
+        self.percent: int = self._get_int("percent", default=0, min_value=0)
+        self.height: float = self._get_float("height", default=0, min_value=0.0)
+        self.interval: int = self._get_int("time", default=0, min_value=0)
+        self.notify_groups: List[int] = self._get_list("groups", default=[], el_type=int)
+        self.group_only: bool = self._get_boolean("group_only", default=False)
 
 
 class TimelapseConfig(ConfigHelper):
@@ -284,24 +285,23 @@ class TimelapseConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.base_dir: str = self._getstring("basedir", default="~/moonraker-telegram-bot-timelapse")
-        self.ready_dir: str = self._getstring("copy_finished_timelapse_dir", default="")
-        self.cleanup: bool = self._getboolean("cleanup", default=True)
-        self.height: float = self._getfloat("height", default=0.0, min_value=0.0)
-        self.interval: int = self._getint("time", default=0, min_value=0)
-        self.target_fps: int = self._getint("target_fps", default=15, above=0)
-        self.min_lapse_duration: int = self._getint("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
-        self.max_lapse_duration: int = self._getint("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
-        self.last_frame_duration: int = self._getint("last_frame_duration", default=5, min_value=0)
-        # Todo: add to runtime params section!
-        self.after_lapse_gcode: str = self._getstring("after_lapse_gcode", default="")
-        self.send_finished_lapse: bool = self._getboolean("send_finished_lapse", default=True)
-        self.mode_manual: bool = self._getboolean("manual_mode", default=False)
-        self.after_photo_gcode: str = self._getstring("after_photo_gcode", default="")
+        self.base_dir: str = self._get_str("basedir", default="~/moonraker-telegram-bot-timelapse")
+        self.ready_dir: str = self._get_str("copy_finished_timelapse_dir", default="")
+        self.cleanup: bool = self._get_boolean("cleanup", default=True)
+        self.height: float = self._get_float("height", default=0.0, min_value=0.0)
+        self.interval: int = self._get_int("time", default=0, min_value=0)
+        self.target_fps: int = self._get_int("target_fps", default=15, above=0)
+        self.min_lapse_duration: int = self._get_int("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
+        self.max_lapse_duration: int = self._get_int("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
+        self.last_frame_duration: int = self._get_int("last_frame_duration", default=5, min_value=0)
+        self.after_lapse_gcode: str = self._get_str("after_lapse_gcode", default="")
+        self.send_finished_lapse: bool = self._get_boolean("send_finished_lapse", default=True)
+        self.mode_manual: bool = self._get_boolean("manual_mode", default=False)
+        self.after_photo_gcode: str = self._get_str("after_photo_gcode", default="")
 
-        self.init_paths()
+        self._init_paths()
 
-    def init_paths(self):
+    def _init_paths(self):
         self.base_dir = os.path.expanduser(self.base_dir)
         Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
@@ -341,7 +341,7 @@ class TelegramUIConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.eta_source: str = self._getstring("eta_source", default="slicer", allowed_values=["slicer", "file"])
+        self.eta_source: str = self._get_str("eta_source", default="slicer", allowed_values=["slicer", "file"])
         self.buttons_default: bool = bool(not config.has_option(self._section, "buttons"))
         self.buttons: List[List[str]] = list(
             map(
@@ -351,21 +351,21 @@ class TelegramUIConfig(ConfigHelper):
                         el.replace("[", "").replace("]", "").split(","),
                     )
                 ),
-                re.findall(r"\[.[^\]]*\]", self._getstring("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
+                re.findall(r"\[.[^\]]*\]", self._get_str("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
             )
         )
-        self.require_confirmation_macro: bool = self._getboolean("require_confirmation_macro", default=True)
-        self.require_confirmation_services: bool = self._getboolean("require_confirmation_services", default=True)
-        self.progress_update_message: bool = self._getboolean("progress_update_message", default=False)
-        self.silent_progress: bool = self._getboolean("silent_progress", default=False)
-        self.silent_commands: bool = self._getboolean("silent_commands", default=False)
-        self.silent_status: bool = self._getboolean("silent_status", default=False)
-        self.include_macros_in_command_list: bool = self._getboolean("include_macros_in_command_list", default=True)
-        self.hidden_macros: List[str] = list(map(lambda el: el.upper(), self._getlist("hidden_macros", default=[])))
-        self.hidden_bot_commands: List[str] = self._getlist("hidden_bot_commands", default=[])
-        self.show_private_macros: bool = self._getboolean("show_private_macros", default=False)
-        self.pin_status_single_message: bool = self._getboolean("pin_status_single_message", default=False)  # Todo: implement
-        self.status_message_m117_update: bool = self._getboolean("status_message_m117_update", default=False)
+        self.require_confirmation_macro: bool = self._get_boolean("require_confirmation_macro", default=True)
+        self.require_confirmation_services: bool = self._get_boolean("require_confirmation_services", default=True)
+        self.progress_update_message: bool = self._get_boolean("progress_update_message", default=False)
+        self.silent_progress: bool = self._get_boolean("silent_progress", default=False)
+        self.silent_commands: bool = self._get_boolean("silent_commands", default=False)
+        self.silent_status: bool = self._get_boolean("silent_status", default=False)
+        self.include_macros_in_command_list: bool = self._get_boolean("include_macros_in_command_list", default=True)
+        self.hidden_macros: List[str] = list(map(lambda el: el.upper(), self._get_list("hidden_macros", default=[])))
+        self.hidden_bot_commands: List[str] = self._get_list("hidden_bot_commands", default=[])
+        self.show_private_macros: bool = self._get_boolean("show_private_macros", default=False)
+        self.pin_status_single_message: bool = self._get_boolean("pin_status_single_message", default=False)  # Todo: implement
+        self.status_message_m117_update: bool = self._get_boolean("status_message_m117_update", default=False)
 
 
 class StatusMessageContentConfig(ConfigHelper):
@@ -386,11 +386,11 @@ class StatusMessageContentConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.content: List[str] = self._getlist("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
-        self.sensors: List[str] = self._getlist("sensors", default=[])
-        self.heaters: List[str] = self._getlist("heaters", default=[])
-        self.fans: List[str] = self._getlist("fans", default=[])
-        self.moonraker_devices: List[str] = self._getlist("moonraker_devices", default=[])
+        self.content: List[str] = self._get_list("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
+        self.sensors: List[str] = self._get_list("sensors", default=[])
+        self.heaters: List[str] = self._get_list("heaters", default=[])
+        self.fans: List[str] = self._get_list("fans", default=[])
+        self.moonraker_devices: List[str] = self._get_list("moonraker_devices", default=[])
 
 
 class ConfigWrapper:
