@@ -3,10 +3,10 @@ from io import BytesIO
 import logging
 from pathlib import Path
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaPhoto, Message
+from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
@@ -454,122 +454,144 @@ class Notifier:
         return message
 
     @staticmethod
-    def _parse_path(ws_message) -> str:
+    def _parse_path(ws_message) -> List[str]:
         path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
+        path_list_math = re.search(r"path\s*=\s*\[(?:\,*\s*\'(.[^\']*)\'\,*\s*)+\]", ws_message)
+
         if path_match:
-            path = path_match.group(1)
+            path = [path_match.group(1)]
+        elif path_list_math:
+            path = list(map(lambda el: el.group(1), re.finditer(r"(?:\,*\s*\'(.[^\']*)\'\,*\s*)", path_list_math.group(0))))
         else:
-            path = ""
+            path = [""]
         return path
 
-    def _send_image(self, path: str, message: str) -> None:
-        path_obj = Path(path)
-        if not path_obj.is_file():
-            self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
-            return
-
-        bio = BytesIO()
-        bio.name = path_obj.name
-
+    def _send_image(self, paths: List[str], message: str) -> None:
         try:
-            with open(path_obj, "rb") as fh:
-                bio.write(fh.read())
-            bio.seek(0)
-            if bio.getbuffer().nbytes > 10485760:
-                self._bot.send_message(text=f"Telegram bots have a 10mb filesize restriction for images, image couldn't be uploaded: `{path}`")
-            else:
-                self._bot.send_photo(
-                    self._chat_id,
-                    photo=bio,
-                    caption=message,
-                    disable_notification=self._silent_commands,
-                )
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 10485760:
+                    self._bot.send_message(text=f"Telegram bots have a 10mb filesize restriction for images, image couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaPhoto(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaPhoto(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending image: {ex}", disable_notification=self._silent_commands)
 
-        bio.close()
-
     def send_image(self, ws_message: str) -> None:
         self._sched.add_job(
             self._send_image,
-            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
             replace_existing=False,
         )
 
-    def _send_video(self, path: str, message: str) -> None:
-        path_obj = Path(path)
-        if not path_obj.is_file():
-            self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
-            return
-
-        bio = BytesIO()
-        bio.name = path_obj.name
-
+    def _send_video(self, paths: List[str], message: str) -> None:
         try:
-            with open(path_obj, "rb") as fh:
-                bio.write(fh.read())
-            bio.seek(0)
-            if bio.getbuffer().nbytes > 52428800:
-                self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, video couldn't be uploaded: `{path}`")
-            else:
-                self._bot.send_video(
-                    self._chat_id,
-                    video=bio,
-                    caption=message,
-                    disable_notification=self._silent_commands,
-                )
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 52428800:
+                    self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, video couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaVideo(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaVideo(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending video: {ex}", disable_notification=self._silent_commands)
 
-        bio.close()
-
     def send_video(self, ws_message: str) -> None:
         self._sched.add_job(
             self._send_video,
-            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
             replace_existing=False,
         )
 
-    def _send_document(self, path: str, message: str) -> None:
-        path_obj = Path(path)
-        if not path_obj.is_file():
-            self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
-            return
-
-        bio = BytesIO()
-        bio.name = path_obj.name
-
+    def _send_document(self, paths: List[str], message: str) -> None:
         try:
-            with open(path_obj, "rb") as fh:
-                bio.write(fh.read())
-            bio.seek(0)
-            if bio.getbuffer().nbytes > 52428800:
-                self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, document couldn't be uploaded: `{path}`")
-            else:
-                self._bot.send_document(
-                    self._chat_id,
-                    document=bio,
-                    caption=message,
-                    disable_notification=self._silent_commands,
-                )
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 52428800:
+                    self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, document couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaDocument(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaDocument(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
         except Exception as ex:
             logger.warning(ex)
             self._bot.send_message(self._chat_id, text=f"Error sending document: {ex}", disable_notification=self._silent_commands)
 
-        bio.close()
-
     def send_document(self, ws_message: str) -> None:
         self._sched.add_job(
             self._send_document,
-            kwargs={"path": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
