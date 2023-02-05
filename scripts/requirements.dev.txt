@@ -5,7 +5,7 @@ memory_profiler==0.61.0
 mypy==0.982
 numpy~=1.21.6
 opencv-python~=3.4.17.63
-pre-commit==3.0.3
+pre-commit==3.0.4
 pylint==2.16.1
 pytest==7.2.1
 types-backports==0.1.3
