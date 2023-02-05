@@ -6,7 +6,7 @@ import re
 from typing import Dict, List, Optional, Union
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
+from telegram import Bot, ChatAction, InlineKeyboardButton, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
@@ -622,10 +622,41 @@ class Notifier:
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
-    def send_custom_inline_keyboard(self, title: str, reply_inlinekeyboard: InlineKeyboardMarkup):
+    def send_custom_inline_keyboard(self, message: str):
+        def parse_button(mess: str):
+            name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
+            command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
+            if name and command:
+                gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
+                return InlineKeyboardButton(name.group(1), callback_data=gcode)
+            else:
+                logger.warning("Bad command!")
+                return None
+
+        keyboard: List[List[InlineKeyboardButton]] = list(
+            map(
+                lambda el: list(
+                    filter(
+                        None,
+                        map(
+                            parse_button,
+                            re.findall(r"\{.[^\}]*\}", el),
+                        ),
+                    )
+                ),
+                re.findall(r"\[.[^\]]*\]", message),
+            )
+        )
+
+        title_mathc = re.search(r"message\s*=\s*\'(.[^\']*)\'", message)
+        if title_mathc:
+            title = title_mathc.group(1)
+        else:
+            title = ""
+
         self._bot.send_message(
             self._chat_id,
             text=title,
-            reply_markup=reply_inlinekeyboard,
+            reply_markup=keyboard,
             disable_notification=self._silent_commands,
         )
