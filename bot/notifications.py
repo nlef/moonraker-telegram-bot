@@ -1,9 +1,12 @@
 from datetime import datetime
+from io import BytesIO
 import logging
-from typing import Dict, List, Optional
+from pathlib import Path
+import re
+from typing import Dict, List, Optional, Union
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, InlineKeyboardMarkup, InputMediaPhoto, Message
+from telegram import Bot, ChatAction, InlineKeyboardButton, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
@@ -441,6 +444,160 @@ class Notifier:
     def update_status(self) -> None:
         self._schedule_notification()
 
+    @staticmethod
+    def _parse_message(ws_message) -> str:
+        message_match = re.search(r"message\s*=\s*\'(.[^\']*)\'", ws_message)
+        if message_match:
+            message = message_match.group(1)
+        else:
+            message = ""
+        return message
+
+    @staticmethod
+    def _parse_path(ws_message) -> List[str]:
+        path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
+        path_list_math = re.search(r"path\s*=\s*\[(?:\,*\s*\'(.[^\']*)\'\,*\s*)+\]", ws_message)
+
+        if path_match:
+            path = [path_match.group(1)]
+        elif path_list_math:
+            path = list(map(lambda el: el.group(1), re.finditer(r"(?:\,*\s*\'(.[^\']*)\'\,*\s*)", path_list_math.group(0))))
+        else:
+            path = [""]
+        return path
+
+    def _send_image(self, paths: List[str], message: str) -> None:
+        try:
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 10485760:
+                    self._bot.send_message(text=f"Telegram bots have a 10mb filesize restriction for images, image couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaPhoto(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaPhoto(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
+        except Exception as ex:
+            logger.warning(ex)
+            self._bot.send_message(self._chat_id, text=f"Error sending image: {ex}", disable_notification=self._silent_commands)
+
+    def send_image(self, ws_message: str) -> None:
+        self._sched.add_job(
+            self._send_image,
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=6,
+            replace_existing=False,
+        )
+
+    def _send_video(self, paths: List[str], message: str) -> None:
+        try:
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 52428800:
+                    self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, video couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaVideo(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaVideo(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
+        except Exception as ex:
+            logger.warning(ex)
+            self._bot.send_message(self._chat_id, text=f"Error sending video: {ex}", disable_notification=self._silent_commands)
+
+    def send_video(self, ws_message: str) -> None:
+        self._sched.add_job(
+            self._send_video,
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=6,
+            replace_existing=False,
+        )
+
+    def _send_document(self, paths: List[str], message: str) -> None:
+        try:
+            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            for path in paths:
+                path_obj = Path(path)
+                if not path_obj.is_file():
+                    self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
+                    return
+
+                bio = BytesIO()
+                bio.name = path_obj.name
+
+                with open(path_obj, "rb") as fh:
+                    bio.write(fh.read())
+                bio.seek(0)
+                if bio.getbuffer().nbytes > 52428800:
+                    self._bot.send_message(text=f"Telegram bots have a 50mb filesize restriction, document couldn't be uploaded: `{path}`")
+                else:
+                    if not photos_list:
+                        photos_list.append(InputMediaDocument(bio, filename=bio.name, caption=message))
+                    else:
+                        photos_list.append(InputMediaDocument(bio, filename=bio.name))
+                bio.close()
+
+            self._bot.send_media_group(
+                self._chat_id,
+                media=photos_list,
+                disable_notification=self._silent_commands,
+            )
+
+        except Exception as ex:
+            logger.warning(ex)
+            self._bot.send_message(self._chat_id, text=f"Error sending document: {ex}", disable_notification=self._silent_commands)
+
+    def send_document(self, ws_message: str) -> None:
+        self._sched.add_job(
+            self._send_document,
+            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=6,
+            replace_existing=False,
+        )
+
     def parse_notification_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
         mass_parts.pop(0)
@@ -465,10 +622,41 @@ class Notifier:
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
             self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
-    def send_custom_inline_keyboard(self, title: str, reply_inlinekeyboard: InlineKeyboardMarkup):
+    def send_custom_inline_keyboard(self, message: str):
+        def parse_button(mess: str):
+            name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
+            command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
+            if name and command:
+                gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
+                return InlineKeyboardButton(name.group(1), callback_data=gcode)
+            else:
+                logger.warning("Bad command!")
+                return None
+
+        keyboard: List[List[InlineKeyboardButton]] = list(
+            map(
+                lambda el: list(
+                    filter(
+                        None,
+                        map(
+                            parse_button,
+                            re.findall(r"\{.[^\}]*\}", el),
+                        ),
+                    )
+                ),
+                re.findall(r"\[.[^\]]*\]", message),
+            )
+        )
+
+        title_mathc = re.search(r"message\s*=\s*\'(.[^\']*)\'", message)
+        if title_mathc:
+            title = title_mathc.group(1)
+        else:
+            title = ""
+
         self._bot.send_message(
             self._chat_id,
             text=title,
-            reply_markup=reply_inlinekeyboard,
+            reply_markup=keyboard,
             disable_notification=self._silent_commands,
         )
