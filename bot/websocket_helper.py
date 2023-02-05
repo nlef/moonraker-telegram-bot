@@ -1,13 +1,9 @@
 from functools import wraps
 import logging
 import random
-import re
 import time
-from typing import List
 
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.utils.helpers import escape
 import ujson
 import websocket  # type: ignore
 
@@ -149,40 +145,6 @@ class WebSocketHelper:
 
         self.parse_sensors(status_resp)
 
-    def _parse_custom_inline_keyboard(self, message: str):
-        def parse_button(mess: str):
-            name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
-            command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
-            if name and command:
-                gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
-                return InlineKeyboardButton(name.group(1), callback_data=gcode)
-            else:
-                logger.warning("Bad command!")
-                return None
-
-        keyboard: List[List[InlineKeyboardButton]] = list(
-            map(
-                lambda el: list(
-                    filter(
-                        None,
-                        map(
-                            parse_button,
-                            re.findall(r"\{.[^\}]*\}", el),
-                        ),
-                    )
-                ),
-                re.findall(r"\[.[^\]]*\]", message),
-            )
-        )
-
-        title_mathc = re.search(r"message\s*=\s*\'(.[^\']*)\'", message)
-        if title_mathc:
-            title = title_mathc.group(1)
-        else:
-            title = ""
-
-        self._notifier.send_custom_inline_keyboard(title, InlineKeyboardMarkup(keyboard))
-
     def notify_gcode_reponse(self, message_params):
         if self._timelapse.manual_mode:
             if "timelapse start" in message_params:
@@ -203,6 +165,7 @@ class WebSocketHelper:
             self._timelapse.take_lapse_photo(manually=True, gcode=True)
         if "timelapse photo" in message_params:
             self._timelapse.take_lapse_photo(manually=True)
+
         message_params_loc = message_params[0]
         if message_params_loc.startswith("tgnotify "):
             self._notifier.send_notification(message_params_loc[9:])
@@ -220,7 +183,14 @@ class WebSocketHelper:
         if message_params_loc.startswith("set_notify_params "):
             self._notifier.parse_notification_params(message_params_loc)
         if message_params_loc.startswith("tgcustom_keyboard "):
-            self._parse_custom_inline_keyboard(message_params_loc)
+            self._notifier.send_custom_inline_keyboard(message_params_loc)
+
+        if message_params_loc.startswith("tg_send_image"):
+            self._notifier.send_image(message_params_loc)
+        if message_params_loc.startswith("tg_send_video"):
+            self._notifier.send_video(message_params_loc)
+        if message_params_loc.startswith("tg_send_document"):
+            self._notifier.send_document(message_params_loc)
 
     def notify_status_update(self, message_params):
         message_params_loc = message_params[0]
@@ -315,7 +285,7 @@ class WebSocketHelper:
             error_mess = f"Printer state change error: {print_stats_loc['state']}\n"
             if "message" in print_stats_loc and print_stats_loc["message"]:
                 error_mess += f"{print_stats_loc['message']}\n"
-            self._notifier.send_error(escape(error_mess))
+            self._notifier.send_error(error_mess)
         elif state == "standby":
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
@@ -376,7 +346,7 @@ class WebSocketHelper:
                         state_message = message_result["state_message"]
                         if self._klippy.state_message != state_message and klippy_state != "startup":
                             self._klippy.state_message = state_message
-                            self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{escape(self._klippy.state_message)}")
+                            self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{self._klippy.state_message}")
                     else:
                         logger.error("UnKnown klippy state: %s", klippy_state)
                         self._klippy.connected = False
@@ -395,7 +365,7 @@ class WebSocketHelper:
                     return
 
             if "error" in json_message:
-                self._notifier.send_error(f"{escape(json_message['error']['message'])}")
+                self._notifier.send_error(f"{json_message['error']['message']}")
 
         else:
             message_method = json_message["method"]
@@ -467,7 +437,6 @@ class WebSocketHelper:
         print("lalal")
 
     def run_forever(self):
-
         # debug reasons only
         if self._log_parser:
             self.parselog()
