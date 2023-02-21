@@ -1055,6 +1055,7 @@ if __name__ == "__main__":
         "-c",
         "--configfile",
         default="./telegram.conf",
+        nargs="+",
         metavar="<configfile>",
         help="Location of moonraker telegram bot configuration file",
     )
