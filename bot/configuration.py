@@ -274,6 +274,7 @@ class TimelapseConfig(ConfigHelper):
         "height",
         "time",
         "target_fps",
+        "limit_fps",
         "min_lapse_duration",
         "max_lapse_duration",
         "last_frame_duration",
@@ -291,6 +292,7 @@ class TimelapseConfig(ConfigHelper):
         self.height: float = self._get_float("height", default=0.0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
         self.target_fps: int = self._get_int("target_fps", default=15, above=0)
+        self.limit_fps: bool = self._get_boolean("limit_fps", default=False)
         self.min_lapse_duration: int = self._get_int("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
         self.max_lapse_duration: int = self._get_int("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
         self.last_frame_duration: int = self._get_int("last_frame_duration", default=5, min_value=0)

@@ -85,6 +85,7 @@ class Camera:
         self._cleanup: bool = config.timelapse.cleanup
 
         self._target_fps: int = 15
+        self._limit_fps: bool = False
         self._min_lapse_duration: int = 0
         self._max_lapse_duration: int = 0
         self._last_frame_duration: int = 5
@@ -180,6 +181,14 @@ class Camera:
     @target_fps.setter
     def target_fps(self, new_value: int) -> None:
         self._target_fps = new_value
+
+    @property
+    def limit_fps(self) -> bool:
+        return self._limit_fps
+
+    @limit_fps.setter
+    def limit_fps(self, new_value: bool) -> None:
+        self._limit_fps = new_value
 
     @property
     def min_lapse_duration(self) -> int:
@@ -475,6 +484,9 @@ class Camera:
             os.remove(video_filepath)
 
         lapse_fps = self._calculate_fps(photo_count)
+        if self._limit_fps and lapse_fps > self._target_fps:
+            odd_frames = math.ceil(lapse_fps / self._target_fps)
+            lapse_fps = self._target_fps
 
         with self._camera_lock:
             cv2.setNumThreads(self._threads)
@@ -487,16 +499,29 @@ class Camera:
 
             info_mess.edit_text(text="Images recoding")
             last_update_time = time.time()
+            frames_skipped = 0
+            frames_recorded = 0
             for fnum, filename in enumerate(photos):
                 if time.time() >= last_update_time + 10:
-                    info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
+                    if self._limit_fps:
+                        info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}")
+                    else:
+                        info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
                     last_update_time = time.time()
 
-                out.write(cv2.imread(filename))
+                if not self._limit_fps or fnum % odd_frames == 0:
+                    out.write(cv2.imread(filename))
+                    frames_recorded += 1
+                else:
+                    frames_skipped += 1
 
-            info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
-            for _ in range(lapse_fps * self._last_frame_duration):
-                out.write(img)
+            if self._last_frame_duration > 0:
+                info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
+                for _ in range(lapse_fps * self._last_frame_duration):
+                    out.write(img)
+
+            if self._limit_fps:
+                info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}")
 
             out.release()
             cv2.destroyAllWindows()
