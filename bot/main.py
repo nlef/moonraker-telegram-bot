@@ -15,6 +15,7 @@ import tarfile
 import time
 from typing import Dict, List, Union
 from zipfile import ZipFile
+import socket
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
@@ -978,7 +979,7 @@ def greeting_message(bot: telegram.Bot) -> None:
     if response:
         mess += escape(f"Bot online, no moonraker connection!\n {response} \nFailing...")
     else:
-        mess += "Printer online"
+        mess += "Printer online on " + get_local_ip()
         if configWrap.configuration_errors:
             mess += escape(klippy.get_versions_info(bot_only=True)) + configWrap.configuration_errors
 
@@ -994,6 +995,16 @@ def greeting_message(bot: telegram.Bot) -> None:
     klippy.add_bot_announcements_feed()
     check_unfinished_lapses(bot)
 
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('192.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 def start_bot(bot_token, socks):
     request_kwargs = {
