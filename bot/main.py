@@ -1001,7 +1001,7 @@ def get_local_ip():
     try:
         sock.connect(("192.255.255.255", 1))
         ip_address = sock.getsockname()[0]
-    except: # pylint: disable=W0702
+    except:  # pylint: disable=W0702
         ip_address = "127.0.0.1"
     finally:
         sock.close()
