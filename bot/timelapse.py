@@ -37,6 +37,7 @@ class Timelapse:
         self._height: float = config.timelapse.height
         self._interval: int = config.timelapse.interval
         self._target_fps: int = config.timelapse.target_fps
+        self._limit_fps: bool = config.timelapse.limit_fps
         self._min_lapse_duration: int = config.timelapse.min_lapse_duration
         self._max_lapse_duration: int = config.timelapse.max_lapse_duration
         self._last_frame_duration: int = config.timelapse.last_frame_duration
@@ -52,6 +53,7 @@ class Timelapse:
 
         # push params to cameras instances
         self._camera.target_fps = self._target_fps
+        self._camera.limit_fps = self._limit_fps
         self._camera.min_lapse_duration = self._min_lapse_duration
         self._camera.max_lapse_duration = self._max_lapse_duration
         self._camera.last_frame_duration = self._last_frame_duration
