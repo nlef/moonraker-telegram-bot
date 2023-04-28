@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 import re
 import signal
+import socket
 import sys
 import tarfile
 import time
 from typing import Dict, List, Union
 from zipfile import ZipFile
-import socket
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
@@ -998,10 +998,10 @@ def greeting_message(bot: telegram.Bot) -> None:
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(('192.255.255.255', 1))
+        s.connect(("192.255.255.255", 1))
         IP = s.getsockname()[0]
     except:
-        IP = '127.0.0.1'
+        IP = "127.0.0.1"
     finally:
         s.close()
     return IP
