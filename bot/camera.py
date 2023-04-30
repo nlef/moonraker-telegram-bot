@@ -484,6 +484,7 @@ class Camera:
             os.remove(video_filepath)
 
         lapse_fps = self._calculate_fps(photo_count)
+        odd_frames = 1
         if self._limit_fps and lapse_fps > self._target_fps:
             odd_frames = math.ceil(lapse_fps / self._target_fps)
             lapse_fps = self._target_fps
