@@ -1,5 +1,4 @@
 import argparse
-import configparser
 import faulthandler
 import hashlib
 from io import BytesIO
@@ -850,7 +849,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
             if klippy.upload_gcode_file(sending_bio, configWrap.bot_config.upload_path):
                 start_pre_mess = "Successfully uploaded file:"
                 mess, thumb = klippy.get_file_info_by_name(
-                    f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot_config.formated_upload_path}{sending_bio.name}"
+                    f"{configWrap.bot_config.formatted_upload_path}{sending_bio.name}", f"{start_pre_mess}{configWrap.bot_config.formatted_upload_path}{sending_bio.name}"
                 )
                 filehash = hashlib.md5(doc.file_name.encode()).hexdigest() + ".gcode"
                 keyboard = [
@@ -872,7 +871,7 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                     reply_markup=reply_markup,
                     disable_notification=notifier.silent_commands,
                     quote=True,
-                    caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formated_upload_path}{sending_bio.name}"))],
+                    caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formatted_upload_path}{sending_bio.name}"))],
                 )
                 thumb.close()
                 # Todo: delete uploaded file
@@ -1065,22 +1064,13 @@ if __name__ == "__main__":
         help="Location of moonraker telegram bot log file",
     )
     system_args = parser.parse_args()
-    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
 
     # Todo: os.chdir(Path(sys.path[0]).parent.absolute())
     os.chdir(sys.path[0])
 
-    conf.read(system_args.configfile)
-    configWrap = ConfigWrapper(conf)
+    configWrap = ConfigWrapper(system_args.configfile)
     configWrap.bot_config.log_path_update(system_args.logfile)
-
-    with open(configWrap.bot_config.log_file, "a", encoding="utf-8") as f:
-        f.write("\n*******************************************************************\n")
-        f.write("Current Moonraker telegram bot config\n")
-        conf.remove_option("bot", "bot_token")
-        conf.remove_option("bot", "chat_id")
-        conf.write(f)
-        f.write("\n*******************************************************************\n")
+    configWrap.dump_config_to_log()
 
     rotatingHandler = RotatingFileHandler(
         configWrap.bot_config.log_file,
