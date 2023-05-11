@@ -437,6 +437,9 @@ class ConfigWrapper:
             log_file.write("Current Moonraker telegram bot config\n")
             self._config.remove_option("bot", "bot_token")
             self._config.remove_option("bot", "chat_id")
+            for sec in self._config.sections():
+                if sec.startswith("include"):
+                    self._config.remove_section(sec)
             self._config.write(log_file)
             log_file.write("\n*******************************************************************\n")
 
