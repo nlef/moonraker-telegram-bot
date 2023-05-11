@@ -365,7 +365,7 @@ def power(update: Update, _: CallbackContext) -> None:
             )
     else:
         update.effective_message.reply_text(
-            "No power device in config!",
+            "No device defined for /power command in bot config.\nPlease add a moonraker device to the bots config",
             disable_notification=notifier.silent_commands,
             quote=True,
         )
