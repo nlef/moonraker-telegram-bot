@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import socket
 import sys
 import tarfile
 import time
@@ -978,7 +979,7 @@ def greeting_message(bot: telegram.Bot) -> None:
     if response:
         mess += escape(f"Bot online, no moonraker connection!\n {response} \nFailing...")
     else:
-        mess += "Printer online"
+        mess += "Printer online on " + get_local_ip()
         if configWrap.configuration_errors:
             mess += escape(klippy.get_versions_info(bot_only=True)) + configWrap.configuration_errors
 
@@ -993,6 +994,18 @@ def greeting_message(bot: telegram.Bot) -> None:
     bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
     klippy.add_bot_announcements_feed()
     check_unfinished_lapses(bot)
+
+
+def get_local_ip():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("192.255.255.255", 1))
+        ip_address = sock.getsockname()[0]
+    except:  # pylint: disable=W0702
+        ip_address = "127.0.0.1"
+    finally:
+        sock.close()
+    return ip_address
 
 
 def start_bot(bot_token, socks):
