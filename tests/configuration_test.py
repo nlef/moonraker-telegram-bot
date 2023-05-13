@@ -1,4 +1,4 @@
-import configparser
+import pathlib
 
 import pytest
 
@@ -11,22 +11,19 @@ CONFIG_WITH_SECRETS_PATH = "tests/resources/telegram_secrets.conf"
 
 
 def test_template_config_has_no_errors():
-    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-    conf.read(CONFIG_TEMPLATE_PATH)
-    assert ConfigWrapper(conf).configuration_errors == ""
+    config_path = pathlib.Path(CONFIG_TEMPLATE_PATH).absolute().as_posix()
+    assert ConfigWrapper(config_path).configuration_errors == ""
 
 
 def test_minimal_config_has_no_errors():
-    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-    conf.read(CONFIG_MINIMAL_PATH)
-    assert ConfigWrapper(conf).configuration_errors == ""
+    config_path = pathlib.Path(CONFIG_MINIMAL_PATH).absolute().as_posix()
+    assert ConfigWrapper(config_path).configuration_errors == ""
 
 
 @pytest.fixture
 def config_secrets_helper():
-    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-    conf.read(CONFIG_WITH_SECRETS_PATH)
-    return ConfigWrapper(conf)
+    config_path = pathlib.Path(CONFIG_WITH_SECRETS_PATH).absolute().as_posix()
+    return ConfigWrapper(config_path)
 
 
 def test_config_with_secrets_has_no_errors(config_secrets_helper):
@@ -39,9 +36,8 @@ def test_config_with_secrets_is_valid(config_secrets_helper):
 
 @pytest.fixture
 def config_helper():
-    conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
-    conf.read(CONFIG_PATH)
-    return ConfigWrapper(conf)
+    config_path = pathlib.Path(CONFIG_PATH).absolute().as_posix()
+    return ConfigWrapper(config_path)
 
 
 def test_config_has_no_errors(config_helper):

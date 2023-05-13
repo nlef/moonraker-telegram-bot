@@ -196,7 +196,7 @@ class BotConfig(ConfigHelper):
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
 
     @property
-    def formated_upload_path(self):
+    def formatted_upload_path(self):
         if not self.upload_path:
             return ""
         if not self.upload_path.endswith("/"):
@@ -396,7 +396,16 @@ class StatusMessageContentConfig(ConfigHelper):
 
 
 class ConfigWrapper:
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, path: str):
+        config = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
+        config.read(path)
+
+        for sec in config.sections():
+            if sec.startswith("include"):
+                addit_conf = sec.replace("include", "").strip()
+                config.read(pathlib.PurePath(path).parent.joinpath(addit_conf))
+
+        self._config = config
         self.secrets = SecretsConfig(config)
         self.bot_config = BotConfig(config)
         self.camera = CameraConfig(config)
@@ -421,6 +430,18 @@ class ConfigWrapper:
             + self.telegram_ui.parsing_errors
             + self.status_message_content.parsing_errors
         )
+
+    def dump_config_to_log(self):
+        with open(self.bot_config.log_file, "a", encoding="utf-8") as log_file:
+            log_file.write("\n*******************************************************************\n")
+            log_file.write("Current Moonraker telegram bot config\n")
+            self._config.remove_option("bot", "bot_token")
+            self._config.remove_option("bot", "chat_id")
+            for sec in self._config.sections():
+                if sec.startswith("include"):
+                    self._config.remove_section(sec)
+            self._config.write(log_file)
+            log_file.write("\n*******************************************************************\n")
 
     @property
     def configuration_errors(self) -> str:
