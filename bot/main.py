@@ -211,8 +211,10 @@ def check_unfinished_lapses(bot: telegram.Bot):
         disable_notification=notifier.silent_status,
     )
 
+
 def get_ip(update: Update, _: CallbackContext) -> None:
     update.effective_message.reply_text(get_local_ip(), quote=True)
+
 
 def get_video(update: Update, _: CallbackContext) -> None:
     if update.effective_message is None or update.effective_message.bot is None:
