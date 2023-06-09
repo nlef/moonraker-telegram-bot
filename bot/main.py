@@ -211,6 +211,8 @@ def check_unfinished_lapses(bot: telegram.Bot):
         disable_notification=notifier.silent_status,
     )
 
+def get_ip(update: Update, _: CallbackContext) -> None:
+    update.effective_message.reply_text(get_local_ip(), quote=True)
 
 def get_video(update: Update, _: CallbackContext) -> None:
     if update.effective_message is None or update.effective_message.bot is None:
@@ -915,6 +917,7 @@ def bot_commands() -> Dict[str, str]:
     commands = {
         "help": "list bot commands",
         "status": "send klipper status",
+        "ip": "send local ip address",
         "pause": "pause printing",
         "resume": "resume printing",
         "cancel": "cancel printing",
@@ -1032,6 +1035,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CallbackQueryHandler(button_handler))
     dispatcher.add_handler(CommandHandler("help", help_command, run_async=True))
     dispatcher.add_handler(CommandHandler("status", status, run_async=True))
+    dispatcher.add_handler(CommandHandler("ip", get_ip))
     dispatcher.add_handler(CommandHandler("video", get_video))
     dispatcher.add_handler(CommandHandler("pause", pause_printing))
     dispatcher.add_handler(CommandHandler("resume", resume_printing))
