@@ -213,6 +213,10 @@ def check_unfinished_lapses(bot: telegram.Bot):
 
 
 def get_ip(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
     update.effective_message.reply_text(get_local_ip(), quote=True)
 
 
