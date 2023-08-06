@@ -4,18 +4,19 @@ from io import BytesIO
 import logging
 import re
 import time
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import urllib
 
 from PIL import Image
 import emoji
+import msgspec
+import msgspec.json
 import requests
-import ujson
 
 from configuration import ConfigWrapper
 from power_device import PowerDevice
 
-requests.models.complexjson = ujson  # type: ignore
+# requests.models.complexjson = ujson  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -184,28 +185,25 @@ class Klippy:
             return
 
         response = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(new_value)}")
+
         # Todo: add response status check!
         if not response.ok:
             logger.warning("bad response for file request %s", response.reason)
-        resp = response.json()["result"]
-        self._printing_filename = new_value
-        self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
-        self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
-        self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
-        self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
 
-        if "thumbnails" in resp and "filename" in resp:
-            thumb = max(resp["thumbnails"], key=lambda el: el["size"])
-            file_dir = resp["filename"].rpartition("/")[0]
-            if file_dir:
-                self._thumbnail_path = f'{file_dir}/{thumb["relative_path"]}'
-            else:
-                self._thumbnail_path = thumb["relative_path"]
+        file_info = msgspec.json.decode(response.content, type=APIResultWrapper, strict=False).result
+        self._printing_filename = new_value
+        self.file_estimated_time = file_info.get_estimated_time()
+        self.file_print_start_time = file_info.get_print_start_time()
+        self.filament_total = file_info.get_filament_total()
+        self.filament_weight = file_info.get_filament_weight_total()
+
+        if file_info.filename and file_info.thumbnails:
+            self._thumbnail_path = file_info.get_thumbnail_path()
         else:
-            if "filename" not in resp:
-                logger.error('"filename" field is not present in response: %s', resp)
-            if "thumbnails" not in resp:
-                logger.error('"thumbnails" field is not present in response: %s', resp)
+            if not file_info.filename:
+                logger.error('"filename" field is not present in response: %s', response.json())
+            if not file_info.thumbnails:
+                logger.error('"thumbnails" field is not present in response: %s', response.json())
 
     @property
     def printing_filename_with_time(self) -> str:
@@ -421,25 +419,19 @@ class Klippy:
         return message
 
     def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
-        resp = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").json()["result"]
+        response = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}")
+        file_info = msgspec.json.decode(response.content, type=APIResultWrapper, strict=False).result
         message += "\n"
-        if "filament_total" in resp and resp["filament_total"] > 0.0:
-            message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m"
-            if "filament_weight_total" in resp and resp["filament_weight_total"] > 0.0:
-                message += f", weight: {resp['filament_weight_total']}g"
-        if "estimated_time" in resp and resp["estimated_time"] > 0.0:
-            message += f"\nEstimated printing time: {timedelta(seconds=resp['estimated_time'])}"
+        if file_info.get_filament_total() > 0.0:
+            message += f"Filament: {round(file_info.get_filament_total() / 1000, 2)}m"
+            if file_info.get_filament_weight_total() > 0.0:
+                message += f", weight: {file_info.get_filament_weight_total()}g"
+        if file_info.get_estimated_time() > 0.0:
+            message += f"\nEstimated printing time: {timedelta(seconds=file_info.get_estimated_time())}"
 
         thumb_path = ""
-        if "thumbnails" in resp:
-            thumb = max(resp["thumbnails"], key=lambda el: el["size"])
-            if "relative_path" in thumb and "filename" in resp:
-                file_dir = resp["filename"].rpartition("/")[0]
-                if file_dir:
-                    thumb_path = file_dir + "/"
-                thumb_path += thumb["relative_path"]
-            else:
-                logger.error("Thumbnail relative_path and filename not found in %s", resp)
+        if file_info.thumbnails:
+            thumb_path = file_info.get_thumbnail_path()
 
         return self._populate_with_thumb(thumb_path, message)
 
@@ -513,3 +505,56 @@ class Klippy:
 
         else:
             logger.error("Marco %s not defined", self._DATA_MACRO)
+
+
+class Thumbnail(msgspec.Struct):
+    width: int
+    height: int
+    size: int
+    relative_path: str
+
+
+class FileInfo(msgspec.Struct):
+    filename: str
+    estimated_time: Optional[float] = 0.0
+    print_start_time: Optional[float] = time.time()
+    filament_total: Optional[float] = 0.0
+    filament_weight_total: Optional[float] = 0.0
+    thumbnails: Optional[list[Thumbnail]] = None
+
+    def get_thumbnail_path(self) -> str:
+        # if self.thumbnails:
+        thumb = max(self.thumbnails, key=lambda el: el.size)
+        file_dir = self.filename.rpartition("/")[0]
+        if file_dir:
+            return f"{file_dir}/{thumb.relative_path}"
+        else:
+            return thumb.relative_path
+
+    def get_estimated_time(self) -> float:
+        if self.estimated_time:
+            return self.estimated_time
+        else:
+            return 0.0
+
+    def get_print_start_time(self) -> float:
+        if self.print_start_time:
+            return self.print_start_time
+        else:
+            return 0.0
+
+    def get_filament_total(self) -> float:
+        if self.filament_total:
+            return self.filament_total
+        else:
+            return 0.0
+
+    def get_filament_weight_total(self) -> float:
+        if self.filament_weight_total:
+            return self.filament_weight_total
+        else:
+            return 0.0
+
+
+class APIResultWrapper(msgspec.Struct):
+    result: FileInfo
