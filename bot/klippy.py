@@ -197,8 +197,9 @@ class Klippy:
         self.filament_total = file_info.get_filament_total()
         self.filament_weight = file_info.get_filament_weight_total()
 
-        if file_info.filename and file_info.thumbnails:
-            self._thumbnail_path = file_info.get_thumbnail_path()
+        thumb_path = file_info.get_thumbnail_path()
+        if thumb_path:
+            self._thumbnail_path = thumb_path
         else:
             if not file_info.filename:
                 logger.error('"filename" field is not present in response: %s', response.json())
@@ -429,11 +430,7 @@ class Klippy:
         if file_info.get_estimated_time() > 0.0:
             message += f"\nEstimated printing time: {timedelta(seconds=file_info.get_estimated_time())}"
 
-        thumb_path = ""
-        if file_info.thumbnails:
-            thumb_path = file_info.get_thumbnail_path()
-
-        return self._populate_with_thumb(thumb_path, message)
+        return self._populate_with_thumb(file_info.get_thumbnail_path(), message)
 
     def get_gcode_files(self):
         response = self._make_request("GET", "/server/files/list?root=gcodes")
@@ -523,37 +520,27 @@ class FileInfo(msgspec.Struct):
     thumbnails: Optional[list[Thumbnail]] = None
 
     def get_thumbnail_path(self) -> str:
-        # if self.thumbnails:
-        thumb = max(self.thumbnails, key=lambda el: el.size)
-        file_dir = self.filename.rpartition("/")[0]
-        if file_dir:
-            return f"{file_dir}/{thumb.relative_path}"
+        if self.thumbnails:
+            thumb = max(self.thumbnails, key=lambda el: el.size)
+            file_dir = self.filename.rpartition("/")[0]
+            if file_dir:
+                return f"{file_dir}/{thumb.relative_path}"
+            else:
+                return thumb.relative_path
         else:
-            return thumb.relative_path
+            return ""
 
     def get_estimated_time(self) -> float:
-        if self.estimated_time:
-            return self.estimated_time
-        else:
-            return 0.0
+        return self.estimated_time or 0.0
 
     def get_print_start_time(self) -> float:
-        if self.print_start_time:
-            return self.print_start_time
-        else:
-            return 0.0
+        return self.print_start_time or 0.0
 
     def get_filament_total(self) -> float:
-        if self.filament_total:
-            return self.filament_total
-        else:
-            return 0.0
+        return self.filament_total or 0.0
 
     def get_filament_weight_total(self) -> float:
-        if self.filament_weight_total:
-            return self.filament_weight_total
-        else:
-            return 0.0
+        return self.filament_weight_total or 0.0
 
 
 class APIResultWrapper(msgspec.Struct):
