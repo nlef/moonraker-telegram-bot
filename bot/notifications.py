@@ -42,7 +42,8 @@ class Notifier:
         self._group_only: bool = config.notifications.group_only
 
         self._progress_update_message = config.telegram_ui.progress_update_message
-        self._silent_progress: bool = config.telegram_ui.silent_progress
+        self._silent_progress: bool = config.telegram_ui.silent_progress        
+        self._enable_continuous_messaging: bool = config.telegram_ui.enable_continuous_messaging        
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
@@ -125,7 +126,7 @@ class Notifier:
     def _send_message(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
         if not group_only:
             self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.TYPING)
-            if self._status_message and not manual:
+            if self._status_message and not manual and not self._enable_continuous_messaging:
                 if self._bzz_mess_id != 0:
                     try:
                         self._bot.delete_message(self._chat_id, self._bzz_mess_id)
@@ -177,7 +178,7 @@ class Notifier:
             with self._cam_wrap.take_photo() as photo:
                 if not group_only:
                     self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-                    if self._status_message and not manual:
+                    if self._status_message and not manual and not self._enable_continuous_messaging:
                         if self._bzz_mess_id != 0:
                             try:
                                 self._bot.delete_message(self._chat_id, self._bzz_mess_id)
@@ -318,7 +319,7 @@ class Notifier:
             mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
         if self._last_tgnotify_status and "tgnotify_status" in self._message_parts:
             mess += f"{escape_markdown(self._last_tgnotify_status, version=2)}\n"
-        if "last_update_time" in self._message_parts:
+        if "last_update_time" in self._message_parts and not self._enable_continuous_messaging:
             mess += f"_Last update at {datetime.now():%H:%M:%S}_"
         if schedule:
             self._sched.add_job(
