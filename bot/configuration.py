@@ -326,6 +326,7 @@ class TelegramUIConfig(ConfigHelper):
         "show_private_macros",
         "eta_source",
         "status_message_m117_update",
+        "printer_name",
     ]
     _MESSAGE_CONTENT = [
         "progress",
@@ -368,6 +369,7 @@ class TelegramUIConfig(ConfigHelper):
         self.show_private_macros: bool = self._get_boolean("show_private_macros", default=False)
         self.pin_status_single_message: bool = self._get_boolean("pin_status_single_message", default=False)  # Todo: implement
         self.status_message_m117_update: bool = self._get_boolean("status_message_m117_update", default=False)
+        self.printer_name: str = self._get_str("printer_name", default="Printer")
 
 
 class StatusMessageContentConfig(ConfigHelper):
