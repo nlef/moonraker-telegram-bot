@@ -978,7 +978,7 @@ def greeting_message(bot: telegram.Bot) -> None:
     if response:
         mess += escape(f"Bot online, no moonraker connection!\n {response} \nFailing...")
     else:
-        mess += "Printer online"
+        mess += configWrap.telegram_ui.printer_name + " online"
         if configWrap.configuration_errors:
             mess += escape(klippy.get_versions_info(bot_only=True)) + configWrap.configuration_errors
 
