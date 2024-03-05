@@ -182,8 +182,11 @@ class BotConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
 
+        # Todo: validate server addr have ho port or protocol!
         self.host: str = self._get_str("server", default="localhost")
-        self.protocol: str = "http://"
+        self.ssl: bool = self._get_boolean("ssl", default=False)
+        self.ssl_validate: bool = self._get_boolean("ssl_validate", default=True)
+        self.port: int = self._get_int("port", default=80)
         self.api_url: str = self._get_str("api_url", default="https://api.telegram.org/bot")
         self.socks_proxy: str = self._get_str("socks_proxy", default="")
         self.light_device_name: str = self._get_str("light_device", default="")

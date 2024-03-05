@@ -1,7 +1,9 @@
 from functools import wraps
 import logging
 import random
+import ssl
 import time
+from typing import Dict
 
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import ujson
@@ -41,6 +43,9 @@ class WebSocketHelper:
         logging_handler: logging.Handler,
     ):
         self._host: str = config.bot_config.host
+        self._port = config.bot_config.port
+        self._protocol: str = "wss" if config.bot_config.ssl else "ws"
+        self._ssl_opt: Dict = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False} if config.bot_config.ssl_validate else None
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
@@ -54,8 +59,9 @@ class WebSocketHelper:
         if logging_handler:
             logger.addHandler(logging_handler)
 
+        # Todo: add port + protocol + ssl_validate
         self.websocket = websocket.WebSocketApp(
-            f"ws://{self._host}/websocket{self._klippy.one_shot_token}",
+            f"{self._protocol}://{self._host}/websocket{self._klippy.one_shot_token}",
             on_message=self.websocket_to_message,
             on_open=self.on_open,
             on_error=self.on_error,
@@ -443,4 +449,4 @@ class WebSocketHelper:
 
         self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
 
-        self.websocket.run_forever(skip_utf8_validation=True)
+        self.websocket.run_forever(skip_utf8_validation=True, sslopt=self._ssl_opt)

@@ -34,7 +34,9 @@ class Klippy:
         psu_device: PowerDevice,
         logging_handler: logging.Handler,
     ):
-        self._host: str = f"{config.bot_config.protocol}{config.bot_config.host}"
+        self._protocol: str = "https" if config.bot_config.ssl else "http"
+        self._host: str = f"{self._protocol}://{config.bot_config.host}:{config.bot_config.port}"
+        self._ssl_validate: bool = config.bot_config.ssl_validate
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
@@ -145,7 +147,7 @@ class Klippy:
         if (not self._user and not self._jwt_token) and not self._api_token:
             return ""
 
-        resp = requests.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
+        resp = requests.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15, verify=self._ssl_validate)
         if resp.ok:
             res = f"?token={resp.json()['result']}"
         else:
@@ -223,7 +225,7 @@ class Klippy:
         if not self._user or not self._passwd:
             return
         # TOdo: add try catch
-        res = requests.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
+        res = requests.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15, verify=self._ssl_validate)
         if res.ok:
             self._jwt_token = res.json()["result"]["token"]
             self._refresh_token = res.json()["result"]["refresh_token"]
@@ -233,7 +235,7 @@ class Klippy:
     def _refresh_moonraker_token(self) -> None:
         if not self._refresh_token:
             return
-        res = requests.post(f"{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15)
+        res = requests.post(f"{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15, verify=self._ssl_validate)
         if res.ok:
             logger.debug("JWT token successfully refreshed")
             self._jwt_token = res.json()["result"]["token"]
@@ -242,11 +244,11 @@ class Klippy:
 
     def _make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
-        res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+        res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+            res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if not res.ok:
             logger.error(res.reason)
         return res
