@@ -177,7 +177,25 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS = ["bot_token", "chat_id", "user", "password", "api_token", "server", "socks_proxy", "debug", "log_parser", "power_device", "light_device", "upload_path", "services"]
+    _KNOWN_ITEMS = [
+        "bot_token",
+        "chat_id",
+        "user",
+        "password",
+        "api_token",
+        "server",
+        "port",
+        "ssl",
+        "ssl_validate",
+        "api_url",
+        "socks_proxy",
+        "debug",
+        "log_parser",
+        "power_device",
+        "light_device",
+        "upload_path",
+        "services",
+    ]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
