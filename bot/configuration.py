@@ -305,7 +305,8 @@ class TimelapseConfig(ConfigHelper):
 
     def _init_paths(self):
         self.base_dir = os.path.expanduser(self.base_dir)
-        Path(self.base_dir).mkdir(parents=True, exist_ok=True)
+        if self.enabled:
+            Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
             self.ready_dir = os.path.expanduser(self.ready_dir)
 
