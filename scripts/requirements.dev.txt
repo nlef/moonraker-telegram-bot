@@ -3,7 +3,7 @@ black==23.3.0
 isort==5.12.0
 memory_profiler==0.61.0
 mypy==0.982
-numpy~=1.21.6
+numpy~=1.24.4
 opencv-python~=3.4.17.63
 pre-commit==3.5.0
 pylint==2.17.4
