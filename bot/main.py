@@ -350,7 +350,7 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
     if Path(f"{configWrap.bot_config.log_path}/dmesg.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/dmesg.txt").unlink()
 
-    subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash")
+    subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False)
 
     if Path(f"{configWrap.bot_config.log_path}/debug.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/debug.txt").unlink()
@@ -368,14 +368,14 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
         "ip --details --statistics link show dev can0",
     ]
     for command in commands:
-        subprocess.run(f"{command} >> {configWrap.bot_config.log_path}/debug.txt", shell=True, executable="/bin/bash")
+        subprocess.run(f"{command} >> {configWrap.bot_config.log_path}/debug.txt", shell=True, executable="/bin/bash", check=False)
 
     files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
-    with open(configWrap.bot_config.log_path + "/debug.txt", "a") as debug_file:
+    with open(configWrap.bot_config.log_path + "/debug.txt", mode="a", encoding="utf-8") as debug_file:
         for file in files:
             if Path(file).exists():
-                with open(file, "r") as ff:
-                    debug_file.writelines(ff.readlines())
+                with open(file, mode="r", encoding="utf-8") as file_obj:
+                    debug_file.writelines(file_obj.readlines())
 
     if Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").exists():
         Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").unlink()
@@ -385,22 +385,23 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
             if Path(f"{configWrap.bot_config.log_path}/{file}").exists():
                 tar.add(Path(f"{configWrap.bot_config.log_path}/{file}"), arcname=file)
 
-    resp = requests.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "rb")}, allow_redirects=False, timeout=25)
-    if resp.ok:
-        logs_path = resp.headers["location"]
-        logger.info(logs_path)
-        update.effective_message.reply_text(
-            text=f"Logs are at https://coderus.openrepos.net{logs_path}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-    else:
-        logger.error(resp.reason)
-        update.effective_message.reply_text(
-            text=f"Logs upload failed `{resp.reason}`",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
+    with open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb:
+        resp = requests.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": log_archive_ojb}, allow_redirects=False, timeout=25)
+        if resp.ok:
+            logs_path = resp.headers["location"]
+            logger.info(logs_path)
+            update.effective_message.reply_text(
+                text=f"Logs are available at https://coderus.openrepos.net{logs_path}",
+                disable_notification=notifier.silent_commands,
+                quote=True,
+            )
+        else:
+            logger.error(resp.reason)
+            update.effective_message.reply_text(
+                text=f"Logs upload failed `{resp.reason}`",
+                disable_notification=notifier.silent_commands,
+                quote=True,
+            )
 
 
 def restart_bot() -> None:
