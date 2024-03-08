@@ -157,9 +157,13 @@ class SecretsConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         secrets_path = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="")))
+        secrets_path_default_name = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="") + "/secrets.conf"))
+        conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         if secrets_path and secrets_path.is_file():
-            conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
             conf.read(secrets_path.as_posix())
+            super().__init__(conf)
+        elif secrets_path_default_name and secrets_path_default_name.is_file():
+            conf.read(secrets_path_default_name.as_posix())
             super().__init__(conf)
         else:
             self._section = "bot"
