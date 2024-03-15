@@ -350,7 +350,15 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
     if Path(f"{configWrap.bot_config.log_path}/dmesg.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/dmesg.txt").unlink()
 
-    subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False)
+    dmesg_res = subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False, capture_output=True)
+    if dmesg_res.returncode != 0:
+        logger.warning("dmesg file creation error: %s %s", dmesg_res.stdout.decode("utf-8"), dmesg_res.stderr.decode("utf-8"))
+        update.effective_message.reply_text(
+            text=f'Dmesg log file creation error {dmesg_res.stderr.decode("utf-8")}',
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        return
 
     if Path(f"{configWrap.bot_config.log_path}/debug.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/debug.txt").unlink()
@@ -368,12 +376,18 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
         "ip --details --statistics link show dev can0",
     ]
     for command in commands:
-        subprocess.run(f"{command} >> {configWrap.bot_config.log_path}/debug.txt", shell=True, executable="/bin/bash", check=False)
+        subprocess.run(
+            f'echo >> {configWrap.bot_config.log_path}/debug.txt;echo "{command}" >> {configWrap.bot_config.log_path}/debug.txt;{command} >> {configWrap.bot_config.log_path}/debug.txt',
+            shell=True,
+            executable="/bin/bash",
+            check=False,
+        )
 
     files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
     with open(configWrap.bot_config.log_path + "/debug.txt", mode="a", encoding="utf-8") as debug_file:
         for file in files:
             if Path(file).exists():
+                debug_file.write(f"\n{file}\n")
                 with open(file, mode="r", encoding="utf-8") as file_obj:
                     debug_file.writelines(file_obj.readlines())
 

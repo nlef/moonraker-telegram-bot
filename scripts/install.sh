@@ -131,6 +131,11 @@ install_packages() {
   sudo apt-get install --yes ${PKGLIST}
 }
 
+fix_permissions()}{
+  sudo echo "kernel.dmesg_restrict = 0" > /etc/sysctl.d/51-dmesg-restrict.conf
+  sudo sysctl kernel.dmesg_restrict=0
+}
+
 create_virtualenv() {
   report_status "Installing python virtual environment..."
 
@@ -196,6 +201,7 @@ install_instances(){
   sudo systemctl stop moonraker-telegram-bot*
   status_msg "Installing dependencies"
   install_packages
+  fix_permissions
   create_virtualenv
 
   init_config_path
