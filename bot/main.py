@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import signal
 import socket
+import subprocess
 import sys
 import tarfile
 import time
@@ -19,6 +20,7 @@ from zipfile import ZipFile
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
+import requests
 import telegram
 from telegram import (
     BotCommand,
@@ -324,23 +326,96 @@ def send_logs(update: Update, _: CallbackContext) -> None:
     update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
     update.effective_message.reply_text(text=klippy.get_versions_info(), disable_notification=notifier.silent_commands, quote=True)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
-    if Path(configWrap.bot_config.log_file).exists():
-        with open(configWrap.bot_config.log_file, "rb") as fh:
-            logs_list.append(InputMediaDocument(fh.read(), filename="telegram.log"))
-    if Path(f"{configWrap.bot_config.log_path}/klippy.log").exists():
-        with open(f"{configWrap.bot_config.log_path}/klippy.log", "rb") as fh:
-            logs_list.append(InputMediaDocument(fh.read(), filename="klippy.log"))
-    if Path(f"{configWrap.bot_config.log_path}/moonraker.log").exists():
-        with open(f"{configWrap.bot_config.log_path}/moonraker.log", "rb") as fh:
-            logs_list.append(InputMediaDocument(fh.read(), filename="moonraker.log"))
+    log_files_names: List[str] = ["telegram.log", "klippy.log", "moonraker.log", "crowsnest.log"]
+    for log_file in log_files_names:
+        if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
+            with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
+                logs_list.append(InputMediaDocument(fh.read(), caption="Upload logs to analyzer /upload_logs", filename=log_file))
+
     if logs_list:
         update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
     else:
         update.effective_message.reply_text(
-            text="No logs found in log_path",
+            text=f"No logs found in log_path `{configWrap.bot_config.log_path}`",
             disable_notification=notifier.silent_commands,
             quote=True,
         )
+
+
+def upload_logs(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    if Path(f"{configWrap.bot_config.log_path}/dmesg.txt").exists():
+        Path(f"{configWrap.bot_config.log_path}/dmesg.txt").unlink()
+
+    dmesg_res = subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False, capture_output=True)
+    if dmesg_res.returncode != 0:
+        logger.warning("dmesg file creation error: %s %s", dmesg_res.stdout.decode("utf-8"), dmesg_res.stderr.decode("utf-8"))
+        update.effective_message.reply_text(
+            text=f'Dmesg log file creation error {dmesg_res.stderr.decode("utf-8")}',
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        return
+
+    if Path(f"{configWrap.bot_config.log_path}/debug.txt").exists():
+        Path(f"{configWrap.bot_config.log_path}/debug.txt").unlink()
+
+    commands = [
+        "lsb_release -a",
+        "uname -a",
+        "find /dev/serial",
+        "find /dev/v4l",
+        "free -h",
+        "df -h",
+        "lsusb",
+        "systemctl status KlipperScreen",
+        "systemctl status klipper-mcu",
+        "ip --details --statistics link show dev can0",
+    ]
+    for command in commands:
+        subprocess.run(
+            f'echo >> {configWrap.bot_config.log_path}/debug.txt;echo "{command}" >> {configWrap.bot_config.log_path}/debug.txt;{command} >> {configWrap.bot_config.log_path}/debug.txt',
+            shell=True,
+            executable="/bin/bash",
+            check=False,
+        )
+
+    files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
+    with open(configWrap.bot_config.log_path + "/debug.txt", mode="a", encoding="utf-8") as debug_file:
+        for file in files:
+            if Path(file).exists():
+                debug_file.write(f"\n{file}\n")
+                with open(file, mode="r", encoding="utf-8") as file_obj:
+                    debug_file.writelines(file_obj.readlines())
+
+    if Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").exists():
+        Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").unlink()
+
+    with tarfile.open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "w:xz") as tar:
+        for file in ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "dmesg.txt", "debug.txt"]:
+            if Path(f"{configWrap.bot_config.log_path}/{file}").exists():
+                tar.add(Path(f"{configWrap.bot_config.log_path}/{file}"), arcname=file)
+
+    with open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb:
+        resp = requests.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": log_archive_ojb}, allow_redirects=False, timeout=25)
+        if resp.ok:
+            logs_path = resp.headers["location"]
+            logger.info(logs_path)
+            update.effective_message.reply_text(
+                text=f"Logs are available at https://coderus.openrepos.net{logs_path}",
+                disable_notification=notifier.silent_commands,
+                quote=True,
+            )
+        else:
+            logger.error(resp.reason)
+            update.effective_message.reply_text(
+                text=f"Logs upload failed `{resp.reason}`",
+                disable_notification=notifier.silent_commands,
+                quote=True,
+            )
 
 
 def restart_bot() -> None:
@@ -928,6 +1003,7 @@ def bot_commands() -> Dict[str, str]:
         "cancel": "cancel printing",
         "files": "list gcode files. you can start printing one from menu",
         "logs": "get klipper, moonraker, bot logs",
+        "upload_logs": "get klipper, moonraker, bot logs and upload logs to the analyzer https://coderus.openrepos.net/klipper_logs",
         "macros": "list all visible macros from klipper",
         "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
         "video": "will take mp4 video from camera",
@@ -1057,6 +1133,7 @@ def start_bot(bot_token, socks):
     dispatcher.add_handler(CommandHandler("macros", get_macros, run_async=True))
     dispatcher.add_handler(CommandHandler("gcode", exec_gcode, run_async=True))
     dispatcher.add_handler(CommandHandler("logs", send_logs, run_async=True))
+    dispatcher.add_handler(CommandHandler("upload_logs", upload_logs, run_async=True))
 
     dispatcher.add_handler(MessageHandler(Filters.command, macros_handler, run_async=True))
 
