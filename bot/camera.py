@@ -14,6 +14,8 @@ from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
+import numpy
+from numpy import ndarray
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -109,6 +111,9 @@ class Camera:
             self._img_extension = "webp"
         else:
             self._img_extension = config.camera.picture_quality
+
+        self._raw_frame_extension: str = "nmdr"
+        self._save_lapse_photos: bool = False
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
@@ -262,7 +267,7 @@ class Camera:
                     logger.error(err, err)
 
     @cam_light_toggle
-    def take_photo(self) -> BytesIO:
+    def take_raw_frame(self) -> ndarray:
         with self._camera_lock:
             self.cam_cam.open(self._host)
             self._set_cv2_params()
@@ -271,30 +276,23 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open("../imgs/nosignal.png")
+                ndaarr = cv2.imread("../imgs/nosignal.png")
             else:
-                if self._hw_accel:
-                    image_um = cv2.UMat(image)
-                    if self._flip_vertically or self._flip_horizontally:
-                        image_um = cv2.flip(image_um, self._flip)
-                    img = Image.fromarray(cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB)))
-                    image_um = None
-                    del image_um
-                else:
-                    if self._flip_vertically or self._flip_horizontally:
-                        image = cv2.flip(image, self._flip)
-                    # Todo: check memory leaks
-                    if self._rotate_code > -10:
-                        image = cv2.rotate(image, rotateCode=self._rotate_code)
-                    # # cv2.cvtColor cause segfaults!
-                    # rgb = image[:, :, ::-1]
-                    rgb = image[:, :, [2, 1, 0]]
-                    img = Image.fromarray(rgb)
-                    rgb = None
-                    del rgb
+                if self._flip_vertically or self._flip_horizontally:
+                    image = cv2.flip(image, self._flip)
+                # Todo: check memory leaks
+                if self._rotate_code > -10:
+                    image = cv2.rotate(image, rotateCode=self._rotate_code)
+                # # cv2.cvtColor cause segfaults!
+                # rgb = image[:, :, ::-1]
+                ndaarr = image[:, :, [2, 1, 0]]
 
             image = None
             del image, success
+        return ndaarr
+
+    def take_photo(self, ndarr: ndarray = None) -> BytesIO:
+        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
 
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
@@ -416,16 +414,22 @@ class Camera:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        with self.take_photo() as photo:
-            filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
-            if gcode:
-                try:
-                    self._klippy.execute_gcode_script(gcode.strip())
-                except Exception as ex:
-                    logger.error(ex)
-            with open(filename, "wb") as outfile:
-                outfile.write(photo.getvalue())
-            photo.close()
+        raw_frame = self.take_raw_frame()
+        if gcode:
+            try:
+                self._klippy.execute_gcode_script(gcode.strip())
+            except Exception as ex:
+                logger.error(ex)
+
+        raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
+
+        # never add self in params there!
+        if self._save_lapse_photos:
+            with self.take_photo(raw_frame) as photo:
+                filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
+                with open(filename, "wb") as outfile:
+                    outfile.write(photo.getvalue())
+                photo.close()
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
@@ -465,16 +469,16 @@ class Camera:
         if not lock_file.is_file():
             lock_file.touch()
 
-        photos = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}")
-        photo_count = len(photos)
+        raw_frames = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._raw_frame_extension}")
+        photo_count = len(raw_frames)
         if photo_count == 0:
             raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
-        photos.sort(key=os.path.getmtime)
+        raw_frames.sort(key=os.path.getmtime)
 
         info_mess.edit_text(text="Creating thumbnail")
-        last_photo = photos[-1]
-        img = cv2.imread(last_photo)
+        last_frame = raw_frames[-1]
+        img = numpy.load(last_frame, allow_pickle=True)
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
@@ -502,7 +506,7 @@ class Camera:
             last_update_time = time.time()
             frames_skipped = 0
             frames_recorded = 0
-            for fnum, filename in enumerate(photos):
+            for fnum, filename in enumerate(raw_frames):
                 if time.time() >= last_update_time + 10:
                     if self._limit_fps:
                         info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}")
@@ -511,7 +515,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write(cv2.imread(filename))
+                    out.write(numpy.load(filename, allow_pickle=True))
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -528,7 +532,7 @@ class Camera:
             cv2.destroyAllWindows()
             del out
 
-        del photos, img, layers
+        del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
 
