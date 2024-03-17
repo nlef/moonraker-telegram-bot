@@ -490,7 +490,8 @@ class Camera:
 
         info_mess.edit_text(text="Creating thumbnail")
         last_frame = raw_frames[-1]
-        img = numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True)
+        img = (numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True))[:, :, [2, 1, 0]]
+
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
@@ -527,7 +528,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write(numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))
+                    out.write((numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))[:, :, [2, 1, 0]])
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
