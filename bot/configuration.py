@@ -286,7 +286,7 @@ class TimelapseConfig(ConfigHelper):
         "send_finished_lapse",
         "after_photo_gcode",
         "save_lapse_photos_as_images",
-        "raw_compressed"
+        "raw_compressed",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
