@@ -112,8 +112,9 @@ class Camera:
         else:
             self._img_extension = config.camera.picture_quality
 
-        self._raw_frame_extension: str = "nmdr"
-        self._save_lapse_photos: bool = False
+        self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
+        self._raw_compressed: bool = config.timelapse.raw_compressed
+        self._raw_frame_extension: str = "npz" if self._raw_compressed else "nmdr"
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
@@ -141,6 +142,7 @@ class Camera:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
+
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug("OpenCL is available")
@@ -278,6 +280,11 @@ class Camera:
                 logger.debug("failed to get camera frame for photo")
                 ndaarr = cv2.imread("../imgs/nosignal.png")
             else:
+                # Test hw accel more!
+                # if self._hw_accel:
+                #     image_um = cv2.UMat(image)
+                #     if self._flip_vertically or self._flip_horizontally:
+                #         image_um = cv2.flip(image_um, self._flip)
                 if self._flip_vertically or self._flip_horizontally:
                     image = cv2.flip(image, self._flip)
                 # Todo: check memory leaks
@@ -420,16 +427,21 @@ class Camera:
                 self._klippy.execute_gcode_script(gcode.strip())
             except Exception as ex:
                 logger.error(ex)
-
-        raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
+        if self._raw_compressed:
+            numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
+        else:
+            raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
 
         # never add self in params there!
-        if self._save_lapse_photos:
+        if self._save_lapse_photos_as_images:
             with self.take_photo(raw_frame) as photo:
                 filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
                 with open(filename, "wb") as outfile:
                     outfile.write(photo.getvalue())
                 photo.close()
+
+        raw_frame = None
+        del raw_frame
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
@@ -478,7 +490,7 @@ class Camera:
 
         info_mess.edit_text(text="Creating thumbnail")
         last_frame = raw_frames[-1]
-        img = numpy.load(last_frame, allow_pickle=True)
+        img = numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True)
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
@@ -515,7 +527,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write(numpy.load(filename, allow_pickle=True))
+                    out.write(numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -556,6 +568,8 @@ class Camera:
         lapse_dir = f"{self._base_dir}/{lapse_filename}"
         if self._cleanup or force:
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
+                os.remove(filename)
+            for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._raw_frame_extension}"):
                 os.remove(filename)
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
                 os.remove(filename)
