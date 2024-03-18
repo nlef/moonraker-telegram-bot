@@ -131,7 +131,7 @@ install_packages() {
   sudo apt-get install --yes ${PKGLIST}
 }
 
-fix_permissions()}{
+fix_permissions() {
   sudo echo "kernel.dmesg_restrict = 0" > /etc/sysctl.d/51-dmesg-restrict.conf
   sudo sysctl kernel.dmesg_restrict=0
 }
