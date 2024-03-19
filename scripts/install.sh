@@ -132,7 +132,7 @@ install_packages() {
 }
 
 fix_permissions() {
-  sudo echo "kernel.dmesg_restrict = 0" > /etc/sysctl.d/51-dmesg-restrict.conf
+  echo "kernel.dmesg_restrict = 0" | sudo tee /etc/sysctl.d/51-dmesg-restrict.conf > /dev/null
   sudo sysctl kernel.dmesg_restrict=0
 }
 
