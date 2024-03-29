@@ -418,6 +418,7 @@ class Camera:
         return video_bio, thumb_bio, width, height
 
     def take_lapse_photo(self, gcode: str = "") -> None:
+        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
@@ -528,7 +529,9 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write((numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))[:, :, [2, 1, 0]])
+                    frm = (numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))[:, :, [2, 1, 0]]
+                    out.write(frm)
+                    frm = None
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -543,7 +546,7 @@ class Camera:
 
             out.release()
             cv2.destroyAllWindows()
-            del out
+            del out, frm
 
         del raw_frames, img, layers, last_frame
 
