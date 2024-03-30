@@ -479,6 +479,8 @@ class Camera:
         while self.light_need_off:
             time.sleep(1)
 
+        os.nice(15)
+
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
         lock_file = Path(f"{lapse_dir}/lapse.lock")
@@ -566,6 +568,8 @@ class Camera:
         video_bio.seek(0)
 
         os.remove(f"{lapse_dir}/lapse.lock")
+
+        os.nice(0)
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
