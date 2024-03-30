@@ -301,6 +301,7 @@ class Camera:
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
 
+        os.nice(15)  # type: ignore
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
             img = img.convert("RGB")
@@ -317,6 +318,7 @@ class Camera:
         bio.seek(0)
 
         img.close()
+        os.nice(0)  # type: ignore
         del img
         return bio
 
@@ -479,7 +481,7 @@ class Camera:
         while self.light_need_off:
             time.sleep(1)
 
-        os.nice(15)
+        os.nice(15)  # type: ignore
 
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
@@ -569,7 +571,7 @@ class Camera:
 
         os.remove(f"{lapse_dir}/lapse.lock")
 
-        os.nice(0)
+        os.nice(0)  # type: ignore
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 

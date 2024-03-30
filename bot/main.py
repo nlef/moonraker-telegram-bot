@@ -14,7 +14,7 @@ import subprocess
 import sys
 import tarfile
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
@@ -318,34 +318,9 @@ def bot_restart(update: Update, _: CallbackContext) -> None:
     command_confirm_message(update, text="Restart bot?", callback_mess="bot_restart")
 
 
-def send_logs(update: Update, _: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
-
-    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
-    update.effective_message.reply_text(text=klippy.get_versions_info(), disable_notification=notifier.silent_commands, quote=True)
-    logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
-    log_files_names: List[str] = ["telegram.log", "klippy.log", "moonraker.log", "crowsnest.log"]
-    for log_file in log_files_names:
-        if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
-            with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
-                logs_list.append(InputMediaDocument(fh.read(), caption="Upload logs to analyzer /upload_logs", filename=log_file))
-
-    if logs_list:
-        update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
-    else:
-        update.effective_message.reply_text(
-            text=f"No logs found in log_path `{configWrap.bot_config.log_path}`",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-
-
-def upload_logs(update: Update, _: CallbackContext) -> None:
-    if update.effective_message is None or update.effective_message.bot is None:
-        logger.warning("Undefined effective message or bot")
-        return
+def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
+    dmesg_success = True
+    dmesg_error = None
 
     if Path(f"{configWrap.bot_config.log_path}/dmesg.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/dmesg.txt").unlink()
@@ -353,12 +328,8 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
     dmesg_res = subprocess.run(f"dmesg -T > {configWrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False, capture_output=True)
     if dmesg_res.returncode != 0:
         logger.warning("dmesg file creation error: %s %s", dmesg_res.stdout.decode("utf-8"), dmesg_res.stderr.decode("utf-8"))
-        update.effective_message.reply_text(
-            text=f'Dmesg log file creation error {dmesg_res.stderr.decode("utf-8")}',
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-        return
+        dmesg_error = dmesg_res.stderr.decode("utf-8")
+        dmesg_success = False
 
     if Path(f"{configWrap.bot_config.log_path}/debug.txt").exists():
         Path(f"{configWrap.bot_config.log_path}/debug.txt").unlink()
@@ -391,11 +362,52 @@ def upload_logs(update: Update, _: CallbackContext) -> None:
                 with open(file, mode="r", encoding="utf-8") as file_obj:
                     debug_file.writelines(file_obj.readlines())
 
+    return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
+
+
+def send_logs(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    update.effective_message.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+
+    logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+    for log_file in prepare_log_files()[0]:
+        if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
+            with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
+                logs_list.append(InputMediaDocument(fh.read(), filename=log_file))
+
+    update.effective_message.reply_text(text=f"{klippy.get_versions_info()}\nUpload logs to analyzer /upload_logs", disable_notification=notifier.silent_commands, quote=True)
+    if logs_list:
+        update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
+    else:
+        update.effective_message.reply_text(
+            text=f"No logs found in log_path `{configWrap.bot_config.log_path}`",
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+
+
+def upload_logs(update: Update, _: CallbackContext) -> None:
+    if update.effective_message is None or update.effective_message.bot is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    files_list, dmesg_success, dmesg_error = prepare_log_files()
+    if not dmesg_success:
+        update.effective_message.reply_text(
+            text=f"Dmesg log file creation error {dmesg_error}",
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
+        return
+
     if Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").exists():
         Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").unlink()
 
     with tarfile.open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "w:xz") as tar:
-        for file in ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "dmesg.txt", "debug.txt"]:
+        for file in files_list:
             if Path(f"{configWrap.bot_config.log_path}/{file}").exists():
                 tar.add(Path(f"{configWrap.bot_config.log_path}/{file}"), arcname=file)
 
