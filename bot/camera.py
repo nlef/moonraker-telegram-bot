@@ -269,7 +269,7 @@ class Camera:
                     logger.error(err, err)
 
     @cam_light_toggle
-    def take_raw_frame(self) -> ndarray:
+    def take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
             self.cam_cam.open(self._host)
             self._set_cv2_params()
@@ -278,7 +278,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                ndaarr = cv2.imread("../imgs/nosignal.png")
+                image = cv2.imread("../imgs/nosignal.png")  # Fixme: BGR2RGB array conversion!!!!
             else:
                 # Test hw accel more!
                 # if self._hw_accel:
@@ -290,10 +290,10 @@ class Camera:
                 # Todo: check memory leaks
                 if self._rotate_code > -10:
                     image = cv2.rotate(image, rotateCode=self._rotate_code)
-                # # cv2.cvtColor cause segfaults!
-                # rgb = image[:, :, ::-1]
-                ndaarr = image[:, :, [2, 1, 0]]
 
+            # # cv2.cvtColor cause segfaults!
+            # rgb = image[:, :, ::-1]
+            ndaarr = image[:, :, [2, 1, 0]] if rgb else image
             image = None
             del image, success
         return ndaarr
@@ -422,7 +422,7 @@ class Camera:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        raw_frame = self.take_raw_frame()
+        raw_frame = self.take_raw_frame(rgb=False)
         if gcode:
             try:
                 self._klippy.execute_gcode_script(gcode.strip())
@@ -433,16 +433,19 @@ class Camera:
         else:
             raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
 
+        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]]
+        raw_frame = None
+
         # never add self in params there!
         if self._save_lapse_photos_as_images:
-            with self.take_photo(raw_frame) as photo:
+            with self.take_photo(raw_frame_rgb) as photo:
                 filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
                 with open(filename, "wb") as outfile:
                     outfile.write(photo.getvalue())
                 photo.close()
 
-        raw_frame = None
-        del raw_frame
+        raw_frame_rgb = None
+        del raw_frame, raw_frame_rgb
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
@@ -491,7 +494,7 @@ class Camera:
 
         info_mess.edit_text(text="Creating thumbnail")
         last_frame = raw_frames[-1]
-        img = (numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True))[:, :, [2, 1, 0]]
+        img = numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True)
 
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
@@ -529,9 +532,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    frm = (numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True))[:, :, [2, 1, 0]]
-                    out.write(frm)
-                    frm = None
+                    out.write((numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True)))
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -546,7 +547,7 @@ class Camera:
 
             out.release()
             cv2.destroyAllWindows()
-            del out, frm
+            del out
 
         del raw_frames, img, layers, last_frame
 
