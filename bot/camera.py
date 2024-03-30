@@ -14,6 +14,8 @@ from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
+import numpy
+from numpy import ndarray
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -110,6 +112,10 @@ class Camera:
         else:
             self._img_extension = config.camera.picture_quality
 
+        self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
+        self._raw_compressed: bool = config.timelapse.raw_compressed
+        self._raw_frame_extension: str = "npz" if self._raw_compressed else "nmdr"
+
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
 
@@ -136,6 +142,7 @@ class Camera:
             logger.setLevel(logging.DEBUG)
             logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
+
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2.ocl.haveOpenCL():
             logger.debug("OpenCL is available")
@@ -262,7 +269,7 @@ class Camera:
                     logger.error(err, err)
 
     @cam_light_toggle
-    def take_photo(self) -> BytesIO:
+    def take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
             self.cam_cam.open(self._host)
             self._set_cv2_params()
@@ -271,30 +278,28 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open("../imgs/nosignal.png")
+                image = cv2.imread("../imgs/nosignal.png")  # Fixme: BGR2RGB array conversion!!!!
             else:
-                if self._hw_accel:
-                    image_um = cv2.UMat(image)
-                    if self._flip_vertically or self._flip_horizontally:
-                        image_um = cv2.flip(image_um, self._flip)
-                    img = Image.fromarray(cv2.UMat.get(cv2.cvtColor(image_um, cv2.COLOR_BGR2RGB)))
-                    image_um = None
-                    del image_um
-                else:
-                    if self._flip_vertically or self._flip_horizontally:
-                        image = cv2.flip(image, self._flip)
-                    # Todo: check memory leaks
-                    if self._rotate_code > -10:
-                        image = cv2.rotate(image, rotateCode=self._rotate_code)
-                    # # cv2.cvtColor cause segfaults!
-                    # rgb = image[:, :, ::-1]
-                    rgb = image[:, :, [2, 1, 0]]
-                    img = Image.fromarray(rgb)
-                    rgb = None
-                    del rgb
+                # Test hw accel more!
+                # if self._hw_accel:
+                #     image_um = cv2.UMat(image)
+                #     if self._flip_vertically or self._flip_horizontally:
+                #         image_um = cv2.flip(image_um, self._flip)
+                if self._flip_vertically or self._flip_horizontally:
+                    image = cv2.flip(image, self._flip)
+                # Todo: check memory leaks
+                if self._rotate_code > -10:
+                    image = cv2.rotate(image, rotateCode=self._rotate_code)
 
+            # # cv2.cvtColor cause segfaults!
+            # rgb = image[:, :, ::-1]
+            ndaarr = image[:, :, [2, 1, 0]] if rgb else image
             image = None
             del image, success
+        return ndaarr
+
+    def take_photo(self, ndarr: ndarray = None) -> BytesIO:
+        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
 
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
@@ -413,19 +418,34 @@ class Camera:
         return video_bio, thumb_bio, width, height
 
     def take_lapse_photo(self, gcode: str = "") -> None:
+        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        with self.take_photo() as photo:
-            filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
-            if gcode:
-                try:
-                    self._klippy.execute_gcode_script(gcode.strip())
-                except Exception as ex:
-                    logger.error(ex)
-            with open(filename, "wb") as outfile:
-                outfile.write(photo.getvalue())
-            photo.close()
+        raw_frame = self.take_raw_frame(rgb=False)
+        if gcode:
+            try:
+                self._klippy.execute_gcode_script(gcode.strip())
+            except Exception as ex:
+                logger.error(ex)
+        if self._raw_compressed:
+            numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
+        else:
+            raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
+
+        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]]
+        raw_frame = None
+
+        # never add self in params there!
+        if self._save_lapse_photos_as_images:
+            with self.take_photo(raw_frame_rgb) as photo:
+                filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
+                with open(filename, "wb") as outfile:
+                    outfile.write(photo.getvalue())
+                photo.close()
+
+        raw_frame_rgb = None
+        del raw_frame, raw_frame_rgb
 
     def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         return self._create_timelapse(printing_filename, gcode_name, info_mess)
@@ -459,22 +479,25 @@ class Camera:
         while self.light_need_off:
             time.sleep(1)
 
+        os.nice(15)
+
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
         lock_file = Path(f"{lapse_dir}/lapse.lock")
         if not lock_file.is_file():
             lock_file.touch()
 
-        photos = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}")
-        photo_count = len(photos)
+        raw_frames = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._raw_frame_extension}")
+        photo_count = len(raw_frames)
         if photo_count == 0:
             raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
-        photos.sort(key=os.path.getmtime)
+        raw_frames.sort(key=os.path.getmtime)
 
         info_mess.edit_text(text="Creating thumbnail")
-        last_photo = photos[-1]
-        img = cv2.imread(last_photo)
+        last_frame = raw_frames[-1]
+        img = numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True)
+
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
 
@@ -502,7 +525,7 @@ class Camera:
             last_update_time = time.time()
             frames_skipped = 0
             frames_recorded = 0
-            for fnum, filename in enumerate(photos):
+            for fnum, filename in enumerate(raw_frames):
                 if time.time() >= last_update_time + 10:
                     if self._limit_fps:
                         info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}")
@@ -511,7 +534,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write(cv2.imread(filename))
+                    out.write((numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True)))
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -528,7 +551,7 @@ class Camera:
             cv2.destroyAllWindows()
             del out
 
-        del photos, img, layers
+        del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
 
@@ -546,12 +569,16 @@ class Camera:
 
         os.remove(f"{lapse_dir}/lapse.lock")
 
+        os.nice(0)
+
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
     def cleanup(self, lapse_filename: str, force: bool = False) -> None:
         lapse_dir = f"{self._base_dir}/{lapse_filename}"
         if self._cleanup or force:
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._img_extension}"):
+                os.remove(filename)
+            for filename in glob.glob(f"{glob.escape(lapse_dir)}/*.{self._raw_frame_extension}"):
                 os.remove(filename)
             for filename in glob.glob(f"{glob.escape(lapse_dir)}/*"):
                 os.remove(filename)

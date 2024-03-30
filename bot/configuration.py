@@ -285,6 +285,8 @@ class TimelapseConfig(ConfigHelper):
         "after_lapse_gcode",
         "send_finished_lapse",
         "after_photo_gcode",
+        "save_lapse_photos_as_images",
+        "raw_compressed",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -304,6 +306,8 @@ class TimelapseConfig(ConfigHelper):
         self.send_finished_lapse: bool = self._get_boolean("send_finished_lapse", default=True)
         self.mode_manual: bool = self._get_boolean("manual_mode", default=False)
         self.after_photo_gcode: str = self._get_str("after_photo_gcode", default="")
+        self.save_lapse_photos_as_images: bool = self._get_boolean("save_lapse_photos_as_images", default=False)
+        self.raw_compressed: bool = self._get_boolean("raw_compressed", default=True)
 
         self._init_paths()
 
