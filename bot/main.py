@@ -51,7 +51,7 @@ from timelapse import Timelapse
 
 logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
     level=logging.INFO,
 )
 
@@ -1189,7 +1189,7 @@ if __name__ == "__main__":
         maxBytes=26214400,
         backupCount=3,
     )
-    rotatingHandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    rotatingHandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
     logger.addHandler(rotatingHandler)
 
     logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)

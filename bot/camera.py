@@ -430,6 +430,8 @@ class Camera:
                 self._klippy.execute_gcode_script(gcode.strip())
             except Exception as ex:
                 logger.error(ex)
+
+        os.nice(15)  # type: ignore
         if self._raw_compressed:
             numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
         else:
@@ -437,6 +439,7 @@ class Camera:
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]]
         raw_frame = None
+        os.nice(0)  # type: ignore
 
         # never add self in params there!
         if self._save_lapse_photos_as_images:
