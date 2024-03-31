@@ -1192,7 +1192,8 @@ if __name__ == "__main__":
     rotatingHandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
     logger.addHandler(rotatingHandler)
 
-    logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)
+    if configWrap.parsing_errors or configWrap.unknown_fields:
+        logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)
 
     if configWrap.bot_config.debug:
         faulthandler.enable()
