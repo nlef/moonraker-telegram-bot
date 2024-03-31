@@ -4,7 +4,7 @@ import random
 import time
 
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
-import ujson
+import orjson
 import websocket  # type: ignore
 
 from configuration import ConfigWrapper
@@ -91,7 +91,7 @@ class WebSocketHelper:
             subscribe_objects.update(sensors)
 
         websock.send(
-            ujson.dumps(
+            orjson.dumps(
                 {
                     "jsonrpc": "2.0",
                     "method": "printer.objects.subscribe",
@@ -102,8 +102,8 @@ class WebSocketHelper:
         )
 
     def on_open(self, websock):
-        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
-        websock.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
+        websock.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
+        websock.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
 
     def reshedule(self):
         if not self._klippy.connected and self.websocket.keep_running:
@@ -308,7 +308,7 @@ class WebSocketHelper:
 
     def websocket_to_message(self, ws_loc, ws_message):
         logger.debug(ws_message)
-        json_message = ujson.loads(ws_message)
+        json_message = orjson.loads(ws_message)
 
         if "error" in json_message:
             logger.warning("Error received from websocket: %s", json_message["error"])
@@ -398,31 +398,31 @@ class WebSocketHelper:
 
     @websocket_alive
     def manage_printing(self, command: str) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
 
     @websocket_alive
     def emergency_stop_printer(self) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
 
     @websocket_alive
     def firmware_restart_printer(self) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
 
     @websocket_alive
     def shutdown_pi_host(self) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
 
     @websocket_alive
     def reboot_pi_host(self) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
 
     @websocket_alive
     def restart_system_service(self, service_name: str) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
 
     @websocket_alive
     def execute_ws_gcode_script(self, gcode: str) -> None:
-        self.websocket.send(ujson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
+        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
 
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:
