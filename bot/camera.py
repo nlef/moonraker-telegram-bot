@@ -278,7 +278,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                image = cv2.imread("../imgs/nosignal.png")  # Fixme: BGR2RGB array conversion!!!!
+                image = cv2.imread("../imgs/nosignal.png")
             else:
                 # Test hw accel more!
                 # if self._hw_accel:
@@ -293,9 +293,11 @@ class Camera:
 
             # # cv2.cvtColor cause segfaults!
             # rgb = image[:, :, ::-1]
-            ndaarr = image[:, :, [2, 1, 0]] if rgb else image
+            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
             image = None
+            success = None
             del image, success
+
         return ndaarr
 
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
@@ -437,7 +439,7 @@ class Camera:
         else:
             raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
 
-        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]]
+        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
         raw_frame = None
         os.nice(0)  # type: ignore
 
