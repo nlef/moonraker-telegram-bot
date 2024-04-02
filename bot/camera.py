@@ -106,9 +106,9 @@ class Camera:
 
         self._img_extension: str
         if config.camera.picture_quality == "low":
-            self._img_extension = "jpeg"
+            self._img_extension = "jpeg_low"
         elif config.camera.picture_quality == "high":
-            self._img_extension = "webp"
+            self._img_extension = "jpeg_high"
         else:
             self._img_extension = config.camera.picture_quality
 
@@ -278,7 +278,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                image = cv2.imread("../imgs/nosignal.png")  # Fixme: BGR2RGB array conversion!!!!
+                image = cv2.imread("../imgs/nosignal.png")
             else:
                 # Test hw accel more!
                 # if self._hw_accel:
@@ -293,9 +293,11 @@ class Camera:
 
             # # cv2.cvtColor cause segfaults!
             # rgb = image[:, :, ::-1]
-            ndaarr = image[:, :, [2, 1, 0]] if rgb else image
+            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
             image = None
+            success = None
             del image, success
+
         return ndaarr
 
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
@@ -307,8 +309,12 @@ class Camera:
             img = img.convert("RGB")
         bio = BytesIO()
         bio.name = f"status.{self._img_extension}"
-        if self._img_extension in ["jpg", "jpeg"]:
-            img.save(bio, "JPEG", quality=80, subsampling=0)
+        # Fixme: add jpeg95 as high and jpeg75 as low. use optimize flag?
+        if self._img_extension in ["jpg", "jpeg", "jpeg_high"]:
+            img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
+        elif self._img_extension == "jpeg_low":
+            img.save(bio, "JPEG", quality=65, subsampling=0)
+        # memory leaks!
         elif self._img_extension == "webp":
             # https://github.com/python-pillow/Pillow/issues/4364
             _webp.HAVE_WEBPANIM = False
@@ -430,13 +436,16 @@ class Camera:
                 self._klippy.execute_gcode_script(gcode.strip())
             except Exception as ex:
                 logger.error(ex)
+
+        os.nice(15)  # type: ignore
         if self._raw_compressed:
             numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
         else:
             raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
 
-        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]]
+        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
         raw_frame = None
+        os.nice(0)  # type: ignore
 
         # never add self in params there!
         if self._save_lapse_photos_as_images:

@@ -8,3 +8,4 @@
 
 ## Описать в документации
 1. Параметры `save_lapse_photos_as_images` и `raw_compressed`
+2. Описать изменение значений параметра picture_quality(так же добавить про webp + png)

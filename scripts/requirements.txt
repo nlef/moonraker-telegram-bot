@@ -1,6 +1,6 @@
 emoji==2.11.0
 orjson==3.10.0
-Pillow==10.2.0
+Pillow==10.3.0
 PySocks==1.7.1
 python-telegram-bot==13.15
 rel==0.4.9.9
