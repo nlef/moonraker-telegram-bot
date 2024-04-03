@@ -20,6 +20,7 @@ from zipfile import ZipFile
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
+import orjson
 import requests
 import telegram
 from telegram import (
@@ -48,6 +49,8 @@ from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
 from timelapse import Timelapse
+
+sys.modules["json"] = orjson
 
 logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
