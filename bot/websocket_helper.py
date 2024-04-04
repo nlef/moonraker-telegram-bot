@@ -291,7 +291,7 @@ class WebSocketHelper:
             error_mess = f"Printer state change error: {print_stats_loc['state']}\n"
             if "message" in print_stats_loc and print_stats_loc["message"]:
                 error_mess += f"{print_stats_loc['message']}\n"
-            self._notifier.send_error(error_mess)
+            self._notifier.send_error(error_mess, logs_upload=True)
         elif state == "standby":
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
@@ -352,7 +352,7 @@ class WebSocketHelper:
                         state_message = message_result["state_message"]
                         if self._klippy.state_message != state_message and klippy_state != "startup":
                             self._klippy.state_message = state_message
-                            self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{self._klippy.state_message}")
+                            self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{self._klippy.state_message}", logs_upload=True)
                     else:
                         logger.error("UnKnown klippy state: %s", klippy_state)
                         self._klippy.connected = False
@@ -371,7 +371,7 @@ class WebSocketHelper:
                     return
 
             if "error" in json_message:
-                self._notifier.send_error(f"{json_message['error']['message']}")
+                self._notifier.send_error(f"{json_message['error']['message']}", logs_upload=True)
 
         else:
             message_method = json_message["method"]

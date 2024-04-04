@@ -226,7 +226,9 @@ class Notifier:
                 photo.close()
 
     # manual notification methods
-    def send_error(self, message: str) -> None:
+    def send_error(self, message: str, logs_upload: bool = False) -> None:
+        if logs_upload:
+            message += "\n Upload logs to analyzer /upload_logs"
         self._sched.add_job(
             self._send_message,
             kwargs={

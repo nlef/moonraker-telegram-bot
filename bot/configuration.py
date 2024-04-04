@@ -157,9 +157,13 @@ class SecretsConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         secrets_path = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="")))
+        secrets_path_default_name = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="") + "/secrets.conf"))
+        conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         if secrets_path and secrets_path.is_file():
-            conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
             conf.read(secrets_path.as_posix())
+            super().__init__(conf)
+        elif secrets_path_default_name and secrets_path_default_name.is_file():
+            conf.read(secrets_path_default_name.as_posix())
             super().__init__(conf)
         else:
             self._section = "bot"
@@ -305,6 +309,8 @@ class TimelapseConfig(ConfigHelper):
         "after_lapse_gcode",
         "send_finished_lapse",
         "after_photo_gcode",
+        "save_lapse_photos_as_images",
+        "raw_compressed",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -324,12 +330,15 @@ class TimelapseConfig(ConfigHelper):
         self.send_finished_lapse: bool = self._get_boolean("send_finished_lapse", default=True)
         self.mode_manual: bool = self._get_boolean("manual_mode", default=False)
         self.after_photo_gcode: str = self._get_str("after_photo_gcode", default="")
+        self.save_lapse_photos_as_images: bool = self._get_boolean("save_lapse_photos_as_images", default=False)
+        self.raw_compressed: bool = self._get_boolean("raw_compressed", default=True)
 
         self._init_paths()
 
     def _init_paths(self):
         self.base_dir = os.path.expanduser(self.base_dir)
-        Path(self.base_dir).mkdir(parents=True, exist_ok=True)
+        if self.enabled:
+            Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
             self.ready_dir = os.path.expanduser(self.ready_dir)
 
