@@ -3,7 +3,7 @@ import logging
 import random
 import ssl
 import time
-from typing import Dict, Optional
+from typing import Dict
 
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import ujson
@@ -45,7 +45,7 @@ class WebSocketHelper:
         self._host: str = config.bot_config.host
         self._port = config.bot_config.port
         self._protocol: str = "wss" if config.bot_config.ssl else "ws"
-        self._ssl_opt: Optional[Dict] = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False} if config.bot_config.ssl_validate else None
+        self._ssl_opt: Dict = {} if config.bot_config.ssl_validate else {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
@@ -61,7 +61,7 @@ class WebSocketHelper:
 
         # Todo: add port + protocol + ssl_validate
         self.websocket = websocket.WebSocketApp(
-            f"{self._protocol}://{self._host}/websocket{self._klippy.one_shot_token}",
+            f"{self._protocol}://{self._host}:{self._port}/websocket{self._klippy.one_shot_token}",
             on_message=self.websocket_to_message,
             on_open=self.on_open,
             on_error=self.on_error,

@@ -220,8 +220,12 @@ class BotConfig(ConfigHelper):
         self.services: List[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
 
-        if ":" in self.host:
-            self._parsing_errors.append("Protocol or port must be specified in other configuration parameters")
+        host_parts = self.host.split(":")
+        if len(host_parts) == 2 and host_parts[1].isdigit():
+            self.host = host_parts[0]
+            self.port = int(host_parts[1])
+        elif len(host_parts) >= 2:
+            self._parsing_errors.append("Protocol must be specified in other configuration parameters")
 
     @property
     def formatted_upload_path(self):
