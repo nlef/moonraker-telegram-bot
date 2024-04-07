@@ -294,6 +294,13 @@ class WebSocketHelper:
             if not self._timelapse.manual_mode:
                 self._timelapse.send_timelapse()
             self._notifier.send_printer_status_notification(f"Printer state change: {print_stats_loc['state']} \n")
+        elif state == "cancelled":
+            self._klippy.paused = False
+            self._klippy.printing = False
+            self._timelapse.is_running = False
+            self._notifier.remove_notifier_timer()
+            self._timelapse.clean()
+            self._notifier.send_printer_status_notification("Print cancelled")
         elif state:
             logger.error("Unknown state: %s", state)
 

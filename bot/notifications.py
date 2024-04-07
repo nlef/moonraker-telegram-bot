@@ -420,7 +420,7 @@ class Notifier:
 
         if self._pin_status_single_message:
             self._bot.unpin_all_chat_messages(self._chat_id)
-            self._bot.pin_chat_message(self._chat_id, status_message.message_id)
+            self._bot.pin_chat_message(self._chat_id, status_message.message_id, disable_notification=self.silent_status)
 
     def send_print_start_info(self) -> None:
         if self._enabled:
