@@ -365,7 +365,7 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
                 with open(file, mode="r", encoding="utf-8") as file_obj:
                     debug_file.writelines(file_obj.readlines())
 
-    return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
+    return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "KlipperScreen.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
 
 
 def send_logs(update: Update, _: CallbackContext) -> None:

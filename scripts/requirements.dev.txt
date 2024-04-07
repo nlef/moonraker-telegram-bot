@@ -12,6 +12,6 @@ types-backports==0.1.3
 types-cachetools==5.3.0.7
 types-emoji==2.1.0.3
 types-orjson==3.6.2
-types-Pillow==10.2.0.20240331
+types-Pillow==10.2.0.20240406
 types-pytz==2024.1.0.20240203
-types-requests==2.31.0.20240311
+types-requests==2.31.0.20240406
