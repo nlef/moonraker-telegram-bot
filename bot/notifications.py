@@ -45,7 +45,7 @@ class Notifier:
         self._silent_progress: bool = config.telegram_ui.silent_progress
         self._silent_commands: bool = config.telegram_ui.silent_commands
         self._silent_status: bool = config.telegram_ui.silent_status
-        self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message  # Todo: implement
+        self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message
         self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
         self._message_parts: List[str] = config.status_message_content.content
 
@@ -417,6 +417,10 @@ class Notifier:
             for group_ in self._notify_groups:
                 self._groups_status_mesages[group_] = self._bot.send_message(group_, message, disable_notification=self.silent_status)
         self._status_message = status_message
+
+        if self._pin_status_single_message:
+            self._bot.unpin_all_chat_messages(self._chat_id)
+            self._bot.pin_chat_message(self._chat_id, status_message.message_id)
 
     def send_print_start_info(self) -> None:
         if self._enabled:
