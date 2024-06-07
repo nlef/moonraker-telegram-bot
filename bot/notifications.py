@@ -6,7 +6,7 @@ import re
 from typing import Dict, List, Optional, Union
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, InlineKeyboardButton, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
+from telegram import Bot, ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import PARSEMODE_MARKDOWN_V2
 from telegram.error import BadRequest
 from telegram.utils.helpers import escape_markdown
@@ -663,6 +663,6 @@ class Notifier:
         self._bot.send_message(
             self._chat_id,
             text=title,
-            reply_markup=keyboard,
+            reply_markup=InlineKeyboardMarkup(keyboard),
             disable_notification=self._silent_commands,
         )

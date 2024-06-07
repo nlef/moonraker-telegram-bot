@@ -1,10 +1,10 @@
-emoji==2.11.1
+emoji==2.12.1
 orjson==3.10.3
 Pillow==10.3.0
 PySocks==1.7.1
 python-telegram-bot==13.15
 rel==0.4.9.19
-requests==2.31.0
+requests==2.32.3
 tzlocal==2.1
 websocket-client==1.8.0
 wsaccel==0.6.6
