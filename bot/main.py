@@ -43,7 +43,7 @@ from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, 
 from telegram.utils.helpers import escape
 from websocket_helper import WebSocketHelper
 
-from camera import Camera
+from camera import Camera, MjpegCamera
 from configuration import ConfigWrapper
 from klippy import Klippy
 from notifications import Notifier
@@ -1208,7 +1208,8 @@ if __name__ == "__main__":
     psu_power_device = PowerDevice(configWrap.bot_config.poweroff_device_name, configWrap.bot_config.host)
 
     klippy = Klippy(configWrap, light_power_device, psu_power_device, rotatingHandler)
-    cameraWrap = Camera(configWrap, klippy, light_power_device, rotatingHandler)
+    # cameraWrap = Camera(configWrap, klippy, light_power_device, rotatingHandler)
+    cameraWrap = MjpegCamera(configWrap, klippy, light_power_device, rotatingHandler)
     bot_updater = start_bot(configWrap.secrets.token, configWrap.bot_config.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)
