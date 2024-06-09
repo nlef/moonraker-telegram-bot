@@ -356,7 +356,7 @@ class Klippy:
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
         bio = BytesIO()
-        bio.name = f"{self.printing_filename}.webp"
+        bio.name = f"{self.printing_filename}.jpeg"
         img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
         bio.seek(0)
         img.close()
