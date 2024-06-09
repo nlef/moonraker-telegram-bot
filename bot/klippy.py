@@ -357,7 +357,7 @@ class Klippy:
 
         bio = BytesIO()
         bio.name = f"{self.printing_filename}.webp"
-        img.save(bio, "WebP", quality=0, lossless=True)
+        img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
         bio.seek(0)
         img.close()
         return message, bio
