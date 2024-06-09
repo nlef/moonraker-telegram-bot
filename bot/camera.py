@@ -627,14 +627,35 @@ class MjpegCamera(Camera):
         # Todo: add config param!
         self._host_snapshot = self._host.replace("stream", "snapshot")
 
+        self._rotate_code: Image.Transpose
+        if config.camera.rotate == "90_cw":
+            self._rotate_code = Image.Transpose.ROTATE_90
+        elif config.camera.rotate == "90_ccw":
+            self._rotate_code = Image.Transpose.ROTATE_270
+        elif config.camera.rotate == "180":
+            self._rotate_code = Image.Transpose.ROTATE_180
+
+
     @cam_light_toggle
-    def take_photo(self) -> BytesIO:
+    def take_photo(self, force_rotate: bool = True) -> BytesIO:
         response = requests.get(f"{self._host_snapshot}", timeout=5, stream=True)
         bio = BytesIO()
 
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
-            bio.write(response.raw.read())
+
+            if force_rotate and (
+                    self._flip_vertically or self._flip_horizontally or self._rotate_code > -10):
+                img = Image.open(response.raw).convert("RGB")
+                if self._flip_vertically:
+                    img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                if self._flip_horizontally:
+                    img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if self._rotate_code:
+                    img = img.transpose(self._rotate_code)
+                img.save(bio, format="JPEG")
+            else:
+                bio.write(response.raw.read())
         else:
             logger.error("Streamer snapshot get failed\n\n%s", response.reason)
             with open("../imgs/nosignal.png", "rb") as f:
@@ -647,7 +668,7 @@ class MjpegCamera(Camera):
         logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
-        with self.take_photo() as photo:
+        with self.take_photo(force_rotate=False) as photo:
             filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
             with open(filename, "wb") as outfile:
                 outfile.write(photo.getvalue())
