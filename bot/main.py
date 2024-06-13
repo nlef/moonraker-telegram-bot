@@ -20,6 +20,7 @@ from zipfile import ZipFile
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
 import emoji
+import orjson
 import requests
 import telegram
 from telegram import (
@@ -48,6 +49,8 @@ from klippy import Klippy
 from notifications import Notifier
 from power_device import PowerDevice
 from timelapse import Timelapse
+
+sys.modules["json"] = orjson
 
 logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
@@ -204,11 +207,10 @@ def check_unfinished_lapses(bot: telegram.Bot):
             )
         ]
     )
-    reply_markup = InlineKeyboardMarkup(files_keys)
     bot.send_message(
         configWrap.secrets.chat_id,
         text="Unfinished timelapses found\nBuild unfinished timelapse?",
-        reply_markup=reply_markup,
+        reply_markup=InlineKeyboardMarkup(files_keys),
         disable_notification=notifier.silent_status,
     )
 
@@ -362,7 +364,7 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
                 with open(file, mode="r", encoding="utf-8") as file_obj:
                     debug_file.writelines(file_obj.readlines())
 
-    return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
+    return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "KlipperScreen.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
 
 
 def send_logs(update: Update, _: CallbackContext) -> None:
@@ -571,13 +573,12 @@ def print_file_dialog_handler(update: Update, context: CallbackContext) -> None:
             ),
         ]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     start_pre_mess = "Start printing file:"
     message, bio = klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
     update.effective_message.reply_to_message.reply_photo(
         photo=bio,
         caption=message,
-        reply_markup=reply_markup,
+        reply_markup=InlineKeyboardMarkup(keyboard),
         disable_notification=notifier.silent_commands,
         quote=True,
         caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(pri_filename))],
@@ -827,11 +828,10 @@ def get_macros(update: Update, _: CallbackContext) -> None:
             klippy.macros,
         )
     )
-    reply_markup = InlineKeyboardMarkup(files_keys)
 
     update.effective_message.reply_text(
         "Gcode macros:",
-        reply_markup=reply_markup,
+        reply_markup=InlineKeyboardMarkup(files_keys),
         disable_notification=notifier.silent_commands,
         quote=True,
     )
@@ -960,11 +960,10 @@ def upload_file(update: Update, _: CallbackContext) -> None:
                         ),
                     ]
                 ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
                 update.effective_message.reply_photo(
                     photo=thumb,
                     caption=mess,
-                    reply_markup=reply_markup,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
                     disable_notification=notifier.silent_commands,
                     quote=True,
                     caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{configWrap.bot_config.formatted_upload_path}{sending_bio.name}"))],
@@ -1079,12 +1078,11 @@ def greeting_message(bot: telegram.Bot) -> None:
         if configWrap.configuration_errors:
             mess += escape(klippy.get_versions_info(bot_only=True)) + configWrap.configuration_errors
 
-    reply_markup = ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True)
     bot.send_message(
         configWrap.secrets.chat_id,
         text=mess,
         parse_mode=PARSEMODE_HTML,
-        reply_markup=reply_markup,
+        reply_markup=ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True),
         disable_notification=notifier.silent_status,
     )
     bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
