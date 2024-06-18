@@ -13,7 +13,7 @@ import time
 from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
-import cv2  # type: ignore
+import ffmpegcv  # type: ignore
 import numpy
 from numpy import ndarray
 from telegram import Message
@@ -128,11 +128,11 @@ class Camera:
 
         self._rotate_code: int
         if config.camera.rotate == "90_cw":
-            self._rotate_code = cv2.ROTATE_90_CLOCKWISE
+            self._rotate_code = 1
         elif config.camera.rotate == "90_ccw":
-            self._rotate_code = cv2.ROTATE_90_COUNTERCLOCKWISE
+            self._rotate_code = 3
         elif config.camera.rotate == "180":
-            self._rotate_code = cv2.ROTATE_180
+            self._rotate_code = 2
         else:
             self._rotate_code = -10
 
@@ -140,19 +140,21 @@ class Camera:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
-            logger.debug(cv2.getBuildInformation())
+            # logger.debug(cv2.getBuildInformation())
             os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
 
-        # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
-        if cv2.ocl.haveOpenCL():
-            logger.debug("OpenCL is available")
-            cv2.ocl.setUseOpenCL(True)
-            logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
+        # # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
+        # if cv2.ocl.haveOpenCL():
+        #     logger.debug("OpenCL is available")
+        #     cv2.ocl.setUseOpenCL(True)
+        #     logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
         self._cv2_params: List = config.camera.cv2_params
-        cv2.setNumThreads(self._threads)
-        self.cam_cam = cv2.VideoCapture()
-        self._set_cv2_params()
+        # cv2.setNumThreads(self._threads)
+        # self.cam_cam = cv2.VideoCapture()
+        # self._set_cv2_params()
+
+        self.cam_cam = ffmpegcv.VideoCaptureStream(self._host)
 
     @property
     def light_need_off(self) -> bool:
@@ -245,54 +247,25 @@ class Camera:
         except ValueError:
             return False
 
-    def _set_cv2_params(self):
-        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-        for prop_name, value in self._cv2_params:
-            if prop_name.upper() == "CAP_PROP_FOURCC":
-                try:
-                    prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))
-                except AttributeError as err:
-                    logger.error(err, err)
-            else:
-                if value.isnumeric():
-                    val = int(value)
-                elif self._isfloat(value):
-                    val = float(value)
-                else:
-                    val = value
-                try:
-                    prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, val)
-                except AttributeError as err:
-                    logger.error(err, err)
-
     @cam_light_toggle
     def take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
-            self.cam_cam.open(self._host)
-            self._set_cv2_params()
             success, image = self.cam_cam.read()
-            self.cam_cam.release()
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                image = cv2.imread("../imgs/nosignal.png")
+                img = Image.open("../imgs/nosignal.png")
+                image = numpy.array(img)
+                img.close()
+                del img
             else:
-                # Test hw accel more!
-                # if self._hw_accel:
-                #     image_um = cv2.UMat(image)
-                #     if self._flip_vertically or self._flip_horizontally:
-                #         image_um = cv2.flip(image_um, self._flip)
-                if self._flip_vertically or self._flip_horizontally:
-                    image = cv2.flip(image, self._flip)
-                # Todo: check memory leaks
+                if self._flip_vertically:
+                    image = numpy.flipud(image)
+                if self._flip_horizontally:
+                    image = numpy.fliplr(image)
                 if self._rotate_code > -10:
-                    image = cv2.rotate(image, rotateCode=self._rotate_code)
+                    image = numpy.rot90(image, k=self._rotate_code, axes=(1, 0))
 
-            # # cv2.cvtColor cause segfaults!
-            # rgb = image[:, :, ::-1]
             ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
             image = None
             success = None
@@ -340,26 +313,20 @@ class Camera:
     @cam_light_toggle
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
         def process_video_frame(frame_local):
-            if self._flip_vertically or self._flip_horizontally:
-                if self._hw_accel:
-                    frame_loc_ = cv2.UMat(frame_local)
-                    frame_loc_ = cv2.flip(frame_loc_, self._flip)
-                    frame_local = cv2.UMat.get(frame_loc_)
-                    del frame_loc_
-                else:
-                    frame_local = cv2.flip(frame_local, self._flip)
-            # Todo: check memory leaks
+            if self._flip_vertically:
+                frame_local = numpy.flipud(frame_local)
+            if self._flip_horizontally:
+                frame_local = numpy.fliplr(frame_local)
             if self._rotate_code > -10:
-                frame_local = cv2.rotate(frame_local, rotateCode=self._rotate_code)
+                frame_local = numpy.rot90(frame_local, k=self._rotate_code, axes=(1, 0))
             return frame_local
 
         def write_video():
-            cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(
+            # cv2.setNumThreads(self._threads)
+            out = ffmpegcv.VideoWriter(
                 filepath,
-                fourcc=cv2.VideoWriter_fourcc(*self._fourcc),
+                codec=self._fourcc,
                 fps=fps_cam,
-                frameSize=(width, height),
             )
             while video_lock.locked():
                 try:
@@ -382,9 +349,7 @@ class Camera:
             video_written_event.set()
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)
-            self.cam_cam.open(self._host)
-            self._set_cv2_params()
+            # cv2.setNumThreads(self._threads)
             success, frame = self.cam_cam.read()
 
             if not success:
@@ -395,7 +360,10 @@ class Camera:
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
             del frame, channels
-            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+
+            # Fixme: get fps from cam!
+            # fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            fps_cam = 30
 
             filepath = os.path.join("/tmp/", "video.mp4")
             frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
@@ -416,7 +384,6 @@ class Camera:
                     del frame_loc
             video_written_event.wait()
 
-        self.cam_cam.release()
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
         with open(filepath, "rb") as video_file:
@@ -524,12 +491,11 @@ class Camera:
             lapse_fps = self._target_fps
 
         with self._camera_lock:
-            cv2.setNumThreads(self._threads)
-            out = cv2.VideoWriter(
+            # cv2.setNumThreads(self._threads)
+            out = ffmpegcv.VideoWriter(
                 video_filepath,
-                fourcc=cv2.VideoWriter_fourcc(*self._fourcc),
+                codec=self._fourcc,
                 fps=lapse_fps,
-                frameSize=(width, height),
             )
 
             info_mess.edit_text(text="Images recoding")
@@ -559,7 +525,6 @@ class Camera:
                 info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}")
 
             out.release()
-            cv2.destroyAllWindows()
             del out
 
         del raw_frames, img, layers, last_frame

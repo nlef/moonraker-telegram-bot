@@ -1,4 +1,5 @@
 emoji==2.12.1
+ffmpegcv==0.3.14
 orjson==3.10.5
 Pillow==10.3.0
 PySocks==1.7.1
