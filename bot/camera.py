@@ -105,11 +105,10 @@ class Camera:
 
         self._hw_accel: bool = False
 
+        self._picture_quality = config.camera.picture_quality
         self._img_extension: str
-        if config.camera.picture_quality == "low":
-            self._img_extension = "jpeg_low"
-        elif config.camera.picture_quality == "high":
-            self._img_extension = "jpeg_high"
+        if config.camera.picture_quality in ["low", "high"]:
+            self._img_extension = "jpeg"
         else:
             self._img_extension = config.camera.picture_quality
 
@@ -270,10 +269,9 @@ class Camera:
             img = img.convert("RGB")
         bio = BytesIO()
         bio.name = f"status.{self._img_extension}"
-        # Fixme: add jpeg95 as high and jpeg75 as low. use optimize flag?
-        if self._img_extension in ["jpg", "jpeg", "jpeg_high"]:
+        if self._img_extension in ["jpg", "jpeg"] or self._picture_quality == "high":
             img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
-        elif self._img_extension == "jpeg_low":
+        elif self._picture_quality == "low":
             img.save(bio, "JPEG", quality=65, subsampling=0)
         # memory leaks!
         elif self._img_extension == "webp":
