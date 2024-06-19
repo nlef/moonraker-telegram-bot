@@ -4,7 +4,7 @@ RUN apt update \
  && apt install -y \
       python3-dev python3-setuptools python3-virtualenv \
       python3-cryptography python3-gevent python3-numpy \
-      ffmpef x264 libx264-dev libwebp-dev \
+      ffmpeg x264 libx264-dev libwebp-dev \
       libtiff5-dev libjpeg-dev libopenjp2-7-dev zlib1g-dev \
       libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
       libharfbuzz-dev libfribidi-dev libxcb1-dev \
