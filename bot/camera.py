@@ -14,6 +14,7 @@ from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
 import ffmpegcv  # type: ignore
+from ffmpegcv.stream_info import get_info  # type: ignore
 import numpy
 from numpy import ndarray
 from telegram import Message
@@ -140,21 +141,6 @@ class Camera:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
-            # logger.debug(cv2.getBuildInformation())
-            os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
-
-        # # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
-        # if cv2.ocl.haveOpenCL():
-        #     logger.debug("OpenCL is available")
-        #     cv2.ocl.setUseOpenCL(True)
-        #     logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
-
-        self._cv2_params: List = config.camera.cv2_params
-        # cv2.setNumThreads(self._threads)
-        # self.cam_cam = cv2.VideoCapture()
-        # self._set_cv2_params()
-
-        self.cam_cam = ffmpegcv.VideoCaptureStream(self._host)
 
     @property
     def light_need_off(self) -> bool:
@@ -250,7 +236,9 @@ class Camera:
     @cam_light_toggle
     def take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
-            success, image = self.cam_cam.read()
+            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
+            success, image = cam.read()
+            cam.release()
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -350,7 +338,8 @@ class Camera:
 
         with self._camera_lock:
             # cv2.setNumThreads(self._threads)
-            success, frame = self.cam_cam.read()
+            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
+            success, frame = cam.read()
 
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -361,9 +350,7 @@ class Camera:
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
-            # Fixme: get fps from cam!
-            # fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
-            fps_cam = 30
+            fps_cam = get_info(self._host).fps if self._stream_fps == 0 else self._stream_fps
 
             filepath = os.path.join("/tmp/", "video.mp4")
             frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
@@ -374,7 +361,7 @@ class Camera:
                 threading.Thread(target=write_video, args=()).start()
                 t_end = time.time() + self._video_duration
                 while success and time.time() <= t_end:
-                    success, frame_loc = self.cam_cam.read()
+                    success, frame_loc = cam.read()
                     try:
                         frame_queue.put(frame_loc, block=False)
                     except Exception as ex:
@@ -383,6 +370,7 @@ class Camera:
                     frame_loc = None
                     del frame_loc
             video_written_event.wait()
+            cam.release()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
