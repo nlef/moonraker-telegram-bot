@@ -578,8 +578,7 @@ class MjpegCamera(Camera):
         super().__init__(config, klippy, light_device, logging_handler)
         self._img_extension = "jpeg"
         self._host = config.camera.host
-        # Todo: add config param!
-        self._host_snapshot = self._host.replace("stream", "snapshot") if not str.isdigit(config.camera.host) else None
+        self._host_snapshot = config.camera.host_snapshot if config.camera.host_snapshot else self._host.replace("stream", "snapshot")
 
         self._rotate_code: Image.Transpose
         if config.camera.rotate == "90_cw":

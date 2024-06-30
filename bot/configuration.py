@@ -248,13 +248,28 @@ class BotConfig(ConfigHelper):
 
 class CameraConfig(ConfigHelper):
     _section = "camera"
-    _KNOWN_ITEMS = ["host", "threads", "flip_vertically", "flip_horizontally", "rotate", "fourcc", "video_duration", "video_buffer_size", "fps", "light_control_timeout", "picture_quality", "type"]
+    _KNOWN_ITEMS = [
+        "host",
+        "host_snapshot",
+        "threads",
+        "flip_vertically",
+        "flip_horizontally",
+        "rotate",
+        "fourcc",
+        "video_duration",
+        "video_buffer_size",
+        "fps",
+        "light_control_timeout",
+        "picture_quality",
+        "type",
+    ]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
         self.cam_type: str = self._get_str("type", default="base", allowed_values=["base", "mjpeg"])
         self.host: str = self._get_str("host", default="")
+        self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
@@ -268,7 +283,6 @@ class CameraConfig(ConfigHelper):
         self.video_buffer_size: int = self._get_int("video_buffer_size", default=2, above=0)
         self.light_timeout: int = self._get_int("light_control_timeout", default=0, min_value=0)
         self.picture_quality: str = self._get_str("picture_quality", default="high", allowed_values=["low", "high"])
-        self.cv2_params = config.items("camera.cv2") if config.has_section("camera.cv2") else []
 
 
 class NotifierConfig(ConfigHelper):
