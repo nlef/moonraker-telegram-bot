@@ -12,11 +12,11 @@ import threading
 import time
 from typing import List, Tuple
 
-import requests
 from PIL import Image, _webp  # type: ignore
 import cv2  # type: ignore
 import numpy
 from numpy import ndarray
+import requests
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -65,11 +65,11 @@ def cam_light_toggle(func):
 
 class Camera:
     def __init__(
-            self,
-            config: ConfigWrapper,
-            klippy: Klippy,
-            light_device: PowerDevice,
-            logging_handler: logging.Handler,
+        self,
+        config: ConfigWrapper,
+        klippy: Klippy,
+        light_device: PowerDevice,
+        logging_handler: logging.Handler,
     ):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
@@ -270,7 +270,7 @@ class Camera:
                     logger.error(err, err)
 
     @cam_light_toggle
-    def take_raw_frame(self, rgb: bool = True) -> ndarray:
+    def _take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
             self.cam_cam.open(self._host)
             self._set_cv2_params()
@@ -302,7 +302,7 @@ class Camera:
         return ndaarr
 
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
-        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
+        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
         os.nice(15)  # type: ignore
         if img.mode != "RGB":
@@ -431,7 +431,7 @@ class Camera:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        raw_frame = self.take_raw_frame(rgb=False)
+        raw_frame = self._take_raw_frame(rgb=False)
         if gcode:
             try:
                 self._klippy.execute_gcode_script(gcode.strip())
@@ -471,9 +471,9 @@ class Camera:
 
         # Todo: check _max_lapse_duration > _min_lapse_duration
         if (
-                (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
-                or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0)
-                or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
+            (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
+            or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0)
+            or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
         ):
             return self._target_fps
         elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
@@ -635,7 +635,6 @@ class MjpegCamera(Camera):
         elif config.camera.rotate == "180":
             self._rotate_code = Image.Transpose.ROTATE_180
 
-
     @cam_light_toggle
     def take_photo(self, force_rotate: bool = True) -> BytesIO:
         response = requests.get(f"{self._host_snapshot}", timeout=5, stream=True)
@@ -644,8 +643,7 @@ class MjpegCamera(Camera):
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
 
-            if force_rotate and (
-                    self._flip_vertically or self._flip_horizontally or self._rotate_code > -10):
+            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code > -10):
                 img = Image.open(response.raw).convert("RGB")
                 if self._flip_vertically:
                     img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
