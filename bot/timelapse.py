@@ -237,24 +237,27 @@ class Timelapse:
     def _send_lapse(self) -> None:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
-        else:
-            lapse_filename = self._klippy.printing_filename_with_time
-            gcode_name = self._klippy.printing_filename
+            return
 
-            info_mess: Message = self._bot.send_message(
-                chat_id=self._chat_id,
-                text=f"Starting time-lapse assembly for {gcode_name}",
-                disable_notification=self._silent_progress,
-            )
+        lapse_filename = self._klippy.printing_filename_with_time
+        gcode_name = self._klippy.printing_filename
 
-            if self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
-                info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
+        info_mess: Message = self._bot.send_message(
+            chat_id=self._chat_id,
+            text=f"Starting time-lapse assembly for {gcode_name}",
+            disable_notification=self._silent_progress,
+        )
 
-            time.sleep(5)
-            while self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
-                time.sleep(1)
+        if self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
+            info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
-            self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
+        time.sleep(5)
+        while self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
+            time.sleep(1)
+
+        self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
+
+        try:
             (
                 video_bio,
                 thumb_bio,
@@ -288,13 +291,17 @@ class Timelapse:
             else:
                 info_mess.edit_text(text="Time-lapse creation finished")
 
+            video_bio_nbytes = video_bio.getbuffer().nbytes
             video_bio.close()
             thumb_bio.close()
 
             if self._after_lapse_gcode:
                 # Todo: add exception handling
-                self._klippy.save_data_to_marco(video_bio.getbuffer().nbytes, video_path, f"{gcode_name}.mp4")
+                self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
                 self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
+        except Exception as ex:
+            logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
+            info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
 
     def send_timelapse(self) -> None:
         self._sched.add_job(

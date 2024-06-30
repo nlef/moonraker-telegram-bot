@@ -181,13 +181,34 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS = ["bot_token", "chat_id", "user", "password", "api_token", "server", "socks_proxy", "debug", "log_parser", "power_device", "light_device", "upload_path", "services"]
+    _KNOWN_ITEMS = [
+        "bot_token",
+        "chat_id",
+        "user",
+        "password",
+        "api_token",
+        "server",
+        "port",
+        "ssl",
+        "ssl_validate",
+        "api_url",
+        "socks_proxy",
+        "debug",
+        "log_parser",
+        "power_device",
+        "light_device",
+        "upload_path",
+        "services",
+    ]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
 
+        # Todo: validate server addr have ho port or protocol!
         self.host: str = self._get_str("server", default="localhost")
-        self.protocol: str = "http://"
+        self.ssl: bool = self._get_boolean("ssl", default=False)
+        self.ssl_validate: bool = self._get_boolean("ssl_validate", default=True)
+        self.port: int = self._get_int("port", default=80)
         self.api_url: str = self._get_str("api_url", default="https://api.telegram.org/bot")
         self.socks_proxy: str = self._get_str("socks_proxy", default="")
         self.light_device_name: str = self._get_str("light_device", default="")
@@ -196,8 +217,15 @@ class BotConfig(ConfigHelper):
         self.log_path: str = self._get_str("log_path", default="/tmp")
         self.log_file: str = self._get_str("log_path", default="/tmp")
         self.upload_path: str = self._get_str("upload_path", default="")
-        self.services: List[str] = self._get_list("services", ["klipper", "moonraker"])
+        self.services: List[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
+
+        host_parts = self.host.split(":")
+        if len(host_parts) == 2 and host_parts[1].isdigit():
+            self.host = host_parts[0]
+            self.port = int(host_parts[1])
+        elif len(host_parts) >= 2:
+            self._parsing_errors.append("Protocol must be specified in other configuration parameters")
 
     @property
     def formatted_upload_path(self):
@@ -231,7 +259,7 @@ class CameraConfig(ConfigHelper):
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
         self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
-        self.fourcc: str = self._get_str("fourcc", default="x264", allowed_values=["x264", "mp4v"])
+        self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
 
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
         self.threads: int = self._get_int("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count

@@ -120,7 +120,7 @@ stop_sevice() {
 }
 
 install_packages() {
-  PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-gevent python3-opencv x264 libx264-dev libwebp-dev"
+  PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-gevent python3-numpy ffmpeg x264 libx264-dev libwebp-dev"
 
   report_status "Running apt-get update..."
   sudo apt-get update --allow-releaseinfo-change
