@@ -580,13 +580,13 @@ class MjpegCamera(Camera):
         self._host = config.camera.host
         self._host_snapshot = config.camera.host_snapshot if config.camera.host_snapshot else self._host.replace("stream", "snapshot")
 
-        self._rotate_code: Image.Transpose
+        self._rotate_code_mjpeg: Image.Transpose
         if config.camera.rotate == "90_cw":
-            self._rotate_code = Image.Transpose.ROTATE_90
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_270
         elif config.camera.rotate == "90_ccw":
-            self._rotate_code = Image.Transpose.ROTATE_270
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_90
         elif config.camera.rotate == "180":
-            self._rotate_code = Image.Transpose.ROTATE_180
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_180
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
@@ -596,14 +596,14 @@ class MjpegCamera(Camera):
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
 
-            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code > -10):
+            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg > -10):
                 img = Image.open(response.raw).convert("RGB")
                 if self._flip_vertically:
                     img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                 if self._flip_horizontally:
                     img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                if self._rotate_code:
-                    img = img.transpose(self._rotate_code)
+                if self._rotate_code_mjpeg:
+                    img = img.transpose(self._rotate_code_mjpeg)
                 img.save(bio, format="JPEG")
                 img.close()
                 del img
@@ -629,13 +629,13 @@ class MjpegCamera(Camera):
     # Todo: apply frames rotation during ffmpeg call!
     def _get_frame(self, path: str):
         img = Image.open(path)
-        if self._flip_vertically or self._flip_horizontally or self._rotate_code > -10:
+        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg > -10:
             if self._flip_vertically:
                 img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             if self._flip_horizontally:
                 img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            if self._rotate_code:
-                img = img.transpose(self._rotate_code)
+            if self._rotate_code_mjpeg:
+                img = img.transpose(self._rotate_code_mjpeg)
         res = numpy.array(img)
         img.close()
         del img
