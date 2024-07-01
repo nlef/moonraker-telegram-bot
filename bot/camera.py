@@ -577,6 +577,7 @@ class MjpegCamera(Camera):
     def __init__(self, config: ConfigWrapper, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler):
         super().__init__(config, klippy, light_device, logging_handler)
         self._img_extension = "jpeg"
+        self._raw_frame_extension: str = "jpeg"
         self._host = config.camera.host
         self._host_snapshot = config.camera.host_snapshot if config.camera.host_snapshot else self._host.replace("stream", "snapshot")
 
