@@ -640,4 +640,4 @@ class MjpegCamera(Camera):
         res = numpy.array(img)
         img.close()
         del img
-        return res
+        return res[:, :, [2, 1, 0]].copy()
