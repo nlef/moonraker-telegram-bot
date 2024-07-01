@@ -104,8 +104,6 @@ class Camera:
         self.light_timer_event: threading.Event = threading.Event()
         self.light_timer_event.set()
 
-        self._hw_accel: bool = False
-
         self._picture_quality = config.camera.picture_quality
         self._img_extension: str
         if config.camera.picture_quality in ["low", "high"]:
@@ -119,13 +117,6 @@ class Camera:
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
-
-        if self._flip_vertically and self._flip_horizontally:
-            self._flip = -1
-        elif self._flip_horizontally:
-            self._flip = 1
-        elif self._flip_vertically:
-            self._flip = 0
 
         self._rotate_code: int
         if config.camera.rotate == "90_cw":
@@ -224,14 +215,6 @@ class Camera:
         img.close()
         del img
         return bio
-
-    @staticmethod
-    def _isfloat(value: str) -> bool:
-        try:
-            float(value)
-            return True
-        except ValueError:
-            return False
 
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> ndarray:
