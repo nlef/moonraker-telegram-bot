@@ -1199,16 +1199,20 @@ if __name__ == "__main__":
         logging.getLogger("apscheduler").addHandler(rotatingHandler)
         logging.getLogger("apscheduler").setLevel(logging.DEBUG)
 
-    light_power_device = PowerDevice(configWrap.bot_config.light_device_name, configWrap.bot_config.host)
-    psu_power_device = PowerDevice(configWrap.bot_config.poweroff_device_name, configWrap.bot_config.host)
+    klippy = Klippy(configWrap, rotatingHandler)
 
-    klippy = Klippy(configWrap, light_power_device, psu_power_device, rotatingHandler)
+    light_power_device = PowerDevice(configWrap.bot_config.light_device_name, klippy)
+    psu_power_device = PowerDevice(configWrap.bot_config.poweroff_device_name, klippy)
+
+    klippy.psu_device = psu_power_device
+    klippy.light_device = light_power_device
+
     cameraWrap = MjpegCamera(configWrap, klippy, light_power_device, rotatingHandler) if configWrap.camera.cam_type == "mjpeg" else Camera(configWrap, klippy, light_power_device, rotatingHandler)
     bot_updater = start_bot(configWrap.secrets.token, configWrap.bot_config.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)
 
-    ws_helper = WebSocketHelper(configWrap, klippy, notifier, timelapse, scheduler, light_power_device, psu_power_device, rotatingHandler)
+    ws_helper = WebSocketHelper(configWrap, klippy, notifier, timelapse, scheduler, rotatingHandler)
 
     scheduler.start()
 

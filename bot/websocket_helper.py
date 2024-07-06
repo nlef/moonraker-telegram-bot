@@ -12,7 +12,6 @@ import websocket  # type: ignore
 from configuration import ConfigWrapper
 from klippy import Klippy
 from notifications import Notifier
-from power_device import PowerDevice
 from timelapse import Timelapse
 
 logger = logging.getLogger(__name__)
@@ -38,8 +37,6 @@ class WebSocketHelper:
         notifier: Notifier,
         timelapse: Timelapse,
         scheduler: BackgroundScheduler,
-        light_power_device: PowerDevice,
-        psu_power_device: PowerDevice,
         logging_handler: logging.Handler,
     ):
         self._host: str = config.bot_config.host
@@ -50,8 +47,6 @@ class WebSocketHelper:
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
         self._scheduler: BackgroundScheduler = scheduler
-        self._light_power_device: PowerDevice = light_power_device
-        self._psu_power_device: PowerDevice = psu_power_device
         self._log_parser: bool = config.bot_config.log_parser
 
         if config.bot_config.debug:
@@ -314,10 +309,10 @@ class WebSocketHelper:
         device_name = device["device"]
         device_state = bool(device["status"] == "on")
         self._klippy.update_power_device(device_name, device)
-        if self._psu_power_device and self._psu_power_device.name == device_name:
-            self._psu_power_device.device_state = device_state
-        if self._light_power_device and self._light_power_device.name == device_name:
-            self._light_power_device.device_state = device_state
+        if self._klippy.psu_device and self._klippy.psu_device.name == device_name:
+            self._klippy.psu_device.device_state = device_state
+        if self._klippy.light_device and self._klippy.light_device.name == device_name:
+            self._klippy.light_device.device_state = device_state
 
     def websocket_to_message(self, ws_loc, ws_message):
         logger.debug(ws_message)
