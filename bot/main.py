@@ -45,9 +45,8 @@ from websocket_helper import WebSocketHelper
 
 from camera import Camera, MjpegCamera
 from configuration import ConfigWrapper
-from klippy import Klippy
+from klippy import Klippy, PowerDevice
 from notifications import Notifier
-from power_device import PowerDevice
 from timelapse import Timelapse
 
 sys.modules["json"] = orjson
@@ -1207,7 +1206,7 @@ if __name__ == "__main__":
     klippy.psu_device = psu_power_device
     klippy.light_device = light_power_device
 
-    cameraWrap = MjpegCamera(configWrap, klippy, light_power_device, rotatingHandler) if configWrap.camera.cam_type == "mjpeg" else Camera(configWrap, klippy, light_power_device, rotatingHandler)
+    cameraWrap = MjpegCamera(configWrap, klippy, rotatingHandler) if configWrap.camera.cam_type == "mjpeg" else Camera(configWrap, klippy, rotatingHandler)
     bot_updater = start_bot(configWrap.secrets.token, configWrap.bot_config.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)

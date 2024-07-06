@@ -21,8 +21,7 @@ import requests
 from telegram import Message
 
 from configuration import ConfigWrapper
-from klippy import Klippy
-from power_device import PowerDevice
+from klippy import Klippy, PowerDevice
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +64,7 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(
-        self,
-        config: ConfigWrapper,
-        klippy: Klippy,
-        light_device: PowerDevice,
-        logging_handler: logging.Handler,
-    ):
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
@@ -98,7 +91,7 @@ class Camera:
         self._light_need_off_lock: threading.Lock = threading.Lock()
 
         self.light_timeout: int = config.camera.light_timeout
-        self.light_device: PowerDevice = light_device
+        self.light_device: PowerDevice = self._klippy.light_device
         self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event: threading.Event = threading.Event()
@@ -557,8 +550,8 @@ class Camera:
 
 
 class MjpegCamera(Camera):
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, light_device: PowerDevice, logging_handler: logging.Handler):
-        super().__init__(config, klippy, light_device, logging_handler)
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
+        super().__init__(config, klippy, logging_handler)
         self._img_extension = "jpeg"
         self._raw_frame_extension: str = "jpeg"
         self._host = config.camera.host
