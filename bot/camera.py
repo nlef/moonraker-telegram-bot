@@ -564,6 +564,8 @@ class MjpegCamera(Camera):
             self._rotate_code_mjpeg = Image.Transpose.ROTATE_90
         elif config.camera.rotate == "180":
             self._rotate_code_mjpeg = Image.Transpose.ROTATE_180
+        else:
+            self._rotate_code_mjpeg = None  # type: ignore
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
@@ -573,7 +575,7 @@ class MjpegCamera(Camera):
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
 
-            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg > -10):
+            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg):
                 img = Image.open(response.raw).convert("RGB")
                 if self._flip_vertically:
                     img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
@@ -606,7 +608,7 @@ class MjpegCamera(Camera):
     # Todo: apply frames rotation during ffmpeg call!
     def _get_frame(self, path: str):
         img = Image.open(path)
-        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg > -10:
+        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
             if self._flip_vertically:
                 img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             if self._flip_horizontally:

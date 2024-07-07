@@ -1,6 +1,6 @@
 emoji==2.12.1
 ffmpegcv==0.3.14
-orjson==3.10.5
+orjson==3.10.6
 Pillow==10.4.0
 PySocks==1.7.1
 python-telegram-bot==13.15
