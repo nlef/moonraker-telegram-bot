@@ -252,12 +252,23 @@ class Klippy:
         return res
 
     def check_connection(self) -> str:
-        try:
-            response = self._make_request("GET", "/printer/info", timeout=3)
-            return "" if response.ok else f"Connection failed. {response.reason}"
-        except Exception as ex:
-            logger.error(ex, exc_info=True)
-            return "Connection failed."
+        connected = False
+        retries = 0
+        last_reason = ""
+        while not connected and retries < 10:
+            try:
+                response = self._make_request("GET", "/printer/info", timeout=3)
+                connected = response.ok
+
+                if connected:
+                    return ""
+                else:
+                    last_reason = response.reason
+            except Exception as ex:
+                logger.error(ex, exc_info=True)
+            retries += 1
+            time.sleep(1)
+        return f"Connection failed. {last_reason}"
 
     def update_sensor(self, name: str, value) -> None:
         if name not in self._sensors_dict:
