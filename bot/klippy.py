@@ -15,8 +15,6 @@ import requests
 from configuration import ConfigWrapper
 from power_device import PowerDevice
 
-requests.models.complexjson = orjson  # type: ignore
-
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +32,9 @@ class Klippy:
         psu_device: PowerDevice,
         logging_handler: logging.Handler,
     ):
-        self._host: str = f"{config.bot_config.protocol}{config.bot_config.host}"
+        self._protocol: str = "https" if config.bot_config.ssl else "http"
+        self._host: str = f"{self._protocol}://{config.bot_config.host}:{config.bot_config.port}"
+        self._ssl_validate: bool = config.bot_config.ssl_validate
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
@@ -145,9 +145,9 @@ class Klippy:
         if (not self._user and not self._jwt_token) and not self._api_token:
             return ""
 
-        resp = requests.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
+        resp = requests.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15, verify=self._ssl_validate)
         if resp.ok:
-            res = f"?token={resp.json()['result']}"
+            res = f"?token={orjson.loads(resp.text)['result']}"
         else:
             logger.error(resp.reason)
             res = ""
@@ -156,7 +156,7 @@ class Klippy:
     def _update_printer_objects(self):
         resp = self._make_request("GET", "/printer/objects/list")
         if resp.ok:
-            self._objects_list = resp.json()["result"]["objects"]
+            self._objects_list = orjson.loads(resp.text)["result"]["objects"]
 
     def _reset_file_info(self) -> None:
         self.printing_duration = 0.0
@@ -187,7 +187,7 @@ class Klippy:
         # Todo: add response status check!
         if not response.ok:
             logger.warning("bad response for file request %s", response.reason)
-        resp = response.json()["result"]
+        resp = orjson.loads(response.text)["result"]
         self._printing_filename = new_value
         self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
         self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
@@ -223,30 +223,31 @@ class Klippy:
         if not self._user or not self._passwd:
             return
         # TOdo: add try catch
-        res = requests.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
+        res = requests.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15, verify=self._ssl_validate)
         if res.ok:
-            self._jwt_token = res.json()["result"]["token"]
-            self._refresh_token = res.json()["result"]["refresh_token"]
+            res_result = orjson.loads(res.text)["result"]
+            self._jwt_token = res_result["token"]
+            self._refresh_token = res_result["refresh_token"]
         else:
             logger.error(res.reason)
 
     def _refresh_moonraker_token(self) -> None:
         if not self._refresh_token:
             return
-        res = requests.post(f"{self._host}/access/refresh_jwt", json={"refresh_token": self._refresh_token}, timeout=15)
+        res = requests.post(f"{self._host}/access/refresh_jwt", data=orjson.dumps({"refresh_token": self._refresh_token}), timeout=15, verify=self._ssl_validate)
         if res.ok:
             logger.debug("JWT token successfully refreshed")
-            self._jwt_token = res.json()["result"]["token"]
+            self._jwt_token = orjson.loads(res.text)["result"]["token"]
         else:
             logger.error("Failed to refresh token: %s", res.reason)
 
     def _make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
-        res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+        res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, f"{self._host}{url_path}", json=json, headers=_headers, files=files, timeout=timeout, stream=stream)
+            res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if not res.ok:
             logger.error(res.reason)
         return res
@@ -404,7 +405,7 @@ class Klippy:
         return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     def get_status(self) -> str:
-        resp = self._make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").json()["result"]["status"]
+        resp = orjson.loads(self._make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").text)["result"]["status"]
         print_stats = resp["print_stats"]
         message = ""
 
@@ -432,7 +433,7 @@ class Klippy:
         return message
 
     def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
-        resp = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").json()["result"]
+        resp = orjson.loads(self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").text)["result"]
         message += "\n"
         if "filament_total" in resp and resp["filament_total"] > 0.0:
             message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m"
@@ -456,7 +457,7 @@ class Klippy:
 
     def get_gcode_files(self):
         response = self._make_request("GET", "/server/files/list?root=gcodes")
-        files = sorted(response.json()["result"], key=lambda item: item["modified"], reverse=True)
+        files = sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
     def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
@@ -473,7 +474,7 @@ class Klippy:
         if not response.ok:
             logger.warning(response.reason)
             return ""
-        version_info = response.json()["result"]["version_info"]
+        version_info = orjson.loads(response.text)["result"]["version_info"]
         version_message = ""
         for comp, inf in version_info.items():
             if comp == "system":
@@ -497,7 +498,7 @@ class Klippy:
     def get_param_from_db(self, param_name: str):
         res = self._make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.ok:
-            return res.json()["result"]["value"]
+            return orjson.loads(res.text)["result"]["value"]
         else:
             logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res.reason)
             # Fixme: return default value? check for 404!
