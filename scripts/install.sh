@@ -5,7 +5,7 @@ set -eu
 SYSTEMDDIR="/etc/systemd/system"
 MOONRAKER_BOT_SERVICE="moonraker-telegram-bot.service"
 MOONRAKER_BOT_ENV="${HOME}/moonraker-telegram-bot-env"
-MOONRAKER_BOT_DIR="${HOME}/moonraker-telegram-bot"
+MOONRAKER_BOT_DIR=$(dirname $(dirname "$(realpath $0)"))
 MOONRAKER_BOT_LOG="${HOME}/printer_data/logs/telegram.log"
 MOONRAKER_BOT_CONF="${HOME}/printer_data/config"
 KLIPPER_CONF_DIR="${HOME}/printer_data/config"
