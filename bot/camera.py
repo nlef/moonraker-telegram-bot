@@ -213,9 +213,12 @@ class Camera:
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
+            st = time.time() * 1000
             cam = ffmpegcv.VideoCaptureStreamRT(self._host, timeout=self._cam_timeout)
             success, image = cam.read()
             cam.release()
+            et = time.time() *1000
+            logger.debug(f"_take_raw_frame cam read execution time: {et-st} millis")
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -314,8 +317,11 @@ class Camera:
 
         with self._camera_lock:
             # cv2.setNumThreads(self._threads)
+            st = time.time() * 1000
             cam = ffmpegcv.VideoCaptureStreamRT(self._host, timeout=self._cam_timeout)
             success, frame = cam.read()
+            et = time.time() *1000
+            logger.debug(f"take_video cam read first frame execution time: {et-st} millis")
 
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -337,7 +343,10 @@ class Camera:
                 threading.Thread(target=write_video, args=()).start()
                 t_end = time.time() + self._video_duration
                 while success and time.time() <= t_end:
+                    st = time.time() * 1000
                     success, frame_loc = cam.read()
+                    et = time.time() * 1000
+                    logger.debug(f"take_video cam read  frame execution time: {et - st} millis")
                     try:
                         frame_queue.put(frame_loc, block=False)
                     except Exception as ex:
