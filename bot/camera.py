@@ -19,8 +19,7 @@ from numpy import ndarray
 from telegram import Message
 
 from configuration import ConfigWrapper
-from klippy import Klippy
-from power_device import PowerDevice
+from klippy import Klippy, PowerDevice
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +302,7 @@ class Camera:
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
 
-        os.nice(15)  # type: ignore
+        # os.nice(15)  # type: ignore
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
             img = img.convert("RGB")
@@ -324,7 +323,7 @@ class Camera:
         bio.seek(0)
 
         img.close()
-        os.nice(0)  # type: ignore
+        # os.nice(0)  # type: ignore
         del img
         return bio
 
