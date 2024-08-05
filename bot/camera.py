@@ -121,6 +121,7 @@ class Camera:
         else:
             self._rotate_code = -10
 
+        self._cam_timeout: int = 5
         if logging_handler:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
@@ -212,7 +213,7 @@ class Camera:
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
-            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
+            cam = ffmpegcv.VideoCaptureStreamRT(self._host, timeout=self._cam_timeout)
             success, image = cam.read()
             cam.release()
 
@@ -313,7 +314,7 @@ class Camera:
 
         with self._camera_lock:
             # cv2.setNumThreads(self._threads)
-            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
+            cam = ffmpegcv.VideoCaptureStreamRT(self._host, timeout=self._cam_timeout)
             success, frame = cam.read()
 
             if not success:

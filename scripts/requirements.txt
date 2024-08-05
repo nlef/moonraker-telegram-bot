@@ -1,5 +1,5 @@
 emoji==2.12.1
-ffmpegcv==0.3.14
+ffmpegcv==0.3.15
 orjson==3.10.6
 Pillow==10.4.0
 PySocks==1.7.1
@@ -8,4 +8,5 @@ rel==0.4.9.19
 requests==2.32.3
 tzlocal==2.1
 websocket-client==1.8.0
-wsaccel==0.6.6
+wsaccel==0.6.6 ; python_version>='3.9'
+wsaccel==0.6.4 ; python_version<='3.8'
