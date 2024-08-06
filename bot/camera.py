@@ -10,12 +10,11 @@ from pathlib import Path
 from queue import Queue
 import threading
 import time
-import typing
 from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
+from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit  # type: ignore
 import ffmpegcv  # type: ignore
-from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore
 from ffmpegcv.stream_info import get_info  # type: ignore
 import numpy
 from numpy import ndarray
@@ -26,48 +25,6 @@ from configuration import ConfigWrapper
 from klippy import Klippy, PowerDevice
 
 logger = logging.getLogger(__name__)
-
-
-class FFmpegReaderStreamRTCustom(FFmpegReader):
-    def __init__(self):
-        super().__init__()
-
-    @staticmethod
-    @typing.no_type_check
-    def VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout, videoinfo):
-        vid = FFmpegReaderStreamRTCustom()
-        videoinfo = videoinfo if videoinfo else get_info(stream_url, timeout)
-        vid.origin_width = videoinfo.width
-        vid.origin_height = videoinfo.height
-        vid.fps = videoinfo.fps
-        vid.codec = codec if codec else videoinfo.codec
-        vid.count = videoinfo.count
-        vid.duration = videoinfo.duration
-        vid.pix_fmt = pix_fmt
-
-        (vid.crop_width, vid.crop_height), (vid.width, vid.height), filteropt = get_videofilter_cpu(
-            (vid.origin_width, vid.origin_height), pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign
-        )
-        vid.size = (vid.width, vid.height)
-
-        rtsp_opt = "-rtsp_transport tcp " if stream_url.startswith("rtsp://") else ""
-        vid.ffmpeg_cmd = (
-            f"ffmpeg -loglevel warning "
-            f" {rtsp_opt} "
-            " -probesize 32 -analyzeduration 0 "
-            "-fflags nobuffer -flags low_delay -strict experimental "
-            f" -vcodec {vid.codec} -i {stream_url}"
-            f" {filteropt} -pix_fmt {pix_fmt}  -f rawvideo pipe:"
-        )
-
-        vid.out_numpy_shape = get_outnumpyshape(vid.size, pix_fmt)
-        return vid
-
-
-def FFmpegReaderStreamRTCustomInit(
-    stream_url, codec=None, pix_fmt="bgr24", crop_xywh=None, resize=None, resize_keepratio=True, resize_keepratioalign="center", timeout=None, videoinfo=None
-) -> FFmpegReaderStreamRTCustom:
-    return FFmpegReaderStreamRTCustom.VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout=timeout, videoinfo=videoinfo)
 
 
 def cam_light_toggle(func):
@@ -260,13 +217,11 @@ class Camera:
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
-            st = time.time() *1000
-            # cam = ffmpegcv.VideoCaptureStreamRT(self._host, timeout=self._cam_timeout)
+            st_time = time.time()
             cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
             success, image = cam.read()
             cam.release()
-            et = time.time() *1000
-            logger.debug(f"_take_raw_frame cam read execution time: {et-st} millis")
+            logger.debug("_take_raw_frame cam read execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -292,7 +247,7 @@ class Camera:
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
-        os.nice(15)  # type: ignore
+        # os.nice(15)  # type: ignore
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
             img = img.convert("RGB")
@@ -312,7 +267,7 @@ class Camera:
         bio.seek(0)
 
         img.close()
-        os.nice(0)  # type: ignore
+        # os.nice(0)  # type: ignore
         del img
         return bio
 
@@ -365,11 +320,10 @@ class Camera:
 
         with self._camera_lock:
             # cv2.setNumThreads(self._threads)
-            st = time.time() * 1000
+            st_time = time.time()
             cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
             success, frame = cam.read()
-            et = time.time() *1000
-            logger.debug(f"take_video cam read first frame execution time: {et-st} millis")
+            logger.debug("take_video cam read first frame execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -391,10 +345,9 @@ class Camera:
                 threading.Thread(target=write_video, args=()).start()
                 t_end = time.time() + self._video_duration
                 while success and time.time() <= t_end:
-                    st = time.time() * 1000
+                    st_time = time.time()
                     success, frame_loc = cam.read()
-                    et = time.time() * 1000
-                    logger.debug(f"take_video cam read  frame execution time: {et - st} millis")
+                    logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                     try:
                         frame_queue.put(frame_loc, block=False)
                     except Exception as ex:
