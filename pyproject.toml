@@ -44,6 +44,6 @@ known_first_party = [
     "configuration",
     "klippy",
     "notifications",
-    "power_device",
     "timelapse",
+    "websocket_helper"
 ]

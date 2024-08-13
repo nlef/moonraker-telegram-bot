@@ -1,8 +1,9 @@
+import logging
+import typing
+
 import ffmpegcv  # type: ignore
 from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore
 from ffmpegcv.stream_info import get_info  # type: ignore
-import logging
-import typing
 
 logger = logging.getLogger(__name__)
 
