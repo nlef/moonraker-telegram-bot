@@ -1,7 +1,5 @@
 import logging
-import typing
 
-import ffmpegcv  # type: ignore
 from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore
 from ffmpegcv.stream_info import get_info  # type: ignore
 
@@ -13,7 +11,6 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):
         super().__init__()
 
     @staticmethod
-    @typing.no_type_check
     def VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout, videoinfo):
         vid = FFmpegReaderStreamRTCustom()
         videoinfo = videoinfo if videoinfo else get_info(stream_url, timeout)
@@ -34,7 +31,7 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):
         vid.ffmpeg_cmd = (
             f"ffmpeg -loglevel warning "
             f" {rtsp_opt} "
-            " -probesize 32 -analyzeduration 0 "
+            " -probesize 32 -analyzeduration 0 -fflags discardcorrupt "
             "-fflags nobuffer -flags low_delay -strict experimental "
             f" -vcodec {vid.codec} -i {stream_url}"
             f" {filteropt} -pix_fmt {pix_fmt}  -f rawvideo pipe:"

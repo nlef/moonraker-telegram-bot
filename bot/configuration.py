@@ -133,13 +133,13 @@ class ConfigHelper:
                     self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
                     val = default
                 else:
+                    val = []
                     # Todo: reaise some parsing exception
-                    pass
         elif default is not None:
             val = default
         else:
             # Todo: reaise some parsing exception
-            pass
+            val = []
 
         self._check_list_values(option, val, allowed_values)
         return val
