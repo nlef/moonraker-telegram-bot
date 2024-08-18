@@ -344,19 +344,22 @@ class Camera:
             while frame_queue.qsize() < 10:
                 time.sleep(1.0)
 
-            print(avg_fps)
+            logger.debug("avg fps for 1 second - %s", avg_fps)
             cv2.setNumThreads(self._threads)
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
-                fps=avg_fps,
+                fps=fps_cam,
             )
             while video_lock.locked():
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as exc:
-                    logger.warning("Reading video frames queue exception %s", exc)
-                    frame_local = frame_queue.get()
+                    # logger.debug("Reading video frames queue exception %s", exc)
+                    if frame_queue.empty():
+                        continue
+                    else:
+                        frame_local = frame_queue.get(timeout=5)
 
                 out.write(process_video_frame(frame_local))
                 frame_local = None
@@ -389,6 +392,7 @@ class Camera:
             del frame, channels
 
             fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            frame_time = 1.0 / fps_cam
             avg_fps = 0.0
             filepath = os.path.join("/tmp/", "video.mp4")
             frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
@@ -398,17 +402,20 @@ class Camera:
             with video_lock:
                 threading.Thread(target=write_video, args=()).start()
                 t_end = time.time() + self._video_duration
+                time_last_frame = time.time()
                 while success and time.time() <= t_end:
                     st_time = time.time()
                     success, frame_loc = self.cam_cam.read()
                     proc_time = (time.time() - st_time) * 1000
                     avg_fps = (1000.0 / proc_time) if avg_fps == 0.0 else (avg_fps + (1000.0 / proc_time)) / 2.0
                     logger.debug("take_video cam read  frame execution time: %s millis", proc_time)
-                    try:
-                        frame_queue.put(frame_loc, block=False)
-                    except Exception as ex:
-                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
-                        frame_queue.put(frame_loc)
+                    if time.time() > time_last_frame + frame_time:
+                        time_last_frame = time.time()
+                        try:
+                            frame_queue.put(frame_loc, block=False)
+                        except Exception as ex:
+                            logger.warning("Writing video frames queue exception %s", ex.with_traceback)
+                            frame_queue.put(frame_loc)
                     frame_loc = None
                     del frame_loc
             video_written_event.wait()
