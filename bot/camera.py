@@ -341,25 +341,29 @@ class Camera:
             return frame_local
 
         def write_video():
-            while frame_queue.qsize() < 10:
-                time.sleep(1.0)
+            # while frame_queue.qsize() < fps_cam * self._video_duration:
+            #     time.sleep(1.0)
+            while video_lock.locked():
+                time.sleep(2)
+            res_fps = frame_queue.qsize()/self._video_duration
 
             logger.debug("avg fps for 1 second - %s", avg_fps)
             cv2.setNumThreads(self._threads)
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
-                fps=fps_cam,
+                fps=res_fps,
             )
             while video_lock.locked():
                 try:
                     frame_local = frame_queue.get(block=False)
                 except Exception as exc:
+                    continue
                     # logger.debug("Reading video frames queue exception %s", exc)
-                    if frame_queue.empty():
-                        continue
-                    else:
-                        frame_local = frame_queue.get(timeout=5)
+                    # if frame_queue.empty():
+                    #     continue
+                    # else:
+                    #     frame_local = frame_queue.get(timeout=5)
 
                 out.write(process_video_frame(frame_local))
                 frame_local = None
@@ -395,7 +399,8 @@ class Camera:
             frame_time = 1.0 / fps_cam
             avg_fps = 0.0
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
+            # frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
+            frame_queue: Queue = Queue(fps_cam * (self._video_duration+1))
             video_lock = threading.Lock()
             video_written_event = threading.Event()
             video_written_event.clear()
