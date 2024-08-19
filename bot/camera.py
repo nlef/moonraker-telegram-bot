@@ -672,7 +672,7 @@ class FFmpegCamera(Camera):
             frame_time = 1.0 / fps_cam
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 1))
+            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
 
             t_end = time.time() + self._video_duration
             time_last_frame = time.time()
@@ -792,3 +792,76 @@ class MjpegCamera(Camera):
         img.close()
         del img
         return res[:, :, [2, 1, 0]].copy()
+
+    @cam_light_toggle
+    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+        def process_video_frame(frame_local):
+            frame_local.seek(0)
+            img = Image.open(frame_local)
+            if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
+                if self._flip_vertically:
+                    img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                if self._flip_horizontally:
+                    img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if self._rotate_code_mjpeg:
+                    img = img.transpose(self._rotate_code_mjpeg)
+            res = numpy.array(img)
+            img.close()
+            del img
+            return res[:, :, [2, 1, 0]].copy()
+
+        with self._camera_lock:
+            frame = process_video_frame(self.take_photo())
+            height, width, channels = frame.shape
+            thumb_bio = self._create_thumb(frame)
+            del frame, channels
+
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            frame_time = 1.0 / fps_cam
+
+            filepath = os.path.join("/tmp/", "video.mp4")
+            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
+
+            t_end = time.time() + self._video_duration
+            time_last_frame = time.time()
+            while time.time() <= t_end:
+                st_time = time.time()
+                frame_loc = self.take_photo()
+                logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
+                if time.time() > time_last_frame + frame_time:
+                    time_last_frame = time.time()
+                    try:
+                        frame_queue.put(frame_loc, block=False)
+                    except Exception as ex:
+                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
+                        # frame_queue.put(frame_loc)
+                frame_loc = None
+                del frame_loc
+
+            res_fps = frame_queue.qsize() / self._video_duration
+
+            logger.debug("res fps - %s", res_fps)
+
+            cv2.setNumThreads(self._threads)
+            out = ffmpegcv.VideoWriter(
+                filepath,
+                codec=self._fourcc,
+                fps=res_fps,
+            )
+
+            while not frame_queue.empty():
+                frame_local = frame_queue.get()
+                out.write(process_video_frame(frame_local))
+                frame_queue.task_done()
+                frame_local = None
+                del frame_local
+
+            out.release()
+
+        video_bio = BytesIO()
+        video_bio.name = "video.mp4"
+        with open(filepath, "rb") as video_file:
+            video_bio.write(video_file.read())
+        os.remove(filepath)
+        video_bio.seek(0)
+        return video_bio, thumb_bio, width, height
