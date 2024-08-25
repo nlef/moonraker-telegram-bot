@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import logging
 import re
+import threading
 import time
 from typing import List, Tuple
 import urllib
@@ -13,9 +14,55 @@ import orjson
 import requests
 
 from configuration import ConfigWrapper
-from power_device import PowerDevice
 
 logger = logging.getLogger(__name__)
+
+
+class PowerDevice:
+    def __new__(cls, name: str, klippy_: "Klippy"):
+        if name:
+            return super(PowerDevice, cls).__new__(cls)
+        else:
+            return None
+
+    def __init__(self, name: str, klippy_: "Klippy"):
+        self.name: str = name
+        self._state_lock = threading.Lock()
+        self._device_on: bool = False
+        self._klippy: Klippy = klippy_
+
+    @property
+    def device_state(self) -> bool:
+        with self._state_lock:
+            return self._device_on
+
+    @device_state.setter
+    def device_state(self, state: bool) -> None:
+        with self._state_lock:
+            self._device_on = state
+
+    def toggle_device(self) -> bool:
+        return self.switch_device(not self.device_state)
+
+    # Todo: return exception?
+    def switch_device(self, state: bool) -> bool:
+        with self._state_lock:
+            if state:
+                res = self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action=on")
+                if res.ok:
+                    self._device_on = True
+                    return True
+                else:
+                    logger.error("Power device switch failed: %s", res.reason)
+                    return state
+            else:
+                res = self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action=off")
+                if res.ok:
+                    self._device_on = False
+                    return False
+                else:
+                    logger.error("Power device switch failed: %s", res.reason)
+                    return state
 
 
 class Klippy:
@@ -28,8 +75,6 @@ class Klippy:
     def __init__(
         self,
         config: ConfigWrapper,
-        light_device: PowerDevice,
-        psu_device: PowerDevice,
         logging_handler: logging.Handler,
     ):
         self._protocol: str = "https" if config.bot_config.ssl else "http"
@@ -39,8 +84,8 @@ class Klippy:
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
         self._eta_source: str = config.telegram_ui.eta_source
-        self._light_device: PowerDevice = light_device
-        self._psu_device: PowerDevice = psu_device
+        self._light_device: PowerDevice
+        self._psu_device: PowerDevice
         self._sensors_list: List[str] = config.status_message_content.sensors
         self._heaters_list: List[str] = config.status_message_content.heaters
         self._fans_list: List[str] = config.status_message_content.fans
@@ -107,6 +152,22 @@ class Klippy:
         return self.filament_weight * (self.filament_used / self.filament_total)
 
     @property
+    def psu_device(self) -> PowerDevice:
+        return self._psu_device
+
+    @psu_device.setter
+    def psu_device(self, psu_device: PowerDevice):
+        self._psu_device = psu_device
+
+    @property
+    def light_device(self) -> PowerDevice:
+        return self._light_device
+
+    @light_device.setter
+    def light_device(self, light_device: PowerDevice):
+        self._light_device = light_device
+
+    @property
     def connected(self) -> bool:
         return self._connected
 
@@ -154,7 +215,7 @@ class Klippy:
         return res
 
     def _update_printer_objects(self):
-        resp = self._make_request("GET", "/printer/objects/list")
+        resp = self.make_request("GET", "/printer/objects/list")
         if resp.ok:
             self._objects_list = orjson.loads(resp.text)["result"]["objects"]
 
@@ -183,7 +244,7 @@ class Klippy:
             self._reset_file_info()
             return
 
-        response = self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(new_value)}")
+        response = self.make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(new_value)}")
         # Todo: add response status check!
         if not response.ok:
             logger.warning("bad response for file request %s", response.reason)
@@ -241,7 +302,7 @@ class Klippy:
         else:
             logger.error("Failed to refresh token: %s", res.reason)
 
-    def _make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
+    def make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
         res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if res.status_code == 401:  # Unauthorized
@@ -253,12 +314,23 @@ class Klippy:
         return res
 
     def check_connection(self) -> str:
-        try:
-            response = self._make_request("GET", "/printer/info", timeout=3)
-            return "" if response.ok else f"Connection failed. {response.reason}"
-        except Exception as ex:
-            logger.error(ex, exc_info=True)
-            return "Connection failed."
+        connected = False
+        retries = 0
+        last_reason = ""
+        while not connected and retries < 10:
+            try:
+                response = self.make_request("GET", "/printer/info", timeout=3)
+                connected = response.ok
+
+                if connected:
+                    return ""
+                else:
+                    last_reason = response.reason
+            except Exception as ex:
+                logger.error(ex, exc_info=True)
+            retries += 1
+            time.sleep(1)
+        return f"Connection failed. {last_reason}"
 
     def update_sensor(self, name: str, value) -> None:
         if name not in self._sensors_dict:
@@ -328,10 +400,10 @@ class Klippy:
         return message
 
     def execute_command(self, *command) -> None:
-        self._make_request("POST", "/api/printer/command", json={"commands": list(map(lambda el: f"{el}", command))})
+        self.make_request("POST", "/api/printer/command", json={"commands": list(map(lambda el: f"{el}", command))})
 
     def execute_gcode_script(self, gcode: str) -> None:
-        self._make_request("GET", f"/printer/gcode/script?script={gcode}")
+        self.make_request("GET", f"/printer/gcode/script?script={gcode}")
 
     def _get_eta(self) -> timedelta:
         if self._eta_source == "slicer":
@@ -348,7 +420,7 @@ class Klippy:
             img = Image.open("../imgs/nopreview.png").convert("RGB")
             logger.warning("Empty thumbnail_path")
         else:
-            response = self._make_request("GET", f"/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True)
+            response = self.make_request("GET", f"/server/files/gcodes/{urllib.parse.quote(thumb_path)}", stream=True)
             if response.ok:
                 response.raw.decode_content = True
                 img = Image.open(response.raw).convert("RGB")
@@ -394,7 +466,7 @@ class Klippy:
         return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     def get_status(self) -> str:
-        resp = orjson.loads(self._make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").text)["result"]["status"]
+        resp = orjson.loads(self.make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status").text)["result"]["status"]
         print_stats = resp["print_stats"]
         message = ""
 
@@ -422,7 +494,7 @@ class Klippy:
         return message
 
     def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
-        resp = orjson.loads(self._make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").text)["result"]
+        resp = orjson.loads(self.make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}").text)["result"]
         message += "\n"
         if "filament_total" in resp and resp["filament_total"] > 0.0:
             message += f"Filament: {round(resp['filament_total'] / 1000, 2)}m"
@@ -445,21 +517,21 @@ class Klippy:
         return self._populate_with_thumb(thumb_path, message)
 
     def get_gcode_files(self):
-        response = self._make_request("GET", "/server/files/list?root=gcodes")
+        response = self.make_request("GET", "/server/files/list?root=gcodes")
         files = sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
         return files
 
     def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
-        return self._make_request("POST", "/server/files/upload", files={"file": file, "root": "gcodes", "path": upload_path}).ok
+        return self.make_request("POST", "/server/files/upload", files={"file": file, "root": "gcodes", "path": upload_path}).ok
 
     def start_printing_file(self, filename: str) -> bool:
-        return self._make_request("POST", f"/printer/print/start?filename={urllib.parse.quote(filename)}").ok
+        return self.make_request("POST", f"/printer/print/start?filename={urllib.parse.quote(filename)}").ok
 
     def stop_all(self) -> None:
         self._reset_file_info()
 
     def get_versions_info(self, bot_only: bool = False) -> str:
-        response = self._make_request("GET", "/machine/update/status?refresh=false")
+        response = self.make_request("GET", "/machine/update/status?refresh=false")
         if not response.ok:
             logger.warning(response.reason)
             return ""
@@ -479,13 +551,13 @@ class Klippy:
         return version_message
 
     def add_bot_announcements_feed(self):
-        res = self._make_request("POST", "/server/announcements/feed?name=moonraker-telegram-bot")
+        res = self.make_request("POST", "/server/announcements/feed?name=moonraker-telegram-bot")
         if not res.ok:
             logger.warning("Failed adding announcements bot feed.\n\n%s", res.reason)
 
     # moonraker databse section
     def get_param_from_db(self, param_name: str):
-        res = self._make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
+        res = self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.ok:
             return orjson.loads(res.text)["result"]["value"]
         else:
@@ -495,12 +567,12 @@ class Klippy:
 
     def save_param_to_db(self, param_name: str, value) -> None:
         data = {"namespace": self._dbname, "key": param_name, "value": value}
-        res = self._make_request("POST", "/server/database/item", json=data)
+        res = self.make_request("POST", "/server/database/item", json=data)
         if not res.ok:
             logger.error("Failed saving %s to %s \n\n%s", param_name, self._dbname, res.reason)
 
     def delete_param_from_db(self, param_name: str) -> None:
-        res = self._make_request("DELETE", f"/server/database/item?namespace={self._dbname}&key={param_name}")
+        res = self.make_request("DELETE", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if not res.ok:
             logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res.reason)
 
