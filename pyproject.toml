@@ -29,7 +29,8 @@ good-names = [
     "ex",
     "fh",
 ]
-ignore-paths='tests'
+ignore-paths= ['^bot/assets/.*$', 'tests']
+
 
 [tool.black]
 line-length = 200
@@ -44,6 +45,6 @@ known_first_party = [
     "configuration",
     "klippy",
     "notifications",
-    "power_device",
     "timelapse",
+    "websocket_helper"
 ]

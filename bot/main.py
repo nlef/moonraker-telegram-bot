@@ -41,13 +41,13 @@ from telegram.constants import PARSEMODE_HTML
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Filters, MessageHandler, Updater
 from telegram.utils.helpers import escape
-from websocket_helper import WebSocketHelper
 
-from camera import Camera, MjpegCamera
+from camera import Camera, FFmpegCamera, MjpegCamera
 from configuration import ConfigWrapper
 from klippy import Klippy, PowerDevice
 from notifications import Notifier
 from timelapse import Timelapse
+from websocket_helper import WebSocketHelper
 
 sys.modules["json"] = orjson
 
@@ -1206,7 +1206,11 @@ if __name__ == "__main__":
     klippy.psu_device = psu_power_device
     klippy.light_device = light_power_device
 
-    cameraWrap = MjpegCamera(configWrap, klippy, rotatingHandler) if configWrap.camera.cam_type == "mjpeg" else Camera(configWrap, klippy, rotatingHandler)
+    cameraWrap = (
+        MjpegCamera(configWrap, klippy, rotatingHandler)
+        if configWrap.camera.cam_type == "mjpeg"
+        else FFmpegCamera(configWrap, klippy, rotatingHandler) if configWrap.camera.cam_type == "ffmpeg" else Camera(configWrap, klippy, rotatingHandler)
+    )
     bot_updater = start_bot(configWrap.secrets.token, configWrap.bot_config.socks_proxy)
     timelapse = Timelapse(configWrap, klippy, cameraWrap, scheduler, bot_updater.bot, rotatingHandler)
     notifier = Notifier(configWrap, bot_updater.bot, klippy, cameraWrap, scheduler, rotatingHandler)

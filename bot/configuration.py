@@ -133,13 +133,13 @@ class ConfigHelper:
                     self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
                     val = default
                 else:
+                    val = []
                     # Todo: reaise some parsing exception
-                    pass
         elif default is not None:
             val = default
         else:
             # Todo: reaise some parsing exception
-            pass
+            val = []
 
         self._check_list_values(option, val, allowed_values)
         return val
@@ -267,7 +267,7 @@ class CameraConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.cam_type: str = self._get_str("type", default="base", allowed_values=["base", "mjpeg"])
+        self.cam_type: str = self._get_str("type", default="base", allowed_values=["base", "ffmpeg", "mjpeg"])
         self.host: str = self._get_str("host", default="")
         self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
