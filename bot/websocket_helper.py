@@ -436,8 +436,8 @@ class WebSocketHelper:
         with open("../telegram.log", encoding="utf-8") as file:
             lines = file.readlines()
 
-        wslines = list(filter(lambda it: " - {" in it, lines))
-        messages = list(map(lambda el: el.split(" - ")[-1].replace("\n", ""), wslines))
+        wslines = list(filter(lambda it: " - b'{" in it, lines))
+        messages = list(map(lambda el: el.split(" - b'")[-1].replace("'\n", ""), wslines))
 
         for mes in messages:
             self.websocket_to_message(self.websocket, mes)

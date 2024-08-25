@@ -133,13 +133,13 @@ class ConfigHelper:
                     self._parsing_errors.append(f"Error parsing option ({option}) \n {ex}")
                     val = default
                 else:
+                    val = []
                     # Todo: reaise some parsing exception
-                    pass
         elif default is not None:
             val = default
         else:
             # Todo: reaise some parsing exception
-            pass
+            val = []
 
         self._check_list_values(option, val, allowed_values)
         return val
@@ -250,6 +250,7 @@ class CameraConfig(ConfigHelper):
     _section = "camera"
     _KNOWN_ITEMS = [
         "host",
+        "host_snapshot",
         "threads",
         "flip_vertically",
         "flip_horizontally",
@@ -260,12 +261,15 @@ class CameraConfig(ConfigHelper):
         "fps",
         "light_control_timeout",
         "picture_quality",
+        "type",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
+        self.cam_type: str = self._get_str("type", default="base", allowed_values=["base", "ffmpeg", "mjpeg"])
         self.host: str = self._get_str("host", default="")
+        self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
@@ -279,7 +283,6 @@ class CameraConfig(ConfigHelper):
         self.video_buffer_size: int = self._get_int("video_buffer_size", default=2, above=0)
         self.light_timeout: int = self._get_int("light_control_timeout", default=0, min_value=0)
         self.picture_quality: str = self._get_str("picture_quality", default="high", allowed_values=["low", "high"])
-        self.cv2_params = config.items("camera.cv2") if config.has_section("camera.cv2") else []
 
 
 class NotifierConfig(ConfigHelper):

@@ -304,11 +304,13 @@ class Klippy:
 
     def make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
-        res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
+        res = requests.request(method, f"{self._host}{url_path}", data=json if files else orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
-            res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
+            res = requests.request(
+                method, f"{self._host}{url_path}", data=json if files else orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate
+            )
         if not res.ok:
             logger.error(res.reason)
         return res
@@ -429,7 +431,7 @@ class Klippy:
                 img = Image.open("../imgs/nopreview.png").convert("RGB")
 
         bio = BytesIO()
-        bio.name = f"{self.printing_filename}.jpeg"
+        bio.name = f"{self.printing_filename}.webp"
         img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
         bio.seek(0)
         img.close()

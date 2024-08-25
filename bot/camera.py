@@ -13,14 +13,23 @@ import time
 from typing import List, Tuple
 
 from PIL import Image, _webp  # type: ignore
+from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit  # type: ignore
 import ffmpegcv  # type: ignore
+from ffmpegcv import FFmpegReader
 from ffmpegcv.stream_info import get_info  # type: ignore
 import numpy
 from numpy import ndarray
+import requests
 from telegram import Message
 
 from configuration import ConfigWrapper
 from klippy import Klippy, PowerDevice
+
+try:
+    import cv2  # type: ignore
+except ImportError:
+    cv2 = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -63,13 +72,8 @@ def cam_light_toggle(func):
 
 
 class Camera:
-    def __init__(
-        self,
-        config: ConfigWrapper,
-        klippy: Klippy,
-        light_device: PowerDevice,
-        logging_handler: logging.Handler,
-    ):
+
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
         self._threads: int = config.camera.threads
@@ -96,13 +100,11 @@ class Camera:
         self._light_need_off_lock: threading.Lock = threading.Lock()
 
         self.light_timeout: int = config.camera.light_timeout
-        self.light_device: PowerDevice = light_device
+        self.light_device: PowerDevice = self._klippy.light_device
         self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event: threading.Event = threading.Event()
         self.light_timer_event.set()
-
-        self._hw_accel: bool = False
 
         self._picture_quality = config.camera.picture_quality
         self._img_extension: str
@@ -118,13 +120,6 @@ class Camera:
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
 
-        if self._flip_vertically and self._flip_horizontally:
-            self._flip = -1
-        elif self._flip_horizontally:
-            self._flip = 1
-        elif self._flip_vertically:
-            self._flip = 0
-
         self._rotate_code: int
         if config.camera.rotate == "90_cw":
             self._rotate_code = 1
@@ -139,6 +134,20 @@ class Camera:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
+            logger.debug(cv2.getBuildInformation())
+            os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
+
+        # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
+        if cv2.ocl.haveOpenCL():
+            logger.debug("OpenCL is available")
+            cv2.ocl.setUseOpenCL(True)
+            logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
+
+        # self._cv2_params: List = config.camera.cv2_params
+        self._cv2_params: List = []
+        cv2.setNumThreads(self._threads)
+        self.cam_cam = cv2.VideoCapture()
+        self._set_cv2_params()
 
     @property
     def light_need_off(self) -> bool:
@@ -231,12 +240,42 @@ class Camera:
         except ValueError:
             return False
 
+    def _set_cv2_params(self):
+        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        for prop_name, value in self._cv2_params:
+            if prop_name.upper() == "CAP_PROP_FOURCC":
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))
+                except AttributeError as err:
+                    logger.error(err, err)
+            else:
+                if value.isnumeric():
+                    val = int(value)
+                elif self._isfloat(value):
+                    val = float(value)
+                else:
+                    val = value
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, val)
+                except AttributeError as err:
+                    logger.error(err, err)
+
+    def _init_cam(self):
+        self.cam_cam.open(self._host)
+        self._set_cv2_params()
+        cv2.setNumThreads(self._threads)
+
     @cam_light_toggle
-    def take_raw_frame(self, rgb: bool = True) -> ndarray:
+    def _take_raw_frame(self, rgb: bool = True) -> ndarray:
         with self._camera_lock:
-            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
-            success, image = cam.read()
-            cam.release()
+            st_time = time.time()
+            self._init_cam()
+            success, image = self.cam_cam.read()
+            self.cam_cam.release()
+            logger.debug("_take_raw_frame cam read execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
@@ -260,9 +299,9 @@ class Camera:
         return ndaarr
 
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
-        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self.take_raw_frame())
+        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
-        # os.nice(15)  # type: ignore
+        os.nice(15)  # type: ignore
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
             img = img.convert("RGB")
@@ -282,7 +321,7 @@ class Camera:
         bio.seek(0)
 
         img.close()
-        # os.nice(0)  # type: ignore
+        os.nice(0)  # type: ignore
         del img
         return bio
 
@@ -306,37 +345,12 @@ class Camera:
                 frame_local = numpy.rot90(frame_local, k=self._rotate_code, axes=(1, 0))
             return frame_local
 
-        def write_video():
-            # cv2.setNumThreads(self._threads)
-            out = ffmpegcv.VideoWriter(
-                filepath,
-                codec=self._fourcc,
-                fps=fps_cam,
-            )
-            while video_lock.locked():
-                try:
-                    frame_local = frame_queue.get(block=False)
-                except Exception as exc:
-                    logger.warning("Reading video frames queue exception %s", exc)
-                    frame_local = frame_queue.get()
-
-                out.write(process_video_frame(frame_local))
-                frame_local = None
-                del frame_local
-
-            while not frame_queue.empty():
-                frame_local = frame_queue.get()
-                out.write(process_video_frame(frame_local))
-                frame_local = None
-                del frame_local
-
-            out.release()
-            video_written_event.set()
-
         with self._camera_lock:
-            # cv2.setNumThreads(self._threads)
-            cam = ffmpegcv.VideoCaptureStreamRT(self._host)
-            success, frame = cam.read()
+            os.nice(15)  # type: ignore
+            st_time = time.time()
+            self._init_cam()
+            success, frame = self.cam_cam.read()
+            logger.debug("take_video cam read first frame execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
                 logger.debug("failed to get camera frame for video")
@@ -347,27 +361,51 @@ class Camera:
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
-            fps_cam = get_info(self._host).fps if self._stream_fps == 0 else self._stream_fps
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            frame_time = 1.0 / fps_cam
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue = Queue(fps_cam * self._video_buffer_size)
-            video_lock = threading.Lock()
-            video_written_event = threading.Event()
-            video_written_event.clear()
-            with video_lock:
-                threading.Thread(target=write_video, args=()).start()
-                t_end = time.time() + self._video_duration
-                while success and time.time() <= t_end:
-                    success, frame_loc = cam.read()
+            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
+
+            t_end = time.time() + self._video_duration
+            time_last_frame = time.time()
+            while success and time.time() <= t_end:
+                st_time = time.time()
+                success, frame_loc = self.cam_cam.read()
+                logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
+                if time.time() > time_last_frame + frame_time:
+                    # time_last_frame = st_time
+                    time_last_frame = time.time()
                     try:
                         frame_queue.put(frame_loc, block=False)
                     except Exception as ex:
                         logger.warning("Writing video frames queue exception %s", ex.with_traceback)
-                        frame_queue.put(frame_loc)
-                    frame_loc = None
-                    del frame_loc
-            video_written_event.wait()
-            cam.release()
+                        # frame_queue.put(frame_loc)
+                frame_loc = None
+                del frame_loc
+
+            self.cam_cam.release()
+
+            res_fps = frame_queue.qsize() / self._video_duration
+
+            logger.debug("res fps - %s", res_fps)
+
+            cv2.setNumThreads(self._threads)
+            out = ffmpegcv.VideoWriter(
+                filepath,
+                codec=self._fourcc,
+                fps=res_fps,
+            )
+
+            while not frame_queue.empty():
+                frame_local = frame_queue.get()
+                out.write(process_video_frame(frame_local))
+                frame_queue.task_done()
+                frame_local = None
+                del frame_local
+
+            out.release()
+            os.nice(0)  # type: ignore
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
@@ -382,7 +420,7 @@ class Camera:
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
-        raw_frame = self.take_raw_frame(rgb=False)
+        raw_frame = self._take_raw_frame(rgb=False)
         if gcode:
             try:
                 self._klippy.execute_gcode_script(gcode.strip())
@@ -402,6 +440,7 @@ class Camera:
         # never add self in params there!
         if self._save_lapse_photos_as_images:
             with self.take_photo(raw_frame_rgb) as photo:
+                # Fixme: jpeg_low is bad fiel extension!
                 filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
                 with open(filename, "wb") as outfile:
                     outfile.write(photo.getvalue())
@@ -435,6 +474,9 @@ class Camera:
             logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
             return self._target_fps
 
+    def _get_frame(self, path: str):
+        return numpy.load(path, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(path, allow_pickle=True)
+
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")
@@ -459,7 +501,7 @@ class Camera:
 
         info_mess.edit_text(text="Creating thumbnail")
         last_frame = raw_frames[-1]
-        img = numpy.load(last_frame, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(last_frame, allow_pickle=True)
+        img = self._get_frame(last_frame)
 
         height, width, layers = img.shape
         thumb_bio = self._create_thumb(img)
@@ -496,7 +538,7 @@ class Camera:
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
-                    out.write((numpy.load(filename, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(filename, allow_pickle=True)))
+                    out.write(self._get_frame(filename))
                     frames_recorded += 1
                 else:
                     frames_skipped += 1
@@ -565,3 +607,155 @@ class Camera:
     def cleanup_unfinished_lapses(self):
         for lapse_name in self.detect_unfinished_lapses():
             self.cleanup(lapse_name, force=True)
+
+
+class FFmpegCamera(Camera):
+
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
+        super().__init__(config, klippy, logging_handler)
+
+        self._cam_timeout: int = 5
+        self.videoinfo = get_info(self._host, self._cam_timeout)
+        self.cam_cam: FFmpegReader
+
+    def _init_cam(self):
+        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
+
+
+class MjpegCamera(Camera):
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
+        super().__init__(config, klippy, logging_handler)
+        self._img_extension = "jpeg"
+        self._raw_frame_extension: str = "jpeg"
+        self._host = config.camera.host
+        self._host_snapshot = config.camera.host_snapshot if config.camera.host_snapshot else self._host.replace("stream", "snapshot")
+
+        self._rotate_code_mjpeg: Image.Transpose
+        if config.camera.rotate == "90_cw":
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_270
+        elif config.camera.rotate == "90_ccw":
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_90
+        elif config.camera.rotate == "180":
+            self._rotate_code_mjpeg = Image.Transpose.ROTATE_180
+        else:
+            self._rotate_code_mjpeg = None  # type: ignore
+
+    @cam_light_toggle
+    def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
+        response = requests.get(f"{self._host_snapshot}", timeout=5, stream=True)
+        bio = BytesIO()
+
+        if response.ok and response.headers["Content-Type"] == "image/jpeg":
+            response.raw.decode_content = True
+
+            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg):
+                img = Image.open(response.raw).convert("RGB")
+                if self._flip_vertically:
+                    img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                if self._flip_horizontally:
+                    img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if self._rotate_code_mjpeg:
+                    img = img.transpose(self._rotate_code_mjpeg)
+                img.save(bio, format="JPEG")
+                img.close()
+                del img
+            else:
+                bio.write(response.raw.read())
+        else:
+            logger.error("Streamer snapshot get failed\n\n%s", response.reason)
+            with open("../imgs/nosignal.png", "rb") as file:
+                bio.write(file.read())
+
+        bio.seek(0)
+        return bio
+
+    def take_lapse_photo(self, gcode: str = "") -> None:
+        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
+        # Todo: check for space available?
+        Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
+        with self.take_photo(force_rotate=False) as photo:
+            filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
+            with open(filename, "wb") as outfile:
+                outfile.write(photo.getvalue())
+
+    def _image_to_frame(self, image_bio: BytesIO):
+        image_bio.seek(0)
+        img = Image.open(image_bio)
+        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
+            if self._flip_vertically:
+                img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            if self._flip_horizontally:
+                img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            if self._rotate_code_mjpeg:
+                img = img.transpose(self._rotate_code_mjpeg)
+        res = numpy.array(img)
+        img.close()
+        del img
+        return res[:, :, [2, 1, 0]].copy()
+
+    # Todo: apply frames rotation during ffmpeg call!
+    def _get_frame(self, path: str):
+        with open(path, "rb") as image_file:
+            buff = BytesIO(image_file.read())
+            return self._image_to_frame(buff)
+
+    @cam_light_toggle
+    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+
+        with self._camera_lock:
+            os.nice(15)  # type: ignore
+            frame = self._image_to_frame(self.take_photo())
+            height, width, channels = frame.shape
+            thumb_bio = self._create_thumb(frame)
+            del frame, channels
+
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            frame_time = 1.0 / fps_cam
+
+            filepath = os.path.join("/tmp/", "video.mp4")
+            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
+
+            t_end = time.time() + self._video_duration
+            time_last_frame = time.time()
+            while time.time() <= t_end:
+                st_time = time.time()
+                frame_loc = self.take_photo()
+                logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
+                if time.time() > time_last_frame + frame_time:
+                    time_last_frame = time.time()
+                    try:
+                        frame_queue.put(frame_loc, block=False)
+                    except Exception as ex:
+                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
+                        # frame_queue.put(frame_loc)
+                frame_loc = None
+                del frame_loc
+
+            res_fps = frame_queue.qsize() / self._video_duration
+
+            logger.debug("res fps - %s", res_fps)
+
+            cv2.setNumThreads(self._threads)
+            out = ffmpegcv.VideoWriter(
+                filepath,
+                codec=self._fourcc,
+                fps=res_fps,
+            )
+
+            while not frame_queue.empty():
+                frame_local = frame_queue.get()
+                out.write(self._image_to_frame(frame_local))
+                frame_queue.task_done()
+                frame_local = None
+                del frame_local
+
+            out.release()
+            os.nice(0)  # type: ignore
+
+        video_bio = BytesIO()
+        video_bio.name = "video.mp4"
+        with open(filepath, "rb") as video_file:
+            video_bio.write(video_file.read())
+        os.remove(filepath)
+        video_bio.seek(0)
+        return video_bio, thumb_bio, width, height
