@@ -8,13 +8,13 @@ chat_id: 0
 [camera]
 host: http://localhost:8080/?action=stream
 
-[progress_notification]
-percent: 5
-height: 5
-time: 5
+#[progress_notification]
+#percent: 5
+#height: 5
+#time: 600
 
-[timelapse]
-cleanup: true
-height: 0.2
-time: 5
-target_fps: 30
+#[timelapse]
+#cleanup: true
+#height: 0.2
+#time: 60
+#target_fps: 30
