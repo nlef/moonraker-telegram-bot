@@ -7,6 +7,7 @@ chat_id: 0
 
 [camera]
 host: http://localhost:8080/?action=stream
+type: mjpeg
 
 #[progress_notification]
 #percent: 5
@@ -17,4 +18,6 @@ host: http://localhost:8080/?action=stream
 #cleanup: true
 #height: 0.2
 #time: 60
-#target_fps: 30
+#target_fps: 15
+#min_lapse_duration: 10
+#max_lapse_duration: 60
