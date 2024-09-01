@@ -390,7 +390,6 @@ class Camera:
 
             logger.debug("res fps - %s", res_fps)
 
-            cv2.setNumThreads(self._threads)
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
