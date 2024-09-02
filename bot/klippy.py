@@ -250,8 +250,8 @@ class Klippy:
             logger.warning("bad response for file request %s", response.reason)
         resp = orjson.loads(response.text)["result"]
         self._printing_filename = new_value
-        self.file_estimated_time = resp["estimated_time"] if resp["estimated_time"] else 0.0
-        self.file_print_start_time = resp["print_start_time"] if resp["print_start_time"] else time.time()
+        self.file_estimated_time = resp["estimated_time"] if resp.get("estimated_time") else 0.0
+        self.file_print_start_time = resp["print_start_time"] if resp.get("print_start_time") else time.time()
         self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
         self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
 
