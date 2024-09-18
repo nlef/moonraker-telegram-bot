@@ -645,19 +645,23 @@ class MjpegCamera(Camera):
 
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
-            img = Image.open(response.raw).convert("RGB")
 
-            if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg):
-                if self._flip_vertically:
-                    img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-                if self._flip_horizontally:
-                    img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                if self._rotate_code_mjpeg:
-                    img = img.transpose(self._rotate_code_mjpeg)
+            if force_rotate:
+                img = Image.open(response.raw).convert("RGB")
 
-            img.save(bio, format="JPEG")
-            img.close()
-            del img
+                if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
+                    if self._flip_vertically:
+                        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                    if self._flip_horizontally:
+                        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                    if self._rotate_code_mjpeg:
+                        img = img.transpose(self._rotate_code_mjpeg)
+
+                img.save(bio, format="JPEG")
+                img.close()
+                del img
+            else:
+                bio.write(response.raw.read())
         else:
             logger.error("Streamer snapshot get failed\n\n%s", response.reason)
             with open("../imgs/nosignal.png", "rb") as file:
@@ -699,7 +703,7 @@ class MjpegCamera(Camera):
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
-            os.nice(15)  # type: ignore
+            # os.nice(15)  # type: ignore
             frame = self._image_to_frame(self.take_photo(force_rotate=False))
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
@@ -746,7 +750,7 @@ class MjpegCamera(Camera):
                 del frame_local
 
             out.release()
-            os.nice(0)  # type: ignore
+            # os.nice(0)  # type: ignore
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
