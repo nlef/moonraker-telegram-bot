@@ -374,7 +374,6 @@ class Camera:
                 success, frame_loc = self.cam_cam.read()
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
-                    # time_last_frame = st_time
                     time_last_frame = time.time()
                     try:
                         frame_queue.put(frame_loc, block=False)
@@ -646,25 +645,23 @@ class MjpegCamera(Camera):
 
         if response.ok and response.headers["Content-Type"] == "image/jpeg":
             response.raw.decode_content = True
+            img = Image.open(response.raw).convert("RGB")
 
             if force_rotate and (self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg):
-                img = Image.open(response.raw).convert("RGB")
                 if self._flip_vertically:
                     img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                 if self._flip_horizontally:
                     img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
                 if self._rotate_code_mjpeg:
                     img = img.transpose(self._rotate_code_mjpeg)
-                img.save(bio, format="JPEG")
-                img.close()
-                del img
-            else:
-                bio.write(response.raw.read())
+
+            img.save(bio, format="JPEG")
+            img.close()
+            del img
         else:
             logger.error("Streamer snapshot get failed\n\n%s", response.reason)
             with open("../imgs/nosignal.png", "rb") as file:
                 bio.write(file.read())
-
         bio.seek(0)
         return bio
 
@@ -703,7 +700,7 @@ class MjpegCamera(Camera):
 
         with self._camera_lock:
             os.nice(15)  # type: ignore
-            frame = self._image_to_frame(self.take_photo())
+            frame = self._image_to_frame(self.take_photo(force_rotate=False))
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
             del frame, channels
@@ -718,7 +715,7 @@ class MjpegCamera(Camera):
             time_last_frame = time.time()
             while time.time() <= t_end:
                 st_time = time.time()
-                frame_loc = self.take_photo()
+                frame_loc = self.take_photo(force_rotate=False)
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
