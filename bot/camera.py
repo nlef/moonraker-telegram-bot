@@ -703,7 +703,7 @@ class MjpegCamera(Camera):
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
-            # os.nice(15)  # type: ignore
+            os.nice(15)  # type: ignore
             frame = self._image_to_frame(self.take_photo(force_rotate=False))
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
@@ -750,7 +750,7 @@ class MjpegCamera(Camera):
                 del frame_local
 
             out.release()
-            # os.nice(0)  # type: ignore
+            os.nice(0)  # type: ignore
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
