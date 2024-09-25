@@ -71,7 +71,7 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha
+            type=sha,prefix=sha-mjpeg-
       -
         name: Login to Docker Hub
         uses: docker/login-action@v3.3.0
