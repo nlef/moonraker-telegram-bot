@@ -499,7 +499,11 @@ class Camera:
                 out.write(img)
 
             out.release()
-            cv2.destroyAllWindows()
+            try:
+                cv2.destroyAllWindows()
+            except cv2.error:
+                # OpenCV was likely built without GUI support
+                pass
             del out
 
         del photos, img, layers
