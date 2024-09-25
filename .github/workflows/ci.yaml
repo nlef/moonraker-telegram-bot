@@ -64,11 +64,13 @@ jobs:
         uses: docker/metadata-action@v5.5.1
         with:
           images: lefskiy/moonraker-telegram-bot
+          flavor: |
+            prefix=mjpeg-
           tags: |
-            type=raw,value=mjpeg-latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
-            type=ref,event=mjpeg-branch
-            type=semver,pattern=mjpeg-{{version}}
-            type=semver,pattern=mjpeg-{{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha
       -
         name: Login to Docker Hub
