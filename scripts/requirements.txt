@@ -1,4 +1,4 @@
-emoji==2.12.1
+emoji==2.13.2
 ffmpegcv==0.3.15
 idna==3.10
 orjson==3.10.7

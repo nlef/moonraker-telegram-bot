@@ -65,7 +65,7 @@ jobs:
         with:
           images: lefskiy/moonraker-telegram-bot
           flavor: |
-            prefix=mjpeg-
+            prefix=mjpeg-,onlatest=true
           tags: |
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
             type=ref,event=branch
