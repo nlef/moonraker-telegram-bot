@@ -304,12 +304,12 @@ class Klippy:
 
     def make_request(self, method, url_path, json=None, headers=None, files=None, timeout=30, stream=None) -> requests.Response:
         _headers = headers if headers else self._headers
-        res = requests.request(method, f"{self._host}{url_path}", data=json if files else orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
+        res = requests.request(method, f"{self._host}{url_path}", data=orjson.dumps(json) if json else None, headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate)
         if res.status_code == 401:  # Unauthorized
             logger.debug("JWT token expired, refreshing...")
             self._refresh_moonraker_token()
             res = requests.request(
-                method, f"{self._host}{url_path}", data=json if files else orjson.dumps(json), headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate
+                method, f"{self._host}{url_path}", data=orjson.dumps(json) if json else None, headers=_headers, files=files, timeout=timeout, stream=stream, verify=self._ssl_validate
             )
         if not res.ok:
             logger.error(res.reason)

@@ -638,6 +638,16 @@ class MjpegCamera(Camera):
         else:
             self._rotate_code_mjpeg = None  # type: ignore
 
+    def _rotate_img(self, img: Image.Image) -> Image.Image:
+        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
+            if self._flip_vertically:
+                img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            if self._flip_horizontally:
+                img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            if self._rotate_code_mjpeg:
+                img = img.transpose(self._rotate_code_mjpeg)
+        return img
+
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
         response = requests.get(f"{self._host_snapshot}", timeout=5, stream=True)
@@ -647,18 +657,11 @@ class MjpegCamera(Camera):
             response.raw.decode_content = True
 
             if force_rotate:
-                img = Image.open(response.raw).convert("RGB")
-
-                if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
-                    if self._flip_vertically:
-                        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-                    if self._flip_horizontally:
-                        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                    if self._rotate_code_mjpeg:
-                        img = img.transpose(self._rotate_code_mjpeg)
-
+                # os.nice(15)  # type: ignore
+                img = self._rotate_img(Image.open(response.raw).convert("RGB"))
                 img.save(bio, format="JPEG")
                 img.close()
+                # os.nice(0)  # type: ignore
                 del img
             else:
                 bio.write(response.raw.read())
@@ -680,14 +683,7 @@ class MjpegCamera(Camera):
 
     def _image_to_frame(self, image_bio: BytesIO):
         image_bio.seek(0)
-        img = Image.open(image_bio)
-        if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:
-            if self._flip_vertically:
-                img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-            if self._flip_horizontally:
-                img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            if self._rotate_code_mjpeg:
-                img = img.transpose(self._rotate_code_mjpeg)
+        img = self._rotate_img(Image.open(image_bio))
         res = numpy.array(img)
         img.close()
         del img
@@ -697,13 +693,15 @@ class MjpegCamera(Camera):
     def _get_frame(self, path: str):
         with open(path, "rb") as image_file:
             buff = BytesIO(image_file.read())
-            return self._image_to_frame(buff)
+            res = self._image_to_frame(buff)
+            buff.close()
+            return res
 
     @cam_light_toggle
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
-            os.nice(15)  # type: ignore
+            # os.nice(15)  # type: ignore
             frame = self._image_to_frame(self.take_photo(force_rotate=False))
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
@@ -750,7 +748,7 @@ class MjpegCamera(Camera):
                 del frame_local
 
             out.release()
-            os.nice(0)  # type: ignore
+            # os.nice(0)  # type: ignore
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
