@@ -1,6 +1,7 @@
 import asyncio
 import functools
 from functools import wraps
+import gc
 import glob
 from io import BytesIO
 import logging
@@ -366,7 +367,7 @@ class Camera:
             frame_time = 1.0 / fps_cam
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
+            frame_list = []
 
             t_end = time.time() + self._video_duration
             time_last_frame = time.time()
@@ -376,17 +377,13 @@ class Camera:
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    try:
-                        frame_queue.put(frame_loc, block=False)
-                    except Exception as ex:
-                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
-                        # frame_queue.put(frame_loc)
+                    frame_list.append(frame_loc)
                 frame_loc = None
                 del frame_loc
 
             self.cam_cam.release()
 
-            res_fps = frame_queue.qsize() / self._video_duration
+            res_fps = len(frame_list) / self._video_duration
 
             logger.debug("res fps - %s", res_fps)
 
@@ -396,15 +393,20 @@ class Camera:
                 fps=res_fps,
             )
 
-            while not frame_queue.empty():
-                frame_local = frame_queue.get()
-                out.write(process_video_frame(frame_local))
-                frame_queue.task_done()
-                frame_local = None
-                del frame_local
+            for el in frame_list:
+                out.write(process_video_frame(el))
+            for ii in range(len(frame_list)):
+                frame_list[ii] = None
 
             out.release()
+            del out
             os_nice(0)
+
+            del frame_list[:]
+            frame_list.clear()
+            frame_list = None  # type: ignore
+            del frame_list
+            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
@@ -714,7 +716,7 @@ class MjpegCamera(Camera):
             frame_time = 1.0 / fps_cam
 
             filepath = os.path.join("/tmp/", "video.mp4")
-            frame_queue: Queue = Queue(fps_cam * (self._video_duration + 2))
+            frame_list = []
 
             t_end = time.time() + self._video_duration
             time_last_frame = time.time()
@@ -724,15 +726,11 @@ class MjpegCamera(Camera):
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    try:
-                        frame_queue.put(frame_loc, block=False)
-                    except Exception as ex:
-                        logger.warning("Writing video frames queue exception %s", ex.with_traceback)
-                        # frame_queue.put(frame_loc)
+                    frame_list.append(frame_loc)
                 frame_loc = None
                 del frame_loc
 
-            res_fps = frame_queue.qsize() / self._video_duration
+            res_fps = len(frame_list) / self._video_duration
 
             logger.debug("res fps - %s", res_fps)
 
@@ -742,15 +740,20 @@ class MjpegCamera(Camera):
                 fps=res_fps,
             )
 
-            while not frame_queue.empty():
-                frame_local = frame_queue.get()
-                out.write(self._image_to_frame(frame_local))
-                frame_queue.task_done()
-                frame_local = None
-                del frame_local
+            for el in frame_list:
+                out.write(self._image_to_frame(el))
+            for ii in range(len(frame_list)):
+                frame_list[ii] = None
 
             out.release()
+            del out
             os_nice(0)
+
+            del frame_list[:]
+            frame_list.clear()
+            frame_list = None  # type: ignore
+            del frame_list
+            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
