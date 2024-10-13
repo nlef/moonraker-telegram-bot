@@ -123,7 +123,7 @@ class WebSocketHelper:
             print_stats = status_resp["print_stats"]
             if print_stats["state"] in ["printing", "paused"]:
                 self._klippy.printing = True
-                self._klippy.printing_filename = print_stats["filename"]
+                await self._klippy.set_printing_filename(print_stats["filename"])
                 self._klippy.printing_duration = print_stats["print_duration"]
                 self._klippy.filament_used = print_stats["filament_used"]
                 # Todo: maybe get print start time and set start interval for job?
@@ -246,7 +246,7 @@ class WebSocketHelper:
         # Fixme:  maybe do not parse without state? history data may not be avaliable
         # Message with filename will be sent before printing is started
         if "filename" in print_stats_loc:
-            self._klippy.printing_filename = print_stats_loc["filename"]
+            await self._klippy.set_printing_filename(print_stats_loc["filename"])
         if "filament_used" in print_stats_loc:
             self._klippy.filament_used = print_stats_loc["filament_used"]
         if "state" in print_stats_loc:

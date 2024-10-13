@@ -1100,7 +1100,7 @@ def get_local_ip():
 
 def start_bot(bot_token, socks):
     app_builder = Application.builder()
-    app_builder.base_url(configWrap.bot_config.api_url).get_updates_connection_pool_size(2).read_timeout(15).write_timeout(15).get_updates_read_timeout(30).get_updates_write_timeout(
+    app_builder.base_url(configWrap.bot_config.api_url).get_updates_connection_pool_size(4).read_timeout(30).write_timeout(30).get_updates_read_timeout(30).get_updates_write_timeout(
         30
     ).media_write_timeout(120).token(bot_token)
     if socks:
