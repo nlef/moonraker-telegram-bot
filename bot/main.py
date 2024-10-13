@@ -468,7 +468,7 @@ async def light_toggle(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     if light_power_device:
-        mess = f"Device `{light_power_device.name}` toggled " + ("on" if light_power_device.toggle_device() else "off")
+        mess = f"Device `{light_power_device.name}` toggled " + ("on" if await light_power_device.toggle_device() else "off")
         await update.effective_message.reply_text(
             mess,
             parse_mode=ParseMode.HTML,

@@ -65,6 +65,26 @@ class PowerDevice:
                     logger.error("Power device switch failed: %s", res)
                     return state
 
+    # Todo: return exception?
+    def switch_device_sync(self, state: bool) -> bool:
+        with self._state_lock:
+            if state:
+                res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action=on")
+                if res.is_success:
+                    self._device_on = True
+                    return True
+                else:
+                    logger.error("Power device switch failed: %s", res)
+                    return state
+            else:
+                res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action=off")
+                if res.is_success:
+                    self._device_on = False
+                    return False
+                else:
+                    logger.error("Power device switch failed: %s", res)
+                    return state
+
 
 class Klippy:
     _DATA_MACRO = "bot_data"
