@@ -1,9 +1,11 @@
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import functools
 import logging
-import time
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
-from telegram import Bot, ChatAction, Message
+from telegram import Bot, Message
+from telegram.constants import ChatAction
 from telegram.error import BadRequest
 
 from camera import Camera
@@ -234,7 +236,7 @@ class Timelapse:
                 replace_existing=True,
             )
 
-    def _send_lapse(self) -> None:
+    async def _send_lapse(self) -> None:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
             return
@@ -242,20 +244,22 @@ class Timelapse:
         lapse_filename = self._klippy.printing_filename_with_time
         gcode_name = self._klippy.printing_filename
 
-        info_mess: Message = self._bot.send_message(
+        info_mess: Message = await self._bot.send_message(
             chat_id=self._chat_id,
             text=f"Starting time-lapse assembly for {gcode_name}",
             disable_notification=self._silent_progress,
         )
 
         if self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
-            info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
+            await info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
-        time.sleep(5)
+        await asyncio.sleep(5)
         while self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
-            time.sleep(1)
+            await asyncio.sleep(1)
 
-        self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
+        await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
+
+        loop = asyncio.get_running_loop()
 
         try:
             (
@@ -265,31 +269,31 @@ class Timelapse:
                 height,
                 video_path,
                 gcode_name,
-            ) = self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
+            ) = await loop.run_in_executor(self._executors_pool, functools.partial(self._camera.create_timelapse, lapse_filename, gcode_name, info_mess)).result()
 
             if self._send_finished_lapse:
-                info_mess.edit_text(text="Uploading time-lapse")
+                await info_mess.edit_text(text="Uploading time-lapse")
 
                 if video_bio.getbuffer().nbytes > 52428800:
-                    info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
+                    await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
-                    self._bot.send_video(
+                    await self._bot.send_video(
                         self._chat_id,
                         video=video_bio,
-                        thumb=thumb_bio,
+                        thumbnail=thumb_bio,
                         width=width,
                         height=height,
                         caption=f"time-lapse of {gcode_name}",
-                        timeout=120,
+                        write_timeout=120,
                         disable_notification=self._silent_progress,
                     )
                     try:
-                        self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                        await self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
                     except BadRequest as badreq:
                         logger.warning("Failed deleting message \n%s", badreq)
                     self._camera.cleanup(lapse_filename)
             else:
-                info_mess.edit_text(text="Time-lapse creation finished")
+                await info_mess.edit_text(text="Time-lapse creation finished")
 
             video_bio_nbytes = video_bio.getbuffer().nbytes
             video_bio.close()
@@ -297,11 +301,11 @@ class Timelapse:
 
             if self._after_lapse_gcode:
                 # Todo: add exception handling
-                self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
-                self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
+                await self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
+                await self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
         except Exception as ex:
             logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
-            info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
+            await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
 
     def send_timelapse(self) -> None:
         self._sched.add_job(
@@ -318,7 +322,7 @@ class Timelapse:
         self._paused = False
         self._last_height = 0.0
 
-    def parse_timelapse_params(self, message: str) -> None:
+    async def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
         mass_parts.pop(0)
         response = ""
@@ -358,9 +362,9 @@ class Timelapse:
                     self._after_photo_gcode = part.split(sep="=").pop()
                     response += f"after_photo_gcode={self._after_photo_gcode} "
                 else:
-                    self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
+                    await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
             except Exception as ex:
-                self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
+                await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = (
                 f"enabled={self.enabled} "
@@ -375,5 +379,5 @@ class Timelapse:
                 f"send_finished_lapse={self._send_finished_lapse} "
                 f"after_photo_gcode={self._after_photo_gcode} "
             )
-            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
-            self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')
+            await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Changed timelapse params: {response}"')
+            await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params" MSG="Full timelapse config: {full_conf}"')

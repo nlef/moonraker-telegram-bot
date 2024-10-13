@@ -1,4 +1,5 @@
-from contextlib import contextmanager
+import asyncio
+import functools
 from functools import wraps
 import glob
 from io import BytesIO
@@ -17,9 +18,9 @@ from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit  # type: ignor
 import ffmpegcv  # type: ignore
 from ffmpegcv import FFmpegReader
 from ffmpegcv.stream_info import get_info  # type: ignore
+import httpx
 import numpy
 from numpy import ndarray
-import requests
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -69,6 +70,13 @@ def cam_light_toggle(func):
         return result
 
     return wrapper
+
+
+def os_nice(value: int):
+    try:
+        os.nice(value)  # type: ignore
+    except Exception:
+        pass
 
 
 class Camera:
@@ -134,20 +142,23 @@ class Camera:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
-            logger.debug(cv2.getBuildInformation())
-            os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
 
+        # fixme: check init with NO opencv in other cameras!
         # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
-        if cv2.ocl.haveOpenCL():
-            logger.debug("OpenCL is available")
-            cv2.ocl.setUseOpenCL(True)
-            logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
+        if cv2:
+            if config.bot_config.debug:
+                logger.debug(cv2.getBuildInformation())
+                os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
+            if cv2.ocl.haveOpenCL():
+                logger.debug("OpenCL is available")
+                cv2.ocl.setUseOpenCL(True)
+                logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
-        # self._cv2_params: List = config.camera.cv2_params
-        self._cv2_params: List = []
-        cv2.setNumThreads(self._threads)
-        self.cam_cam = cv2.VideoCapture()
-        self._set_cv2_params()
+            # self._cv2_params: List = config.camera.cv2_params
+            self._cv2_params: List = []
+            cv2.setNumThreads(self._threads)
+            self.cam_cam = cv2.VideoCapture()
+            self._set_cv2_params()
 
     @property
     def light_need_off(self) -> bool:
@@ -221,7 +232,6 @@ class Camera:
 
     @staticmethod
     def _create_thumb(image) -> BytesIO:
-        # cv2.cvtColor cause segfaults!
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
         bio.name = "thumbnail.jpeg"
@@ -301,7 +311,7 @@ class Camera:
     def take_photo(self, ndarr: ndarray = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
-        os.nice(15)  # type: ignore
+        os_nice(15)
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
             img = img.convert("RGB")
@@ -321,18 +331,9 @@ class Camera:
         bio.seek(0)
 
         img.close()
-        os.nice(0)  # type: ignore
+        os_nice(0)
         del img
         return bio
-
-    @contextmanager
-    def take_video_generator(self):
-        (video_bio, thumb_bio, width, height) = self.take_video()
-        try:
-            yield video_bio, thumb_bio, width, height
-        finally:
-            video_bio.close()
-            thumb_bio.close()
 
     @cam_light_toggle
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
@@ -346,7 +347,7 @@ class Camera:
             return frame_local
 
         with self._camera_lock:
-            os.nice(15)  # type: ignore
+            os_nice(15)
             st_time = time.time()
             self._init_cam()
             success, frame = self.cam_cam.read()
@@ -403,7 +404,7 @@ class Camera:
                 del frame_local
 
             out.release()
-            os.nice(0)  # type: ignore
+            os_nice(0)
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
@@ -421,11 +422,11 @@ class Camera:
         raw_frame = self._take_raw_frame(rgb=False)
         if gcode:
             try:
-                self._klippy.execute_gcode_script(gcode.strip())
+                self._klippy.execute_gcode_script_sync(gcode.strip())
             except Exception as ex:
                 logger.error(ex)
 
-        os.nice(15)  # type: ignore
+        os_nice(15)
         if self._raw_compressed:
             numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
         else:
@@ -433,12 +434,12 @@ class Camera:
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
         raw_frame = None
-        os.nice(0)  # type: ignore
+        os_nice(0)
 
         # never add self in params there!
         if self._save_lapse_photos_as_images:
             with self.take_photo(raw_frame_rgb) as photo:
-                # Fixme: jpeg_low is bad fiel extension!
+                # Fixme: jpeg_low is bad file extension!
                 filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
                 with open(filename, "wb") as outfile:
                     outfile.write(photo.getvalue())
@@ -447,11 +448,13 @@ class Camera:
         raw_frame_rgb = None
         del raw_frame, raw_frame_rgb
 
-    def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
-        return self._create_timelapse(printing_filename, gcode_name, info_mess)
+    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, functools.partial(self._create_timelapse, printing_filename, gcode_name, info_mess, loop))
 
-    def create_timelapse_for_file(self, filename: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
-        return self._create_timelapse(filename, filename, info_mess)
+    async def create_timelapse_for_file(self, filename: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, functools.partial(self._create_timelapse, filename, filename, info_mess, loop))
 
     def _calculate_fps(self, frames_count: int) -> int:
         actual_duration = frames_count / self._target_fps
@@ -475,14 +478,14 @@ class Camera:
     def _get_frame(self, path: str):
         return numpy.load(path, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(path, allow_pickle=True)
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")
 
         while self.light_need_off:
             time.sleep(1)
 
-        os.nice(15)  # type: ignore
+        os_nice(15)
 
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
@@ -497,7 +500,7 @@ class Camera:
 
         raw_frames.sort(key=os.path.getmtime)
 
-        info_mess.edit_text(text="Creating thumbnail")
+        asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Creating thumbnail"), loop).result()
         last_frame = raw_frames[-1]
         img = self._get_frame(last_frame)
 
@@ -516,23 +519,22 @@ class Camera:
             lapse_fps = self._target_fps
 
         with self._camera_lock:
-            # cv2.setNumThreads(self._threads)
             out = ffmpegcv.VideoWriter(
                 video_filepath,
                 codec=self._fourcc,
                 fps=lapse_fps,
             )
 
-            info_mess.edit_text(text="Images recoding")
+            asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Images recoding"), loop).result()
             last_update_time = time.time()
             frames_skipped = 0
             frames_recorded = 0
             for fnum, filename in enumerate(raw_frames):
                 if time.time() >= last_update_time + 10:
                     if self._limit_fps:
-                        info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}")
+                        asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
                     else:
-                        info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}")
+                        asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}"), loop).result()
                     last_update_time = time.time()
 
                 if not self._limit_fps or fnum % odd_frames == 0:
@@ -542,12 +544,12 @@ class Camera:
                     frames_skipped += 1
 
             if self._last_frame_duration > 0:
-                info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds")
+                asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds"), loop).result()
                 for _ in range(lapse_fps * self._last_frame_duration):
                     out.write(img)
 
             if self._limit_fps:
-                info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}")
+                asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
 
             out.release()
             del out
@@ -562,7 +564,7 @@ class Camera:
         with open(video_filepath, "rb") as fh:
             video_bio.write(fh.read())
         if self._ready_dir and os.path.isdir(self._ready_dir):
-            info_mess.edit_text(text="Copy lapse to target ditectory")
+            asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Copy lapse to target ditectory"), loop).result()
             Path(target_video_file).parent.mkdir(parents=True, exist_ok=True)
             with open(target_video_file, "wb") as cpf:
                 cpf.write(video_bio.getvalue())
@@ -570,7 +572,7 @@ class Camera:
 
         os.remove(f"{lapse_dir}/lapse.lock")
 
-        os.nice(0)  # type: ignore
+        os_nice(0)
 
         return video_bio, thumb_bio, width, height, video_filepath, gcode_name
 
@@ -650,25 +652,25 @@ class MjpegCamera(Camera):
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
-        response = requests.get(f"{self._host_snapshot}", timeout=5, stream=True)
+        response = httpx.get(f"{self._host_snapshot}", timeout=5)
         bio = BytesIO()
 
-        if response.ok and response.headers["Content-Type"] == "image/jpeg":
-            response.raw.decode_content = True
+        os_nice(15)
+        if response.is_success and response.headers["Content-Type"] == "image/jpeg":
 
             if force_rotate:
-                os.nice(15)  # type: ignore
-                img = self._rotate_img(Image.open(response.raw).convert("RGB"))
+                img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
                 img.save(bio, format="JPEG")
                 img.close()
-                os.nice(0)  # type: ignore
                 del img
             else:
-                bio.write(response.raw.read())
+                bio.write(response.content)
         else:
-            logger.error("Streamer snapshot get failed\n\n%s", response.reason)
+            logger.error("Streamer snapshot get failed\n\n%s", response.status_code)
             with open("../imgs/nosignal.png", "rb") as file:
                 bio.write(file.read())
+
+        os_nice(0)
         bio.seek(0)
         return bio
 
@@ -701,13 +703,14 @@ class MjpegCamera(Camera):
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
-            os.nice(15)  # type: ignore
+            os_nice(15)
             frame = self._image_to_frame(self.take_photo(force_rotate=False))
             height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
-            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            # Todo: maybe there is another way to get fps from a streamer
+            fps_cam = 15 if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
 
             filepath = os.path.join("/tmp/", "video.mp4")
@@ -733,7 +736,6 @@ class MjpegCamera(Camera):
 
             logger.debug("res fps - %s", res_fps)
 
-            cv2.setNumThreads(self._threads)
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
@@ -748,7 +750,7 @@ class MjpegCamera(Camera):
                 del frame_local
 
             out.release()
-            os.nice(0)  # type: ignore
+            os_nice(0)
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
