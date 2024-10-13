@@ -147,8 +147,8 @@ async def status(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         mess = await klippy.get_status()
         if cameraWrap.enabled:
-            loop = asyncio.get_running_loop()
-            with await loop.run_in_executor(executors_pool, cameraWrap.take_photo) as bio:
+            loop_loc = asyncio.get_running_loop()
+            with await loop_loc.run_in_executor(executors_pool, cameraWrap.take_photo) as bio:
                 await update.effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_PHOTO)
                 await update.effective_message.reply_photo(
                     photo=bio,
@@ -230,8 +230,8 @@ async def get_video(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         )
         await update.effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
 
-        loop = asyncio.get_running_loop()
-        (video_bio, thumb_bio, width, height) = await loop.run_in_executor(executors_pool, cameraWrap.take_video)
+        loop_loc = asyncio.get_running_loop()
+        (video_bio, thumb_bio, width, height) = await loop_loc.run_in_executor(executors_pool, cameraWrap.take_video)
         await info_reply.edit_text(text="Uploading video")
         if video_bio.getbuffer().nbytes > 52428800:
             await info_reply.edit_text(text="Telegram has a 50mb restriction...")
@@ -1144,8 +1144,7 @@ def start_bot(bot_token, socks):
     return application
 
 
-async def bootstrap():
-    global configWrap, klippy, light_power_device, psu_power_device, cameraWrap, timelapse, notifier, ws_helper
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Moonraker Telegram Bot")
     parser.add_argument(
         "-c",
@@ -1221,7 +1220,3 @@ async def bootstrap():
 
     a_scheduler.shutdown(wait=False)
     bot_updater.stop()
-
-
-if __name__ == "__main__":
-    asyncio.run(bootstrap())
