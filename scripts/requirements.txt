@@ -5,6 +5,5 @@ orjson==3.10.7
 Pillow==10.4.0
 python-telegram-bot[socks,http2,rate-limiter,callback-data,job-queue]==21.6
 tzlocal==2.1
-urllib3==2.2.3
 uvloop==0.20.0 ; platform_system != "Windows"
 websockets==13.1

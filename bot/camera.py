@@ -9,7 +9,6 @@ import math
 import os
 import pathlib
 from pathlib import Path
-from queue import Queue
 import threading
 import time
 from typing import List, Tuple
@@ -395,7 +394,7 @@ class Camera:
 
             for el in frame_list:
                 out.write(process_video_frame(el))
-            for ii in range(len(frame_list)):
+            for ii in range(len(frame_list)):  # pylint: disable=C0200
                 frame_list[ii] = None
 
             out.release()
@@ -742,7 +741,7 @@ class MjpegCamera(Camera):
 
             for el in frame_list:
                 out.write(self._image_to_frame(el))
-            for ii in range(len(frame_list)):
+            for ii in range(len(frame_list)):  # pylint: disable=C0200
                 frame_list[ii] = None
 
             out.release()
