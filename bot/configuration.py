@@ -5,8 +5,6 @@ from pathlib import Path
 import re
 from typing import Any, Callable, List, Optional, Union
 
-from telegram.utils.helpers import escape
-
 
 class ConfigHelper:
     _section: str
@@ -267,7 +265,7 @@ class CameraConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.cam_type: str = self._get_str("type", default="base", allowed_values=["base", "ffmpeg", "mjpeg"])
+        self.cam_type: str = self._get_str("type", default="mjpeg", allowed_values=["opencv", "ffmpeg", "mjpeg"])
         self.host: str = self._get_str("host", default="")
         self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
@@ -487,9 +485,9 @@ class ConfigWrapper:
     def configuration_errors(self) -> str:
         error_message: str = ""
         if self.unknown_fields:
-            error_message += escape(f"\n{self.unknown_fields}")
+            error_message += f"\n{self.unknown_fields}"
         if self.parsing_errors:
-            error_message += escape(f"\n{self.parsing_errors}")
+            error_message += f"\n{self.parsing_errors}"
         if error_message:
             error_message += 'Please correct the configuration according to the <a href="https://github.com/nlef/moonraker-telegram-bot/wiki">wiki</a>'
         return error_message

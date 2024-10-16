@@ -5,9 +5,10 @@ import ssl
 import time
 from typing import Dict
 
-from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 import orjson
-import websocket  # type: ignore
+from websockets.asyncio.client import ClientConnection, connect
+from websockets.protocol import State
 
 from configuration import ConfigWrapper
 from klippy import Klippy
@@ -36,7 +37,7 @@ class WebSocketHelper:
         klippy: Klippy,
         notifier: Notifier,
         timelapse: Timelapse,
-        scheduler: BackgroundScheduler,
+        scheduler: BaseScheduler,
         logging_handler: logging.Handler,
     ):
         self._host: str = config.bot_config.host
@@ -46,39 +47,41 @@ class WebSocketHelper:
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
-        self._scheduler: BackgroundScheduler = scheduler
+        self._scheduler: BaseScheduler = scheduler
         self._log_parser: bool = config.bot_config.log_parser
+
+        self._ws: ClientConnection
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
         if logging_handler:
             logger.addHandler(logging_handler)
 
-        # Todo: add port + protocol + ssl_validate
-        self.websocket = websocket.WebSocketApp(
-            f"{self._protocol}://{self._host}:{self._port}/websocket{self._klippy.one_shot_token}",
-            on_message=self.websocket_to_message,
-            on_open=self.on_open,
-            on_error=self.on_error,
-            on_close=self.on_close,
-        )
+        # # Todo: add port + protocol + ssl_validate
+        # self.websocket = websocket.WebSocketApp(
+        #     f"{self._protocol}://{self._host}:{self._port}/websocket{self._klippy.one_shot_token}",
+        #     on_message=self.websocket_to_message,
+        #     on_open=self.on_open,
+        #     on_error=self.on_error,
+        #     on_close=self.on_close,
+        # )
 
-    @staticmethod
-    def on_close(_, close_status_code, close_msg):
-        logger.info("WebSocket closed")
-        if close_status_code or close_msg:
-            logger.error("WebSocket close status code: %s", str(close_status_code))
-            logger.error("WebSocket close message: %s", str(close_msg))
-
-    @staticmethod
-    def on_error(_, error):
-        logger.error(error)
+    # @staticmethod
+    # def on_close(_, close_status_code, close_msg):
+    #     logger.info("WebSocket closed")
+    #     if close_status_code or close_msg:
+    #         logger.error("WebSocket close status code: %s", str(close_status_code))
+    #         logger.error("WebSocket close message: %s", str(close_msg))
+    #
+    # @staticmethod
+    # def on_error(_, error):
+    #     logger.error(error)
 
     @property
     def _my_id(self) -> int:
         return random.randint(0, 300000)
 
-    def subscribe(self, websock):
+    async def subscribe(self):
         subscribe_objects = {
             "print_stats": None,
             "display_status": None,
@@ -91,7 +94,7 @@ class WebSocketHelper:
         if sensors:
             subscribe_objects.update(sensors)
 
-        websock.send(
+        await self._ws.send(
             orjson.dumps(
                 {
                     "jsonrpc": "2.0",
@@ -102,25 +105,25 @@ class WebSocketHelper:
             )
         )
 
-    def on_open(self, websock):
-        websock.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
-        websock.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
+    async def on_open(self):
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
 
-    def reshedule(self):
-        if not self._klippy.connected and self.websocket.keep_running:
-            self.on_open(self.websocket)
+    async def reshedule(self):
+        if not self._klippy.connected and self._ws.state is State.OPEN:
+            await self.on_open()
 
-    def stop_all(self):
+    async def stop_all(self):
         self._klippy.stop_all()
-        self._notifier.stop_all()
+        await self._notifier.stop_all()
         self._timelapse.stop_all()
 
-    def status_response(self, status_resp):
+    async def status_response(self, status_resp):
         if "print_stats" in status_resp:
             print_stats = status_resp["print_stats"]
             if print_stats["state"] in ["printing", "paused"]:
                 self._klippy.printing = True
-                self._klippy.printing_filename = print_stats["filename"]
+                await self._klippy.set_printing_filename(print_stats["filename"])
                 self._klippy.printing_duration = print_stats["print_duration"]
                 self._klippy.filament_used = print_stats["filament_used"]
                 # Todo: maybe get print start time and set start interval for job?
@@ -146,11 +149,11 @@ class WebSocketHelper:
 
         self.parse_sensors(status_resp)
 
-    def notify_gcode_reponse(self, message_params):
+    async def notify_gcode_reponse(self, message_params):
         if self._timelapse.manual_mode:
             if "timelapse start" in message_params:
                 if not self._klippy.printing_filename:
-                    self._klippy.get_status()
+                    await self._klippy.get_status()
                 self._timelapse.clean()
                 self._timelapse.is_running = True
 
@@ -180,11 +183,11 @@ class WebSocketHelper:
             self._notifier.tgnotify_status = message_params_loc[16:]
 
         if message_params_loc.startswith("set_timelapse_params "):
-            self._timelapse.parse_timelapse_params(message_params_loc)
+            await self._timelapse.parse_timelapse_params(message_params_loc)
         if message_params_loc.startswith("set_notify_params "):
-            self._notifier.parse_notification_params(message_params_loc)
+            await self._notifier.parse_notification_params(message_params_loc)
         if message_params_loc.startswith("tgcustom_keyboard "):
-            self._notifier.send_custom_inline_keyboard(message_params_loc)
+            await self._notifier.send_custom_inline_keyboard(message_params_loc)
 
         if message_params_loc.startswith("tg_send_image"):
             self._notifier.send_image(message_params_loc)
@@ -193,7 +196,7 @@ class WebSocketHelper:
         if message_params_loc.startswith("tg_send_document"):
             self._notifier.send_document(message_params_loc)
 
-    def notify_status_update(self, message_params):
+    async def notify_status_update(self, message_params):
         message_params_loc = message_params[0]
         if "display_status" in message_params_loc:
             if "message" in message_params_loc["display_status"]:
@@ -215,7 +218,7 @@ class WebSocketHelper:
             self._klippy.vsd_progress = message_params_loc["virtual_sdcard"]["progress"]
 
         if "print_stats" in message_params_loc:
-            self.parse_print_stats(message_params)
+            await self.parse_print_stats(message_params)
 
         self.parse_sensors(message_params_loc)
 
@@ -237,13 +240,13 @@ class WebSocketHelper:
                 message_parts_loc[heater],
             )
 
-    def parse_print_stats(self, message_params):
+    async def parse_print_stats(self, message_params):
         state = ""
         print_stats_loc = message_params[0]["print_stats"]
         # Fixme:  maybe do not parse without state? history data may not be avaliable
         # Message with filename will be sent before printing is started
         if "filename" in print_stats_loc:
-            self._klippy.printing_filename = print_stats_loc["filename"]
+            await self._klippy.set_printing_filename(print_stats_loc["filename"])
         if "filament_used" in print_stats_loc:
             self._klippy.filament_used = print_stats_loc["filament_used"]
         if "state" in print_stats_loc:
@@ -255,10 +258,10 @@ class WebSocketHelper:
             self._klippy.paused = False
             if not self._klippy.printing:
                 self._klippy.printing = True
-                self._notifier.reset_notifications()
+                await self._notifier.reset_notifications()
                 self._notifier.add_notifier_timer()
                 if not self._klippy.printing_filename:
-                    self._klippy.get_status()
+                    await self._klippy.get_status()
                 if not self._timelapse.manual_mode:
                     self._timelapse.clean()
                     self._timelapse.is_running = True
@@ -314,7 +317,7 @@ class WebSocketHelper:
         if self._klippy.light_device and self._klippy.light_device.name == device_name:
             self._klippy.light_device.device_state = device_state
 
-    def websocket_to_message(self, ws_loc, ws_message):
+    async def websocket_to_message(self, ws_message):
         logger.debug(ws_message)
         json_message = orjson.loads(ws_message)
 
@@ -327,23 +330,23 @@ class WebSocketHelper:
                 message_result = json_message["result"]
 
                 if "status" in message_result:
-                    self.status_response(message_result["status"])
+                    await self.status_response(message_result["status"])
                     return
 
                 if "state" in message_result:
                     klippy_state = message_result["state"]
                     self._klippy.state = klippy_state
                     if klippy_state == "ready":
-                        if ws_loc.keep_running:
-                            self._klippy.connected = True
+                        if self._ws.state is State.OPEN:
+                            await self._klippy.set_connected(True)
                             if self._klippy.state_message:
                                 self._notifier.send_error(f"Klippy changed state to {self._klippy.state}")
                                 self._klippy.state_message = ""
-                            self.subscribe(ws_loc)
+                            await self.subscribe()
                             if self._scheduler.get_job("ws_reschedule"):
                                 self._scheduler.remove_job("ws_reschedule")
                     elif klippy_state in ["error", "shutdown", "startup"]:
-                        self._klippy.connected = False
+                        await self._klippy.set_connected(False)
                         self._scheduler.add_job(
                             self.reshedule,
                             "interval",
@@ -357,7 +360,7 @@ class WebSocketHelper:
                             self._notifier.send_error(f"Klippy changed state to {self._klippy.state}\n{self._klippy.state_message}", logs_upload=True)
                     else:
                         logger.error("UnKnown klippy state: %s", klippy_state)
-                        self._klippy.connected = False
+                        await self._klippy.set_connected(False)
                         self._scheduler.add_job(
                             self.reshedule,
                             "interval",
@@ -379,8 +382,8 @@ class WebSocketHelper:
             message_method = json_message["method"]
             if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
                 logger.warning("klippy disconnect detected with message: %s", json_message["method"])
-                self.stop_all()
-                self._klippy.connected = False
+                await self.stop_all()
+                await self._klippy.set_connected(False)
                 self._scheduler.add_job(
                     self.reshedule,
                     "interval",
@@ -395,42 +398,35 @@ class WebSocketHelper:
             message_params = json_message["params"]
 
             if message_method == "notify_gcode_response":
-                self.notify_gcode_reponse(message_params)
+                await self.notify_gcode_reponse(message_params)
 
             if message_method == "notify_power_changed":
                 for device in message_params:
                     self.power_device_state(device)
 
             if message_method == "notify_status_update":
-                self.notify_status_update(message_params)
+                await self.notify_status_update(message_params)
 
-    @websocket_alive
-    def manage_printing(self, command: str) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
+    async def manage_printing(self, command: str) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
 
-    @websocket_alive
-    def emergency_stop_printer(self) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
+    async def emergency_stop_printer(self) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
 
-    @websocket_alive
-    def firmware_restart_printer(self) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
+    async def firmware_restart_printer(self) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
 
-    @websocket_alive
-    def shutdown_pi_host(self) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
+    async def shutdown_pi_host(self) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
 
-    @websocket_alive
-    def reboot_pi_host(self) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
+    async def reboot_pi_host(self) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
 
-    @websocket_alive
-    def restart_system_service(self, service_name: str) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
+    async def restart_system_service(self, service_name: str) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
 
-    @websocket_alive
-    def execute_ws_gcode_script(self, gcode: str) -> None:
-        self.websocket.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
+    async def execute_ws_gcode_script(self, gcode: str) -> None:
+        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
 
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:
@@ -440,15 +436,13 @@ class WebSocketHelper:
         messages = list(map(lambda el: el.split(" - b'")[-1].replace("'\n", ""), wslines))
 
         for mes in messages:
-            self.websocket_to_message(self.websocket, mes)
+            self.websocket_to_message(mes)
             time.sleep(0.01)
         print("lalal")
 
-    def run_forever(self):
-        # debug reasons only
-        if self._log_parser:
-            self.parselog()
-
+    async def run_forever_async(self):
+        # Todo: ssl context?!
+        self._ws = await connect(f"{self._protocol}://{self._host}:{self._port}/websocket{ await self._klippy.get_one_shot_token()}")
         self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
-
-        self.websocket.run_forever(skip_utf8_validation=True, sslopt=self._ssl_opt)
+        async for message in self._ws:
+            await self.websocket_to_message(message)
