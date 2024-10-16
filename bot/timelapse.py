@@ -1,6 +1,5 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import functools
 import logging
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
@@ -259,8 +258,6 @@ class Timelapse:
 
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
-        loop = asyncio.get_running_loop()
-
         try:
             (
                 video_bio,
@@ -269,7 +266,7 @@ class Timelapse:
                 height,
                 video_path,
                 gcode_name,
-            ) = await loop.run_in_executor(self._executors_pool, functools.partial(self._camera.create_timelapse, lapse_filename, gcode_name, info_mess)).result()
+            ) = await self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
 
             if self._send_finished_lapse:
                 await info_mess.edit_text(text="Uploading time-lapse")
