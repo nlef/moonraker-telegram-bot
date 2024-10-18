@@ -130,11 +130,11 @@ install_packages() {
     case "${INSTALL_OPENCV}" in
       Y|y|Yes|yes)
         echo -e "###### > Yes"
-        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-gevent python3-numpy python3-opencv ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
+        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-numpy python3-opencv libuv1 ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
         break;;
       N|n|No|no)
         echo -e "###### > No"
-        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-gevent python3-numpy ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
+        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-numpy libuv1 ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
         break;;
       *)
         warn_msg "Invalid command!";;
