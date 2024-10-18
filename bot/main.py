@@ -353,10 +353,13 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
     files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
     with open(configWrap.bot_config.log_path + "/debug.txt", mode="a", encoding="utf-8") as debug_file:
         for file in files:
-            if Path(file).exists():
-                debug_file.write(f"\n{file}\n")
-                with open(file, mode="r", encoding="utf-8") as file_obj:
-                    debug_file.writelines(file_obj.readlines())
+            try:
+                if Path(file).exists():
+                    debug_file.write(f"\n{file}\n")
+                    with open(file, mode="r", encoding="utf-8") as file_obj:
+                        debug_file.writelines(file_obj.readlines())
+            except Exception as err:
+                logger.warning(err)
 
     return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "KlipperScreen.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
 
@@ -370,11 +373,14 @@ async def send_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     for log_file in prepare_log_files()[0]:
-        if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
-            with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
-                logs_list.append(InputMediaDocument(fh.read(), filename=log_file))
+        try:
+            if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
+                with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
+                    logs_list.append(InputMediaDocument(fh.read(), filename=log_file))
+        except FileNotFoundError as err:
+            logger.warning(err)
 
-    await update.effective_message.reply_text(text=f"{klippy.get_versions_info()}\nUpload logs to analyzer /upload_logs", disable_notification=notifier.silent_commands, quote=True)
+    await update.effective_message.reply_text(text=f"{await klippy.get_versions_info()}\nUpload logs to analyzer /upload_logs", disable_notification=notifier.silent_commands, quote=True)
     if logs_list:
         await update.effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
     else:
@@ -409,7 +415,7 @@ async def upload_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
     with open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb:
         resp = httpx.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": log_archive_ojb}, follow_redirects=False, timeout=25)
-        if resp.is_success:
+        if resp.status_code < 400:
             logs_path = resp.headers["location"]
             logger.info(logs_path)
             await update.effective_message.reply_text(
