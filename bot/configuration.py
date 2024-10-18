@@ -355,6 +355,7 @@ class TelegramUIConfig(ConfigHelper):
         "silent_commands",
         "silent_status",
         "pin_status_single_message",
+        "send_greeting_message",
         "buttons",
         "require_confirmation_macro",
         "require_confirmation_services",
@@ -406,6 +407,7 @@ class TelegramUIConfig(ConfigHelper):
         self.show_private_macros: bool = self._get_boolean("show_private_macros", default=False)
         self.pin_status_single_message: bool = self._get_boolean("pin_status_single_message", default=True)
         self.status_message_m117_update: bool = self._get_boolean("status_message_m117_update", default=False)
+        self.send_greeting_message: bool = self._get_boolean("send_greeting_message", default=True)
 
 
 class StatusMessageContentConfig(ConfigHelper):

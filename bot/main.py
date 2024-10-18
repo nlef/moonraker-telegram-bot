@@ -1065,22 +1065,25 @@ def prepare_commands_list(macros: List[str], add_macros: bool):
 async def greeting_message(bot: telegram.Bot) -> None:
     if configWrap.secrets.chat_id == 0:
         return
-    response = await klippy.check_connection()
-    mess = ""
-    if response:
-        mess += f"Bot online, no moonraker connection!\n {response} \nFailing..."
-    else:
-        mess += "Printer online on " + get_local_ip()
-        if configWrap.configuration_errors:
-            mess += await klippy.get_versions_info(bot_only=True) + configWrap.configuration_errors
 
-    await bot.send_message(
-        configWrap.secrets.chat_id,
-        text=mess,
-        parse_mode=ParseMode.HTML,
-        reply_markup=ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True),
-        disable_notification=notifier.silent_status,
-    )
+    if configWrap.telegram_ui.send_greeting_message:
+        response = await klippy.check_connection()
+        mess = ""
+        if response:
+            mess += f"Bot online, no moonraker connection!\n {response} \nFailing..."
+        else:
+            mess += "Printer online on " + get_local_ip()
+            if configWrap.configuration_errors:
+                mess += await klippy.get_versions_info(bot_only=True) + configWrap.configuration_errors
+
+        await bot.send_message(
+            configWrap.secrets.chat_id,
+            text=mess,
+            parse_mode=ParseMode.HTML,
+            reply_markup=ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True),
+            disable_notification=notifier.silent_status,
+        )
+
     await bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
     await klippy.add_bot_announcements_feed()
     await check_unfinished_lapses(bot)
