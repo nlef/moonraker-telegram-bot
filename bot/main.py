@@ -1090,7 +1090,7 @@ async def greeting_message(bot: telegram.Bot) -> None:
             disable_notification=notifier.silent_status,
         )
 
-    await bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
+    await bot.set_my_commands(commands=prepare_commands_list(await klippy.get_macros_force(), configWrap.telegram_ui.include_macros_in_command_list))
     await klippy.add_bot_announcements_feed()
     await check_unfinished_lapses(bot)
 

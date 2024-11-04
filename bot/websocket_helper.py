@@ -3,10 +3,10 @@ import logging
 import random
 import ssl
 import time
-from typing import Dict
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 import orjson
+import websockets
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
 
@@ -43,7 +43,11 @@ class WebSocketHelper:
         self._host: str = config.bot_config.host
         self._port = config.bot_config.port
         self._protocol: str = "wss" if config.bot_config.ssl else "ws"
-        self._ssl_opt: Dict = {} if config.bot_config.ssl_validate else {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+        self._ssl_context = ssl.create_default_context() if config.bot_config.ssl else None
+        if config.bot_config.ssl_validate is False and self._ssl_context is not None:
+            self._ssl_context.verify_mode = ssl.CERT_NONE
+            self._ssl_context.check_hostname = False
+
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
@@ -57,25 +61,9 @@ class WebSocketHelper:
         if logging_handler:
             logger.addHandler(logging_handler)
 
-        # # Todo: add port + protocol + ssl_validate
-        # self.websocket = websocket.WebSocketApp(
-        #     f"{self._protocol}://{self._host}:{self._port}/websocket{self._klippy.one_shot_token}",
-        #     on_message=self.websocket_to_message,
-        #     on_open=self.on_open,
-        #     on_error=self.on_error,
-        #     on_close=self.on_close,
-        # )
-
-    # @staticmethod
-    # def on_close(_, close_status_code, close_msg):
-    #     logger.info("WebSocket closed")
-    #     if close_status_code or close_msg:
-    #         logger.error("WebSocket close status code: %s", str(close_status_code))
-    #         logger.error("WebSocket close message: %s", str(close_msg))
-    #
-    # @staticmethod
-    # def on_error(_, error):
-    #     logger.error(error)
+    @staticmethod
+    def on_error(error):
+        logger.error(error)
 
     @property
     def _my_id(self) -> int:
@@ -441,8 +429,21 @@ class WebSocketHelper:
         print("lalal")
 
     async def run_forever_async(self):
-        # Todo: ssl context?!
-        self._ws = await connect(f"{self._protocol}://{self._host}:{self._port}/websocket{ await self._klippy.get_one_shot_token()}")
-        self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
-        async for message in self._ws:
-            await self.websocket_to_message(message)
+        # Todo: use headers instead of inline token
+        async for websocket in connect(
+            uri=f"{self._protocol}://{self._host}:{self._port}/websocket{await self._klippy.get_one_shot_token()}",
+            process_exception=self.on_error,
+            open_timeout=5.0,
+            close_timeout=5.0,
+            max_queue=1024,
+            logger=logger,
+            ssl=self._ssl_context,
+        ):
+            try:
+                self._ws = websocket
+                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
+                async for message in self._ws:
+                    await self.websocket_to_message(message)
+            except websockets.ConnectionClosed:
+                self._scheduler.remove_job("ws_reschedule")
+                continue

@@ -206,6 +206,13 @@ class Klippy:
     def macros(self) -> List[str]:
         return self._get_marco_list()
 
+    async def get_macros_force(self):
+        try:
+            await self._update_printer_objects()
+        except Exception as e:
+            logger.error(e)
+        return self._get_marco_list()
+
     @property
     def macros_all(self) -> List[str]:
         return self._get_full_marco_list()
