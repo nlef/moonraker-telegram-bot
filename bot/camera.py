@@ -122,8 +122,7 @@ class Camera:
             self._img_extension = config.camera.picture_quality
 
         self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
-        self._raw_compressed: bool = config.timelapse.raw_compressed
-        self._raw_frame_extension: str = "npz" if self._raw_compressed else "nmdr"
+        self._raw_frame_extension: str = "npz"
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
@@ -428,10 +427,8 @@ class Camera:
                 logger.error(ex)
 
         os_nice(15)
-        if self._raw_compressed:
-            numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
-        else:
-            raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
+
+        numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
         raw_frame = None
@@ -477,7 +474,7 @@ class Camera:
             return self._target_fps
 
     def _get_frame(self, path: str):
-        return numpy.load(path, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(path, allow_pickle=True)
+        return numpy.load(path, allow_pickle=True)["raw"]
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
