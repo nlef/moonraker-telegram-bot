@@ -6,7 +6,6 @@ import time
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 import orjson
-import websockets
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
 
@@ -434,6 +433,8 @@ class WebSocketHelper:
             uri=f"{self._protocol}://{self._host}:{self._port}/websocket{await self._klippy.get_one_shot_token()}",
             process_exception=self.on_error,
             open_timeout=5.0,
+            ping_interval=10.0,  # as moonraker
+            ping_timeout=30.0,  # as moonraker
             close_timeout=5.0,
             max_queue=1024,
             logger=logger,
@@ -444,6 +445,6 @@ class WebSocketHelper:
                 self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
                 async for message in self._ws:
                     await self.websocket_to_message(message)
-            except websockets.ConnectionClosed:
+            except Exception as ex:
+                logger.error(ex)
                 self._scheduler.remove_job("ws_reschedule")
-                continue

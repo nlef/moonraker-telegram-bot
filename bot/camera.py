@@ -646,7 +646,8 @@ class MjpegCamera(Camera):
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
-        response = httpx.get(f"{self._host_snapshot}", timeout=5)
+        # Todo: speedup coonections?
+        response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
         bio = BytesIO()
 
         os_nice(15)
