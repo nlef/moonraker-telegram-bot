@@ -8,7 +8,6 @@ RUN apt update \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
-
 WORKDIR /opt
 
 RUN groupadd moonraker-telegram-bot --gid 1000 \
@@ -17,7 +16,7 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
  && chown -R moonraker-telegram-bot:moonraker-telegram-bot /opt/*
 
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
-RUN pip3 install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.docker.opencv.txt
+RUN pip3 install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.docker.mjpeg.txt
 
 
 USER moonraker-telegram-bot

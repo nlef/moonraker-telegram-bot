@@ -1,7 +1,6 @@
 import asyncio
 import functools
 from functools import wraps
-import gc
 import glob
 from io import BytesIO
 import logging
@@ -9,6 +8,7 @@ import math
 import os
 import pathlib
 from pathlib import Path
+import pickle
 import threading
 import time
 from typing import List, Tuple
@@ -375,8 +375,7 @@ class Camera:
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(frame_loc)
-                frame_loc = None
+                    frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             self.cam_cam.release()
@@ -392,19 +391,16 @@ class Camera:
             )
 
             for el in frame_list:
-                out.write(process_video_frame(el))
-            for ii in range(len(frame_list)):  # pylint: disable=C0200
-                frame_list[ii] = None
+                loc_loc = pickle.loads(el)
+                out.write(process_video_frame(loc_loc))
+                del loc_loc
 
             out.release()
             del out
             os_nice(0)
 
-            del frame_list[:]
             frame_list.clear()
-            frame_list = None  # type: ignore
             del frame_list
-            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
@@ -722,8 +718,7 @@ class MjpegCamera(Camera):
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(frame_loc)
-                frame_loc = None
+                    frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             res_fps = len(frame_list) / self._video_duration
@@ -737,19 +732,16 @@ class MjpegCamera(Camera):
             )
 
             for el in frame_list:
-                out.write(self._image_to_frame(el))
-            for ii in range(len(frame_list)):  # pylint: disable=C0200
-                frame_list[ii] = None
+                loc_loc = pickle.loads(el)
+                out.write(self._image_to_frame(loc_loc))
+                del loc_loc
 
             out.release()
             del out
             os_nice(0)
 
-            del frame_list[:]
             frame_list.clear()
-            frame_list = None  # type: ignore
             del frame_list
-            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
