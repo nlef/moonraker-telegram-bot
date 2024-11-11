@@ -443,8 +443,15 @@ class WebSocketHelper:
             try:
                 self._ws = websocket
                 self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
-                async for message in self._ws:
-                    await self.websocket_to_message(message)
+                # async for message in self._ws:
+                #     await self.websocket_to_message(message)
+
+                while True:
+                    res = await self._ws.recv(decode=False)
+                    await self.websocket_to_message(res)
+
             except Exception as ex:
+                # Todo: add some TG notification?
                 logger.error(ex)
-                self._scheduler.remove_job("ws_reschedule")
+                if self._scheduler.get_job("ws_reschedule"):
+                    self._scheduler.remove_job("ws_reschedule")
