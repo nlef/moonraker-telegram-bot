@@ -603,20 +603,24 @@ class Klippy:
         self._reset_file_info()
 
     async def get_versions_info(self, bot_only: bool = False) -> str:
-        response = await self.make_request("GET", "/machine/update/status?refresh=false")
-        if not response.is_success:
-            return ""
-        version_info = orjson.loads(response.text)["result"]["version_info"]
         version_message = ""
-        for comp, inf in version_info.items():
-            if comp == "system":
-                continue
-            if bot_only and comp != "moonraker-telegram-bot":
-                continue
-            if "full_version_string" in inf:
-                version_message += f"{comp}: {inf['full_version_string']}\n"
-            else:
-                version_message += f"{comp}: {inf['version']}\n"
+        try:
+            response = await self.make_request("GET", "/machine/update/status?refresh=false")
+            if not response.is_success:
+                return ""
+            version_info = orjson.loads(response.text)["result"]["version_info"]
+
+            for comp, inf in version_info.items():
+                if comp == "system":
+                    continue
+                if bot_only and comp != "moonraker-telegram-bot":
+                    continue
+                if "full_version_string" in inf:
+                    version_message += f"{comp}: {inf['full_version_string']}\n"
+                else:
+                    version_message += f"{comp}: {inf['version']}\n"
+        except Exception as e:
+            logger.error(e)
         if version_message:
             version_message += "\n"
         return version_message

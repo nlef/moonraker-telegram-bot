@@ -174,61 +174,70 @@ class Notifier:
                     continue
                 self._groups_status_mesages[group] = sent_message
 
-    async def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False) -> None:
-        if not self._cam_wrap.enabled:
-            await self._send_message(message, silent, manual)
-        else:
-            loop = asyncio.get_running_loop()
-            with await loop.run_in_executor(self._executors_pool, self._cam_wrap.take_photo) as photo:
-                if not group_only:
-                    await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
-                    if self._status_message and not manual:
-                        if self._bzz_mess_id != 0:
-                            try:
-                                await self._bot.delete_message(self._chat_id, self._bzz_mess_id)
-                            except BadRequest as badreq:
-                                logger.warning("Failed deleting bzz message \n%s", badreq)
-                                self._bzz_mess_id = 0
+    async def _send_photo(self, group_only, manual, message, silent):
+        loop = asyncio.get_running_loop()
+        with await loop.run_in_executor(self._executors_pool, self._cam_wrap.take_photo) as photo:
+            if not group_only:
+                await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.UPLOAD_PHOTO)
+                if self._status_message and not manual:
+                    if self._bzz_mess_id != 0:
+                        try:
+                            await self._bot.delete_message(self._chat_id, self._bzz_mess_id)
+                        except BadRequest as badreq:
+                            logger.warning("Failed deleting bzz message \n%s", badreq)
+                            self._bzz_mess_id = 0
 
-                        # Fixme: check if media in message!
-                        await self._status_message.edit_media(media=InputMediaPhoto(photo))
-                        await self._status_message.edit_caption(caption=message, parse_mode=ParseMode.MARKDOWN_V2)
+                    # Fixme: check if media in message!
+                    await self._status_message.edit_media(media=InputMediaPhoto(photo))
+                    await self._status_message.edit_caption(caption=message, parse_mode=ParseMode.MARKDOWN_V2)
 
-                        if self._progress_update_message:
-                            mes = await self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
-                            self._bzz_mess_id = mes.message_id
+                    if self._progress_update_message:
+                        mes = await self._bot.send_message(self._chat_id, text="Status has been updated\nThis message will be deleted", disable_notification=silent)
+                        self._bzz_mess_id = mes.message_id
 
-                    else:
-                        sent_message = await self._bot.send_photo(
-                            self._chat_id,
-                            photo=photo,
-                            caption=message,
-                            parse_mode=ParseMode.MARKDOWN_V2,
-                            disable_notification=silent,
-                        )
-                        if not self._status_message and not manual:
-                            self._status_message = sent_message
+                else:
+                    sent_message = await self._bot.send_photo(
+                        self._chat_id,
+                        photo=photo,
+                        caption=message,
+                        parse_mode=ParseMode.MARKDOWN_V2,
+                        disable_notification=silent,
+                    )
+                    if not self._status_message and not manual:
+                        self._status_message = sent_message
 
-                for group in self._notify_groups:
-                    photo.seek(0)
-                    await self._bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
-                    if group in self._groups_status_mesages and not manual:
-                        mess = self._groups_status_mesages[group]
-                        await mess.edit_media(media=InputMediaPhoto(photo))
-                        await mess.edit_caption(caption=message, parse_mode=ParseMode.MARKDOWN_V2)
-                    else:
-                        sent_message = await self._bot.send_photo(
-                            group,
-                            photo=photo,
-                            caption=message,
-                            parse_mode=ParseMode.MARKDOWN_V2,
-                            disable_notification=silent,
-                        )
-                        if group in self._groups_status_mesages or manual:
-                            continue
-                        self._groups_status_mesages[group] = sent_message
+            for group in self._notify_groups:
+                photo.seek(0)
+                await self._bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
+                if group in self._groups_status_mesages and not manual:
+                    mess = self._groups_status_mesages[group]
+                    await mess.edit_media(media=InputMediaPhoto(photo))
+                    await mess.edit_caption(caption=message, parse_mode=ParseMode.MARKDOWN_V2)
+                else:
+                    sent_message = await self._bot.send_photo(
+                        group,
+                        photo=photo,
+                        caption=message,
+                        parse_mode=ParseMode.MARKDOWN_V2,
+                        disable_notification=silent,
+                    )
+                    if group in self._groups_status_mesages or manual:
+                        continue
+                    self._groups_status_mesages[group] = sent_message
 
-                photo.close()
+            photo.close()
+
+    async def _notify(self, message: str, silent: bool, group_only: bool = False, manual: bool = False, finish: bool = False) -> None:
+        try:
+            if not self._cam_wrap.enabled:
+                await self._send_message(message, silent, manual)
+            else:
+                await self._send_photo(group_only, manual, message, silent)
+        except Exception as ex:
+            logger.error(ex)
+        finally:
+            if finish:
+                await self.reset_notifications()
 
     # manual notification methods
     def send_error(self, message: str, logs_upload: bool = False) -> None:
@@ -319,7 +328,7 @@ class Notifier:
             finally:
                 self._bzz_mess_id = 0
 
-    def _schedule_notification(self, message: str = "", schedule: bool = False) -> None:  # pylint: disable=W0613
+    def _schedule_notification(self, message: str = "", schedule: bool = False, finish: bool = False) -> None:  # pylint: disable=W0613
         mess = escape_markdown(self._klippy.get_print_stats(message), version=2)
         if self._last_m117_status and "m117_status" in self._message_parts:
             mess += f"{escape_markdown(self._last_m117_status, version=2)}\n"
@@ -330,11 +339,7 @@ class Notifier:
 
         self._sched.add_job(
             self._notify,
-            kwargs={
-                "message": mess,
-                "silent": self._silent_progress,
-                "group_only": self._group_only,
-            },
+            kwargs={"message": mess, "silent": self._silent_progress, "group_only": self._group_only, "finish": finish},
             misfire_grace_time=None,
             coalesce=False,
             max_instances=6,
@@ -453,8 +458,7 @@ class Notifier:
         # Todo: reset something? or check if reseted by setting new filename?
 
     async def _send_print_finish(self) -> None:
-        self._schedule_notification(message="Finished printing")
-        await self.reset_notifications()
+        self._schedule_notification(message="Finished printing", finish=True)
 
     def send_print_finish(self) -> None:
         if self._enabled:

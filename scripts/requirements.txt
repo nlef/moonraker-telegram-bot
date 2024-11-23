@@ -9,4 +9,4 @@ psutil==6.1.0
 python-telegram-bot[socks,http2,rate-limiter,callback-data,job-queue]==21.7
 tzlocal==2.1
 uvloop==0.20.0 ; platform_system != "Windows"
-websockets==14.0
+websockets==14.1
