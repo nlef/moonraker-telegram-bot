@@ -195,7 +195,7 @@ class WebSocketHelper:
         if "toolhead" in message_params_loc and "position" in message_params_loc["toolhead"]:
             # position_z = json_message["params"][0]['toolhead']['position'][2]
             pass
-        if "gcode_move" in message_params_loc and "position" in message_params_loc["gcode_move"]:
+        if "gcode_move" in message_params_loc and "gcode_position" in message_params_loc["gcode_move"]:
             position_z = message_params_loc["gcode_move"]["gcode_position"][2]
             self._klippy.printing_height = position_z
             self._notifier.schedule_notification(position_z=int(position_z))

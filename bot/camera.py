@@ -19,6 +19,7 @@ import ffmpegcv  # type: ignore
 from ffmpegcv import FFmpegReader
 from ffmpegcv.stream_info import get_info  # type: ignore
 import httpx
+from httpx import HTTPError
 import numpy
 from numpy import ndarray
 from telegram import Message
@@ -646,24 +647,28 @@ class MjpegCamera(Camera):
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
-        # Todo: speedup coonections?
-        response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
         bio = BytesIO()
-
         os_nice(15)
-        if response.is_success and response.headers["Content-Type"] == "image/jpeg":
+        try:
+            # Todo: speedup coonections?
+            response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
 
-            if force_rotate:
-                img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
-                img.save(bio, format="JPEG")
-                img.close()
-                del img
+            os_nice(15)
+            if response.is_success and response.headers["Content-Type"] == "image/jpeg":
+
+                if force_rotate:
+                    img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
+                    img.save(bio, format="JPEG")
+                    img.close()
+                    del img
+                else:
+                    bio.write(response.content)
             else:
-                bio.write(response.content)
-        else:
-            logger.error("Streamer snapshot get failed\n\n%s", response.status_code)
-            with open("../imgs/nosignal.png", "rb") as file:
-                bio.write(file.read())
+                response.raise_for_status()
+        except HTTPError as err:
+            logger.error("Streamer snapshot get failed\n%s", err)
+            with Image.open("../imgs/nosignal.png").convert("RGB") as img:
+                img.save(bio, format="JPEG")
 
         os_nice(0)
         bio.seek(0)
