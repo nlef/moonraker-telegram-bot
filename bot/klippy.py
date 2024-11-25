@@ -100,7 +100,7 @@ class Klippy:
     ):
         self._protocol: str = "https" if config.bot_config.ssl else "http"
         self._host: str = f"{self._protocol}://{config.bot_config.host}:{config.bot_config.port}"
-        self._ssl_validate: bool = config.bot_config.ssl_validate
+        self._ssl_verify: bool = config.bot_config.ssl_verify
         self._hidden_macros: List[str] = config.telegram_ui.hidden_macros + [self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
@@ -150,8 +150,8 @@ class Klippy:
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
-        self._client: AsyncClient = AsyncClient(verify=self._ssl_validate)
-        self._client_sync: Client = Client(verify=self._ssl_validate)
+        self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
+        self._client_sync: Client = Client(verify=self._ssl_verify)
         self._auth_moonraker()
 
     def prepare_sens_dict_subscribe(self):
@@ -307,7 +307,7 @@ class Klippy:
         if not self._user or not self._passwd:
             return
 
-        res = httpx.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15, verify=self._ssl_validate)
+        res = httpx.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15, verify=self._ssl_verify)
 
         try:
             res.raise_for_status()

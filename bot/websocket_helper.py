@@ -43,7 +43,7 @@ class WebSocketHelper:
         self._host: str = config.bot_config.host
         self._port = config.bot_config.port
         self._protocol: str = "wss" if config.bot_config.ssl else "ws"
-        self._ssl_opt: Dict = {} if config.bot_config.ssl_validate else {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+        self._ssl_opt: Dict = {} if config.bot_config.ssl_verify else {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
         self._klippy: Klippy = klippy
         self._notifier: Notifier = notifier
         self._timelapse: Timelapse = timelapse
@@ -57,7 +57,7 @@ class WebSocketHelper:
         if logging_handler:
             logger.addHandler(logging_handler)
 
-        # # Todo: add port + protocol + ssl_validate
+        # # Todo: add port + protocol + ssl_verify
         # self.websocket = websocket.WebSocketApp(
         #     f"{self._protocol}://{self._host}:{self._port}/websocket{self._klippy.one_shot_token}",
         #     on_message=self.websocket_to_message,
