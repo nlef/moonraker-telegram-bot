@@ -43,7 +43,7 @@ class WebSocketHelper:
         self._port = config.bot_config.port
         self._protocol: str = "wss" if config.bot_config.ssl else "ws"
         self._ssl_context = ssl.create_default_context() if config.bot_config.ssl else None
-        if config.bot_config.ssl_validate is False and self._ssl_context is not None:
+        if config.bot_config.ssl_verify is False and self._ssl_context is not None:
             self._ssl_context.verify_mode = ssl.CERT_NONE
             self._ssl_context.check_hostname = False
 

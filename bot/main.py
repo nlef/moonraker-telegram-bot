@@ -1008,22 +1008,22 @@ def bot_commands() -> Dict[str, str]:
     commands = {
         "help": "list bot commands",
         "status": "send klipper status",
-        "ip": "send local ip address",
+        "ip": "send private ip of the bot installation",
         "pause": "pause printing",
         "resume": "resume printing",
         "cancel": "cancel printing",
-        "files": "list gcode files. you can start printing one from menu",
+        "files": "list available gcode files",
         "logs": "get klipper, moonraker, bot logs",
-        "upload_logs": "get klipper, moonraker, bot logs and upload logs to the analyzer https://coderus.openrepos.net/klipper_logs",
+        "upload_logs": "upload logs to analyzer",
         "macros": "list all visible macros from klipper",
         "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
-        "video": "will take mp4 video from camera",
+        "video": "record and upload a video",
         "power": "toggle moonraker power device from config",
         "light": "toggle light",
         "emergency": "emergency stop printing",
         "bot_restart": "restarts the bot service, useful for config updates",
-        "shutdown": "shutdown Pi gracefully",
-        "reboot": "reboot Pi gracefully",
+        "shutdown": "shutdown bot host gracefully",
+        "reboot": "reboot bot host gracefully",
     }
     return {c: a for c, a in commands.items() if c not in configWrap.telegram_ui.hidden_bot_commands}
 

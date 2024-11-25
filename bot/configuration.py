@@ -188,7 +188,7 @@ class BotConfig(ConfigHelper):
         "server",
         "port",
         "ssl",
-        "ssl_validate",
+        "ssl_verify",
         "api_url",
         "socks_proxy",
         "debug",
@@ -205,7 +205,7 @@ class BotConfig(ConfigHelper):
         # Todo: validate server addr have ho port or protocol!
         self.host: str = self._get_str("server", default="localhost")
         self.ssl: bool = self._get_boolean("ssl", default=False)
-        self.ssl_validate: bool = self._get_boolean("ssl_validate", default=True)
+        self.ssl_verify: bool = self._get_boolean("ssl_verify", default=True)
         self.port: int = self._get_int("port", default=80)
         self.api_url: str = self._get_str("api_url", default="https://api.telegram.org/bot")
         self.socks_proxy: str = self._get_str("socks_proxy", default="")
