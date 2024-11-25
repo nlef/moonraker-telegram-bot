@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  moonraker-telegram-bot:
+    platform: linux/arm64
+    build:
+        dockerfile:  Dockerfile
+        context: .
+    restart: unless-stopped
+    volumes:
+      - ./docker_data/timelapse:/opt/timelapse
+      - ./docker_data/timelapse_finished:/opt/timelapse_finished
+      - ./docker_data/log:/opt/printer_data/logs
+      - ./docker_data/config:/opt/printer_data/config

@@ -121,29 +121,9 @@ stop_sevice() {
 
 install_packages() {
   PKGLIST=""
-
   report_status "Running apt-get update..."
   sudo apt-get update --allow-releaseinfo-change
-  INSTALL_OPENCV=""
-  while [[ ! (INSTALL_OPENCV =~ ^(?i)(y|n|no|yes)(?-i)$) ]]; do
-    read -p "Install python-opencv package? (Y/n): " -e -i "y" INSTALL_OPENCV
-    case "${INSTALL_OPENCV}" in
-      Y|y|Yes|yes)
-        echo -e "###### > Yes"
-        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-numpy python3-opencv libuv1 ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
-        break;;
-      N|n|No|no)
-        echo -e "###### > No"
-        PKGLIST="python3-virtualenv python3-dev python3-cryptography python3-numpy libuv1 ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
-        break;;
-      *)
-        warn_msg "Invalid command!";;
-    esac
-  done
-
-  for pkg in $PKGLIST; do
-    echo "${cyan}$pkg${default}"
-  done
+  PKGLIST="python3-virtualenv python3-numpy libuv1 ffmpeg x264 libx264-dev libjpeg*-turbo libwebp-dev"
   report_status "Installing packages..."
   sudo apt-get install --yes ${PKGLIST}
 }

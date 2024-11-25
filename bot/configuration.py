@@ -336,7 +336,6 @@ class TimelapseConfig(ConfigHelper):
         self.mode_manual: bool = self._get_boolean("manual_mode", default=False)
         self.after_photo_gcode: str = self._get_str("after_photo_gcode", default="")
         self.save_lapse_photos_as_images: bool = self._get_boolean("save_lapse_photos_as_images", default=False)
-        self.raw_compressed: bool = self._get_boolean("raw_compressed", default=True)
 
         self._init_paths()
 

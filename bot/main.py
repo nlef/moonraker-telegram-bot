@@ -1090,7 +1090,7 @@ async def greeting_message(bot: telegram.Bot) -> None:
             disable_notification=notifier.silent_status,
         )
 
-    await bot.set_my_commands(commands=prepare_commands_list(klippy.macros, configWrap.telegram_ui.include_macros_in_command_list))
+    await bot.set_my_commands(commands=prepare_commands_list(await klippy.get_macros_force(), configWrap.telegram_ui.include_macros_in_command_list))
     await klippy.add_bot_announcements_feed()
     await check_unfinished_lapses(bot)
 
@@ -1109,9 +1109,16 @@ def get_local_ip():
 
 def start_bot(bot_token, socks):
     app_builder = Application.builder()
-    app_builder.base_url(configWrap.bot_config.api_url).get_updates_connection_pool_size(4).read_timeout(30).write_timeout(30).get_updates_read_timeout(30).get_updates_write_timeout(
-        30
-    ).media_write_timeout(120).token(bot_token)
+    (
+        app_builder.base_url(configWrap.bot_config.api_url)
+        .get_updates_connection_pool_size(4)
+        .read_timeout(30)
+        .write_timeout(30)
+        .get_updates_read_timeout(30)
+        .get_updates_write_timeout(30)
+        .media_write_timeout(120)
+        .token(bot_token)
+    )
     if socks:
         app_builder.proxy(f"socks5://{socks}").get_updates_proxy(f"socks5://{socks}")
     application = app_builder.build()
@@ -1185,6 +1192,11 @@ if __name__ == "__main__":
     rotating_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
     logger.addHandler(rotating_handler)
 
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpx").addHandler(rotating_handler)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").addHandler(rotating_handler)
+
     if configWrap.parsing_errors or configWrap.unknown_fields:
         logger.error(configWrap.parsing_errors + "\n" + configWrap.unknown_fields)
 
@@ -1225,7 +1237,4 @@ if __name__ == "__main__":
 
     bot_updater.run_polling(allowed_updates=Update.ALL_TYPES)
 
-    logger.info("Exiting! Moonraker connection lost!")
-
-    a_scheduler.shutdown(wait=False)
-    bot_updater.stop()
+    logger.info("Shutting down the bot")

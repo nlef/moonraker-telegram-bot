@@ -1,7 +1,6 @@
 import asyncio
 import functools
 from functools import wraps
-import gc
 import glob
 from io import BytesIO
 import logging
@@ -9,6 +8,7 @@ import math
 import os
 import pathlib
 from pathlib import Path
+import pickle
 import threading
 import time
 from typing import List, Tuple
@@ -19,6 +19,7 @@ import ffmpegcv  # type: ignore
 from ffmpegcv import FFmpegReader
 from ffmpegcv.stream_info import get_info  # type: ignore
 import httpx
+from httpx import HTTPError
 import numpy
 from numpy import ndarray
 from telegram import Message
@@ -122,8 +123,7 @@ class Camera:
             self._img_extension = config.camera.picture_quality
 
         self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
-        self._raw_compressed: bool = config.timelapse.raw_compressed
-        self._raw_frame_extension: str = "npz" if self._raw_compressed else "nmdr"
+        self._raw_frame_extension: str = "npz"
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
@@ -376,8 +376,7 @@ class Camera:
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(frame_loc)
-                frame_loc = None
+                    frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             self.cam_cam.release()
@@ -393,19 +392,16 @@ class Camera:
             )
 
             for el in frame_list:
-                out.write(process_video_frame(el))
-            for ii in range(len(frame_list)):  # pylint: disable=C0200
-                frame_list[ii] = None
+                loc_loc = pickle.loads(el)
+                out.write(process_video_frame(loc_loc))
+                del loc_loc
 
             out.release()
             del out
             os_nice(0)
 
-            del frame_list[:]
             frame_list.clear()
-            frame_list = None  # type: ignore
             del frame_list
-            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
@@ -428,10 +424,8 @@ class Camera:
                 logger.error(ex)
 
         os_nice(15)
-        if self._raw_compressed:
-            numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
-        else:
-            raw_frame.dump(f"{self.lapse_dir}/{time.time()}.{self._raw_frame_extension}")
+
+        numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
         raw_frame = None
@@ -477,7 +471,7 @@ class Camera:
             return self._target_fps
 
     def _get_frame(self, path: str):
-        return numpy.load(path, allow_pickle=True)["raw"] if self._raw_compressed else numpy.load(path, allow_pickle=True)
+        return numpy.load(path, allow_pickle=True)["raw"]
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
         if not printing_filename:
@@ -653,23 +647,28 @@ class MjpegCamera(Camera):
 
     @cam_light_toggle
     def take_photo(self, ndarr: ndarray = None, force_rotate: bool = True) -> BytesIO:
-        response = httpx.get(f"{self._host_snapshot}", timeout=5)
         bio = BytesIO()
-
         os_nice(15)
-        if response.is_success and response.headers["Content-Type"] == "image/jpeg":
+        try:
+            # Todo: speedup coonections?
+            response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
 
-            if force_rotate:
-                img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
-                img.save(bio, format="JPEG")
-                img.close()
-                del img
+            os_nice(15)
+            if response.is_success and response.headers["Content-Type"] == "image/jpeg":
+
+                if force_rotate:
+                    img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
+                    img.save(bio, format="JPEG")
+                    img.close()
+                    del img
+                else:
+                    bio.write(response.content)
             else:
-                bio.write(response.content)
-        else:
-            logger.error("Streamer snapshot get failed\n\n%s", response.status_code)
-            with open("../imgs/nosignal.png", "rb") as file:
-                bio.write(file.read())
+                response.raise_for_status()
+        except HTTPError as err:
+            logger.error("Streamer snapshot get failed\n%s", err)
+            with Image.open("../imgs/nosignal.png").convert("RGB") as img:
+                img.save(bio, format="JPEG")
 
         os_nice(0)
         bio.seek(0)
@@ -725,8 +724,7 @@ class MjpegCamera(Camera):
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(frame_loc)
-                frame_loc = None
+                    frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             res_fps = len(frame_list) / self._video_duration
@@ -740,19 +738,16 @@ class MjpegCamera(Camera):
             )
 
             for el in frame_list:
-                out.write(self._image_to_frame(el))
-            for ii in range(len(frame_list)):  # pylint: disable=C0200
-                frame_list[ii] = None
+                loc_loc = pickle.loads(el)
+                out.write(self._image_to_frame(loc_loc))
+                del loc_loc
 
             out.release()
             del out
             os_nice(0)
 
-            del frame_list[:]
             frame_list.clear()
-            frame_list = None  # type: ignore
             del frame_list
-            gc.collect()
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"

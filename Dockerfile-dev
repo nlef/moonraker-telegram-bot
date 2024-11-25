@@ -1,15 +1,14 @@
-FROM python:3.12.7-slim-bookworm
+FROM python:3.12.7-bookworm
 
 RUN apt update \
  && apt install -y \
-      python3-dev python3-setuptools python3-virtualenv \
-      python3-cryptography python3-numpy libuv1 \
-      ffmpeg x264 libx264-dev libwebp-dev \
-      libtiff5-dev libjpeg*-turbo libjpeg*-turbo-dev libopenjp2-7-dev zlib1g-dev \
-      libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
-      libharfbuzz-dev libfribidi-dev libxcb1-dev \
+      ffmpeg x264 libx264-dev libuv1 \
+      libwebp-dev libtiff5-dev libjpeg*-turbo libjpeg*-turbo-dev libopenjp2-7-dev  \
+      zlib1g-dev libfreetype6-dev liblcms2-dev \
+      build-essential python3-dev libdebuginfod-dev libunwind-dev liblz4-dev \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
+
 
 WORKDIR /opt
 
@@ -19,10 +18,13 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
  && chown -R moonraker-telegram-bot:moonraker-telegram-bot /opt/*
 
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
-RUN virtualenv -p /usr/bin/python3 --system-site-packages venv \
- && venv/bin/pip install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.txt
+RUN pip3 install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.docker.opencv.txt
+
+RUN pip3 install --no-cache-dir memray==1.14.0
+RUN pip3 install --no-cache-dir memory-profiler
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]
-ENTRYPOINT ["/opt/venv/bin/python3", "moonraker-telegram-bot/bot/main.py"]
+# ENTRYPOINT ["python3", "-m", "memray", "run", "--native", "--trace-python-allocators", "moonraker-telegram-bot/bot/main.py"]
+ENTRYPOINT ["python3", "moonraker-telegram-bot/bot/main.py"]
 CMD ["-c", "/opt/printer_data/config/telegram.conf", "-l", "/opt/printer_data/logs"]
