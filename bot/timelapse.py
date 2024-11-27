@@ -166,6 +166,7 @@ class Timelapse:
         self._paused = False
         if new_val:
             self._add_timelapse_timer()
+            self._camera.lapse_missed_frames = 0
         else:
             self._remove_timelapse_timer()
 
@@ -274,13 +275,16 @@ class Timelapse:
                 if video_bio.getbuffer().nbytes > 52428800:
                     await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
+                    lapse_caption = f"time-lapse of {gcode_name}"
+                    if self._camera.lapse_missed_frames > 0:
+                        lapse_caption += f"\n{self._camera.lapse_missed_frames} frames missed"
                     await self._bot.send_video(
                         self._chat_id,
                         video=video_bio,
                         thumbnail=thumb_bio,
                         width=width,
                         height=height,
-                        caption=f"time-lapse of {gcode_name}",
+                        caption=lapse_caption,
                         write_timeout=120,
                         disable_notification=self._silent_progress,
                     )
@@ -318,6 +322,7 @@ class Timelapse:
         self._running = False
         self._paused = False
         self._last_height = 0.0
+        self._camera.lapse_missed_frames = 0
 
     async def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")

@@ -5,7 +5,7 @@ memory_profiler==0.61.0
 mypy==0.982
 numpy~=1.26.4
 opencv-python~=4.6.0.66
-pipdeptree==2.23.4
+pipdeptree==2.24.0
 pre-commit==4.0.1 ; python_version>='3.9'
 pre-commit==3.5.0 ; python_version<='3.8'
 pylint==3.2.7

@@ -138,6 +138,8 @@ class Camera:
         else:
             self._rotate_code = -10
 
+        self._lapse_missed_frames: int = 0
+
         if logging_handler:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
@@ -230,6 +232,14 @@ class Camera:
         if new_value >= 0:
             self._last_frame_duration = new_value
 
+    @property
+    def lapse_missed_frames(self) -> int:
+        return self._lapse_missed_frames
+
+    @lapse_missed_frames.setter
+    def lapse_missed_frames(self, new_value: int) -> None:
+        self._lapse_missed_frames = new_value
+
     @staticmethod
     def _create_thumb(image) -> BytesIO:
         img = Image.fromarray(image[:, :, [2, 1, 0]])
@@ -289,10 +299,14 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for photo")
-                img = Image.open("../imgs/nosignal.png")
-                image = numpy.array(img)
-                img.close()
-                del img
+                if rgb:
+                    img = Image.open("../imgs/nosignal.png")
+                    image = numpy.array(img)
+                    img.close()
+                    del img
+                else:
+                    # image is None
+                    return numpy.empty(0)
             else:
                 if self._flip_vertically:
                     image = numpy.flipud(image)
@@ -376,7 +390,8 @@ class Camera:
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(pickle.dumps(frame_loc))
+                    if success:
+                        frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             self.cam_cam.release()
@@ -417,11 +432,16 @@ class Camera:
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         # never add self in params there!
         raw_frame = self._take_raw_frame(rgb=False)
+
         if gcode:
             try:
                 self._klippy.execute_gcode_script_sync(gcode.strip())
             except Exception as ex:
                 logger.error(ex)
+
+        if raw_frame.size == 0:
+            self._lapse_missed_frames += 1
+            return
 
         os_nice(15)
 
@@ -667,8 +687,9 @@ class MjpegCamera(Camera):
                 response.raise_for_status()
         except HTTPError as err:
             logger.error("Streamer snapshot get failed\n%s", err)
-            with Image.open("../imgs/nosignal.png").convert("RGB") as img:
-                img.save(bio, format="JPEG")
+            if force_rotate:
+                with Image.open("../imgs/nosignal.png").convert("RGB") as img:
+                    img.save(bio, format="JPEG")
 
         os_nice(0)
         bio.seek(0)
@@ -679,9 +700,18 @@ class MjpegCamera(Camera):
         # Todo: check for space available?
         Path(self.lapse_dir).mkdir(parents=True, exist_ok=True)
         with self.take_photo(force_rotate=False) as photo:
-            filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
-            with open(filename, "wb") as outfile:
-                outfile.write(photo.getvalue())
+            if gcode:
+                try:
+                    self._klippy.execute_gcode_script_sync(gcode.strip())
+                except Exception as ex:
+                    logger.error(ex)
+
+            if photo.getbuffer().nbytes > 0:
+                filename = f"{self.lapse_dir}/{time.time()}.{self._img_extension}"
+                with open(filename, "wb") as outfile:
+                    outfile.write(photo.getvalue())
+            else:
+                self._lapse_missed_frames += 1
 
     def _image_to_frame(self, image_bio: BytesIO):
         image_bio.seek(0)
@@ -724,7 +754,8 @@ class MjpegCamera(Camera):
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
-                    frame_list.append(pickle.dumps(frame_loc))
+                    if frame_loc.getbuffer().nbytes > 0:
+                        frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
             res_fps = len(frame_list) / self._video_duration
