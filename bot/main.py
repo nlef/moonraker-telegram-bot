@@ -507,40 +507,15 @@ async def button_lapse_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             query.message.reply_markup.inline_keyboard,
         )
     )[0].text
+
     info_mess: Message = await context.bot.send_message(
         chat_id=configWrap.secrets.chat_id,
         text=f"Starting time-lapse assembly for {lapse_name}",
         disable_notification=notifier.silent_commands,
     )
     await context.bot.send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
-    # Todo: refactor all timelapse cals
-    (
-        video_bio,
-        thumb_bio,
-        width,
-        height,
-        video_path,
-        _gcode_name,
-    ) = await cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
-    await info_mess.edit_text(text="Uploading time-lapse")
-    if video_bio.getbuffer().nbytes > 52428800:
-        await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
-    else:
-        await context.bot.send_video(
-            configWrap.secrets.chat_id,
-            video=video_bio,
-            thumbnail=thumb_bio,
-            width=width,
-            height=height,
-            caption=f"time-lapse of {lapse_name}",
-            write_timeout=120,
-            disable_notification=notifier.silent_commands,
-        )
-        await context.bot.delete_message(chat_id=configWrap.secrets.chat_id, message_id=info_mess.message_id)
-        cameraWrap.cleanup(lapse_name)
-
-    video_bio.close()
-    thumb_bio.close()
+    await timelapse.upload_timelapse(lapse_name, info_mess)
+    info_mess = None  # type: ignore
     await query.delete_message()
     await check_unfinished_lapses(context.bot)
 

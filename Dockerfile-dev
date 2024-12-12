@@ -9,6 +9,8 @@ RUN apt update \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install --no-cache-dir memray==1.14.0
+RUN pip3 install --no-cache-dir memory-profiler
 
 WORKDIR /opt
 
@@ -20,8 +22,6 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
 RUN pip3 install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.docker.opencv.txt
 
-RUN pip3 install --no-cache-dir memray==1.14.0
-RUN pip3 install --no-cache-dir memory-profiler
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]

@@ -249,6 +249,7 @@ class Camera:
         img.save(bio, "JPEG", quality=100, optimize=True)
         bio.seek(0)
         img.close()
+        img = None  # type: ignore
         del img
         return bio
 
@@ -463,13 +464,9 @@ class Camera:
         raw_frame_rgb = None
         del raw_frame, raw_frame_rgb
 
-    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
+    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[bytes, bytes, int, int, str, str]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(self._create_timelapse, printing_filename, gcode_name, info_mess, loop))
-
-    async def create_timelapse_for_file(self, filename: str, info_mess: Message) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, functools.partial(self._create_timelapse, filename, filename, info_mess, loop))
 
     def _calculate_fps(self, frames_count: int) -> int:
         actual_duration = frames_count / self._target_fps
@@ -493,7 +490,7 @@ class Camera:
     def _get_frame(self, path: str):
         return numpy.load(path, allow_pickle=True)["raw"]
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[BytesIO, BytesIO, int, int, str, str]:
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")
 
@@ -567,29 +564,36 @@ class Camera:
                 asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
 
             out.release()
+            out = None
             del out
 
+        img = None  # type: ignore
         del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
 
-        video_bio = BytesIO()
-        video_bio.name = f"{video_filename}.mp4"
-        target_video_file = f"{self._ready_dir}/{printing_filename}.mp4"
+        video_bytes: bytes = b""
+
         with open(video_filepath, "rb") as fh:
-            video_bio.write(fh.read())
+            video_bytes = fh.read()
         if self._ready_dir and os.path.isdir(self._ready_dir):
             asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Copy lapse to target ditectory"), loop).result()
+            target_video_file = f"{self._ready_dir}/{printing_filename}.mp4"
             Path(target_video_file).parent.mkdir(parents=True, exist_ok=True)
             with open(target_video_file, "wb") as cpf:
-                cpf.write(video_bio.getvalue())
-        video_bio.seek(0)
+                cpf.write(video_bytes)
 
         os.remove(f"{lapse_dir}/lapse.lock")
 
         os_nice(0)
 
-        return video_bio, thumb_bio, width, height, video_filepath, gcode_name
+        res_thumb_bytes = thumb_bio.getvalue()
+
+        thumb_bio.close()
+        thumb_bio = None  # type: ignore
+        del thumb_bio
+
+        return video_bytes, res_thumb_bytes, width, height, video_filepath, gcode_name
 
     def cleanup(self, lapse_filename: str, force: bool = False) -> None:
         lapse_dir = f"{self._base_dir}/{lapse_filename}"

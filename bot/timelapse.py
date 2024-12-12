@@ -1,5 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import gc
 import logging
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
@@ -236,6 +237,60 @@ class Timelapse:
                 replace_existing=True,
             )
 
+    async def upload_timelapse(self, lapse_filename: str, info_mess, gcode_name_out: str = None) -> None:
+        try:
+            (
+                video_bytes,
+                thumb_bytes,
+                width,
+                height,
+                video_path,
+                gcode_name,
+            ) = await self._camera.create_timelapse(lapse_filename, lapse_filename if gcode_name_out is None else gcode_name_out, info_mess)
+
+            if self._send_finished_lapse:
+                await info_mess.edit_text(text="Uploading time-lapse")
+
+                if len(video_bytes) > 52428800:
+                    await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
+                else:
+                    lapse_caption = f"time-lapse of {gcode_name}"
+                    if self._camera.lapse_missed_frames > 0:
+                        lapse_caption += f"\n{self._camera.lapse_missed_frames} frames missed"
+                    await self._bot.send_video(
+                        self._chat_id,
+                        video=video_bytes,
+                        thumbnail=thumb_bytes,
+                        width=width,
+                        height=height,
+                        caption=lapse_caption,
+                        write_timeout=120,
+                        disable_notification=self._silent_progress,
+                    )
+                    try:
+                        await self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
+                    except BadRequest as badreq:
+                        logger.warning("Failed deleting message \n%s", badreq)
+                    self._camera.cleanup(lapse_filename)
+            else:
+                await info_mess.edit_text(text="Time-lapse creation finished")
+
+            video_bio_nbytes = len(video_bytes)
+
+            thumb_bytes = None  # type: ignore
+            video_bytes = None  # type: ignore
+            del video_bytes, thumb_bytes
+
+            gc.collect()
+
+            if self._after_lapse_gcode and gcode_name_out is not None:
+                # Todo: add exception handling
+                await self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
+                await self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
+        except Exception as ex:
+            logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
+            await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
+
     async def _send_lapse(self) -> None:
         if not self._enabled or not self._klippy.printing_filename:
             logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
@@ -259,54 +314,8 @@ class Timelapse:
 
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
-        try:
-            (
-                video_bio,
-                thumb_bio,
-                width,
-                height,
-                video_path,
-                gcode_name,
-            ) = await self._camera.create_timelapse(lapse_filename, gcode_name, info_mess)
-
-            if self._send_finished_lapse:
-                await info_mess.edit_text(text="Uploading time-lapse")
-
-                if video_bio.getbuffer().nbytes > 52428800:
-                    await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
-                else:
-                    lapse_caption = f"time-lapse of {gcode_name}"
-                    if self._camera.lapse_missed_frames > 0:
-                        lapse_caption += f"\n{self._camera.lapse_missed_frames} frames missed"
-                    await self._bot.send_video(
-                        self._chat_id,
-                        video=video_bio,
-                        thumbnail=thumb_bio,
-                        width=width,
-                        height=height,
-                        caption=lapse_caption,
-                        write_timeout=120,
-                        disable_notification=self._silent_progress,
-                    )
-                    try:
-                        await self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
-                    except BadRequest as badreq:
-                        logger.warning("Failed deleting message \n%s", badreq)
-                    self._camera.cleanup(lapse_filename)
-            else:
-                await info_mess.edit_text(text="Time-lapse creation finished")
-
-            video_bio_nbytes = video_bio.getbuffer().nbytes
-            video_bio.close()
-            thumb_bio.close()
-
-            if self._after_lapse_gcode:
-                # Todo: add exception handling
-                await self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
-                await self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
-        except Exception as ex:
-            logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
-            await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
+        await self.upload_timelapse(lapse_filename, info_mess, gcode_name)
+        info_mess = None  # type: ignore
 
     def send_timelapse(self) -> None:
         self._sched.add_job(

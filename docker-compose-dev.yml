@@ -3,7 +3,7 @@ services:
   moonraker-telegram-bot:
     platform: linux/arm64
     build:
-        dockerfile:  Dockerfile
+        dockerfile:  Dockerfile-dev
         context: .
     restart: unless-stopped
     volumes:
