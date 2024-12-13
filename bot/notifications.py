@@ -44,6 +44,7 @@ class Notifier:
         self._interval: int = config.notifications.interval
         self._notify_groups: List[int] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
+        self._max_upload_file_size: int = config.bot_config.max_upload_file_size
 
         self._progress_update_message = config.telegram_ui.progress_update_message
         self._silent_progress: bool = config.telegram_ui.silent_progress
@@ -554,8 +555,8 @@ class Notifier:
                 with open(path_obj, "rb") as fh:
                     bio.write(fh.read())
                 bio.seek(0)
-                if bio.getbuffer().nbytes > 52428800:
-                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a 50mb filesize restriction, video couldn't be uploaded: `{path}`")
+                if bio.getbuffer().nbytes > self._max_upload_file_size * 1024 * 1024:
+                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, video couldn't be uploaded: `{path}`")
                 else:
                     if not photos_list:
                         photos_list.append(InputMediaVideo(bio, filename=bio.name, caption=message))
@@ -599,8 +600,8 @@ class Notifier:
                 with open(path_obj, "rb") as fh:
                     bio.write(fh.read())
                 bio.seek(0)
-                if bio.getbuffer().nbytes > 52428800:
-                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a 50mb filesize restriction, document couldn't be uploaded: `{path}`")
+                if bio.getbuffer().nbytes > self._max_upload_file_size * 1024 * 1024:
+                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, document couldn't be uploaded: `{path}`")
                 else:
                     if not photos_list:
                         photos_list.append(InputMediaDocument(bio, filename=bio.name, caption=message))
