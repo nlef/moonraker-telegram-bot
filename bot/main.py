@@ -233,8 +233,9 @@ async def get_video(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         loop_loc = asyncio.get_running_loop()
         (video_bio, thumb_bio, width, height) = await loop_loc.run_in_executor(executors_pool, cameraWrap.take_video)
         await info_reply.edit_text(text="Uploading video")
-        if video_bio.getbuffer().nbytes > 52428800:
-            await info_reply.edit_text(text="Telegram has a 50mb restriction...")
+        max_upload_file_size: int = configWrap.bot_config.max_upload_file_size
+        if video_bio.getbuffer().nbytes > max_upload_file_size * 1024 * 1024:
+            await info_reply.edit_text(text=f"Telegram has a {max_upload_file_size}mb restriction...")
         else:
             await update.effective_message.reply_video(
                 video=video_bio,
@@ -523,8 +524,9 @@ async def button_lapse_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         _gcode_name,
     ) = await cameraWrap.create_timelapse_for_file(lapse_name, info_mess)
     await info_mess.edit_text(text="Uploading time-lapse")
-    if video_bio.getbuffer().nbytes > 52428800:
-        await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
+    max_upload_file_size = configWrap.bot_config.max_upload_file_size
+    if video_bio.getbuffer().nbytes > max_upload_file_size * 1012 * 1024:
+        await info_mess.edit_text(text=f"Telegram bots have a {max_upload_file_size}mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
     else:
         await context.bot.send_video(
             configWrap.secrets.chat_id,
@@ -533,7 +535,7 @@ async def button_lapse_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             width=width,
             height=height,
             caption=f"time-lapse of {lapse_name}",
-            write_timeout=120,
+            write_timeout=600,
             disable_notification=notifier.silent_commands,
         )
         await context.bot.delete_message(chat_id=configWrap.secrets.chat_id, message_id=info_mess.message_id)

@@ -208,6 +208,7 @@ class BotConfig(ConfigHelper):
         self.ssl_verify: bool = self._get_boolean("ssl_verify", default=True)
         self.port: int = self._get_int("port", default=80)
         self.api_url: str = self._get_str("api_url", default="https://api.telegram.org/bot")
+        self.max_upload_file_size: int = 50 if self.api_url == "https://api.telegram.org/bot" else 2000
         self.socks_proxy: str = self._get_str("socks_proxy", default="")
         self.light_device_name: str = self._get_str("light_device", default="")
         self.poweroff_device_name: str = self._get_str("power_device", default="")
