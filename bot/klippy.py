@@ -48,42 +48,22 @@ class PowerDevice:
     # Todo: return exception?
     async def switch_device(self, state: bool) -> bool:
         with self._state_lock:
-            if state:
-                res = await self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action=on")
-                if res.is_success:
-                    self._device_on = True
-                    return True
-                else:
-                    logger.error("Power device switch failed: %s", res)
-                    return state
+            res = await self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action={'on' if state else 'off'}")
+            if res.is_success:
+                self._device_on = state
             else:
-                res = await self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action=off")
-                if res.is_success:
-                    self._device_on = False
-                    return False
-                else:
-                    logger.error("Power device switch failed: %s", res)
-                    return state
+                logger.error("Power device switch failed: %s", res)
+            return self._device_on
 
     # Todo: return exception?
     def switch_device_sync(self, state: bool) -> bool:
         with self._state_lock:
-            if state:
-                res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action=on")
-                if res.is_success:
-                    self._device_on = True
-                    return True
-                else:
-                    logger.error("Power device switch failed: %s", res)
-                    return state
+            res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action={'on' if state else 'off'}")
+            if res.is_success:
+                self._device_on = state
             else:
-                res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action=off")
-                if res.is_success:
-                    self._device_on = False
-                    return False
-                else:
-                    logger.error("Power device switch failed: %s", res)
-                    return state
+                logger.error("Power device switch failed: %s", res)
+            return self._device_on
 
 
 class Klippy:
