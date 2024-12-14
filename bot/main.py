@@ -233,8 +233,9 @@ async def get_video(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         loop_loc = asyncio.get_running_loop()
         (video_bio, thumb_bio, width, height) = await loop_loc.run_in_executor(executors_pool, cameraWrap.take_video)
         await info_reply.edit_text(text="Uploading video")
-        if video_bio.getbuffer().nbytes > 52428800:
-            await info_reply.edit_text(text="Telegram has a 50mb restriction...")
+        max_upload_file_size: int = configWrap.bot_config.max_upload_file_size
+        if video_bio.getbuffer().nbytes > max_upload_file_size * 1024 * 1024:
+            await info_reply.edit_text(text=f"Telegram has a {max_upload_file_size}mb restriction...")
         else:
             await update.effective_message.reply_video(
                 video=video_bio,

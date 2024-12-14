@@ -42,6 +42,7 @@ class Timelapse:
         self._limit_fps: bool = config.timelapse.limit_fps
         self._min_lapse_duration: int = config.timelapse.min_lapse_duration
         self._max_lapse_duration: int = config.timelapse.max_lapse_duration
+        self._max_upload_file_size: int = config.bot_config.max_upload_file_size
         self._last_frame_duration: int = config.timelapse.last_frame_duration
 
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
@@ -251,8 +252,8 @@ class Timelapse:
             if self._send_finished_lapse:
                 await info_mess.edit_text(text="Uploading time-lapse")
 
-                if len(video_bytes) > 52428800:
-                    await info_mess.edit_text(text=f"Telegram bots have a 50mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
+                if len(video_bytes) > self._max_upload_file_size * 1024 * 1024:
+                    await info_mess.edit_text(text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
                     lapse_caption = f"time-lapse of {gcode_name}"
                     if self._camera.lapse_missed_frames > 0:
@@ -264,7 +265,7 @@ class Timelapse:
                         width=width,
                         height=height,
                         caption=lapse_caption,
-                        write_timeout=120,
+                        write_timeout=600,
                         disable_notification=self._silent_progress,
                     )
                     try:
