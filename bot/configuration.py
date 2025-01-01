@@ -357,8 +357,6 @@ class TelegramUIConfig(ConfigHelper):
         "pin_status_single_message",
         "send_greeting_message",
         "buttons",
-        "require_confirmation_macro",
-        "require_confirmation_services",
         "progress_update_message",
         "include_macros_in_command_list",
         "hidden_macros",
@@ -395,8 +393,6 @@ class TelegramUIConfig(ConfigHelper):
                 re.findall(r"\[.[^\]]*\]", self._get_str("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
             )
         )
-        self.require_confirmation_macro: bool = self._get_boolean("require_confirmation_macro", default=True)
-        self.require_confirmation_services: bool = self._get_boolean("require_confirmation_services", default=True)
         self.progress_update_message: bool = self._get_boolean("progress_update_message", default=False)
         self.silent_progress: bool = self._get_boolean("silent_progress", default=False)
         self.silent_commands: bool = self._get_boolean("silent_commands", default=False)
@@ -408,6 +404,7 @@ class TelegramUIConfig(ConfigHelper):
         self.pin_status_single_message: bool = self._get_boolean("pin_status_single_message", default=True)
         self.status_message_m117_update: bool = self._get_boolean("status_message_m117_update", default=False)
         self.send_greeting_message: bool = self._get_boolean("send_greeting_message", default=True)
+        self.confirmed_bot_commands: List[str] = self._get_list("confirmed_bot_commands", default=[])
 
 
 class StatusMessageContentConfig(ConfigHelper):
