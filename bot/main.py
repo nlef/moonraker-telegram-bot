@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import faulthandler
@@ -17,7 +18,7 @@ import subprocess
 import sys
 import tarfile
 import time
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
 
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
@@ -302,69 +303,77 @@ async def command_confirm_message(update: Update, text: str, callback_mess: str)
     )
 
 
-# Todo: refactor with callbacks
-async def pause_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
-    if "pause" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Pause printing?", callback_mess="pause_printing")
+async def command_confirm_message_ext(update: Update, command: str, confirm_text: str, exec_text: str, callback_mess: str, exec_func: Coroutine[Any, Any, None]) -> None:
+    if update.effective_message is None or update.effective_message.get_bot() is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    await update.effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
+    if command in configWrap.telegram_ui.confirmed_bot_commands:
+
+        await update.effective_message.reply_text(
+            confirm_text,
+            reply_markup=confirm_keyboard(callback_mess),
+            disable_notification=notifier.silent_commands,
+            quote=True,
+        )
     else:
-        await update.effective_message.reply_text("Resuming printing", quote=True)
-        await ws_helper.manage_printing("pause")
+        await command_exec(effective_message=update.effective_message, exec_text=exec_text, exec_func=exec_func)
+
+
+async def command_exec(effective_message: Message, exec_text: str, exec_func: Coroutine[Any, Any, None]):
+    if exec_func is not None:
+        await effective_message.reply_text(exec_text, quote=True)
+    await exec_func
+
+
+async def pause_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
+    await command_confirm_message_ext(
+        update=update, command="pause", confirm_text="Pause printing?", exec_text="Pausing printing", callback_mess="pause_printing", exec_func=ws_helper.manage_printing("pause")
+    )
 
 
 async def resume_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
-    if "resume" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Resume printing?", callback_mess="resume_printing")
-    else:
-        await update.effective_message.reply_text("Resuming printing", quote=True)
-        await ws_helper.manage_printing("resume")
+    await command_confirm_message_ext(
+        update=update, command="resume", confirm_text="Resume printing?", exec_text="Resuming printing", callback_mess="resume_printing", exec_func=ws_helper.manage_printing("resume")
+    )
 
 
 async def cancel_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
-    if "cancel" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Cancel printing?", callback_mess="cancel_printing")
-    else:
-        await update.effective_message.reply_text("Canceling printing", quote=True)
-        await ws_helper.manage_printing("cancel")
+    await command_confirm_message_ext(
+        update=update, command="cancel", confirm_text="Cancel printing?", exec_text="Canceling printing", callback_mess="cancel_printing", exec_func=ws_helper.manage_printing("cancel")
+    )
 
 
 async def emergency_stop(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    if "emergency" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Execute emergency stop?", callback_mess="emergency_stop")
-    else:
-        await update.effective_message.reply_text("Executing emergency stop", quote=True)
-        await ws_helper.emergency_stop_printer()
+    await command_confirm_message_ext(
+        update=update, command="emergency", confirm_text="Execute emergency stop?", exec_text="Executing emergency stop", callback_mess="emergency_stop", exec_func=ws_helper.emergency_stop_printer()
+    )
 
 
 async def firmware_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    if "fw_restart" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Restart klipper firmware?", callback_mess="firmware_restart")
-    else:
-        await update.effective_message.reply_text("Restarting klipper firmware", quote=True)
-        await ws_helper.firmware_restart_printer()
+    await command_confirm_message_ext(
+        update=update,
+        command="fw_restart",
+        confirm_text="Restart klipper firmware?",
+        exec_text="Restarting klipper firmware",
+        callback_mess="firmware_restart",
+        exec_func=ws_helper.firmware_restart_printer(),
+    )
 
 
 async def shutdown_host(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    if "shutdown" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Shutdown host?", callback_mess="shutdown_host")
-    else:
-        await update.effective_message.reply_text("Shutting down host", quote=True)
-        await ws_helper.shutdown_pi_host()
+    await command_confirm_message_ext(
+        update=update, command="shutdown", confirm_text="Shutdown host?", exec_text="Shutting down host", callback_mess="shutdown_host", exec_func=ws_helper.shutdown_pi_host()
+    )
 
 
 async def reboot_host(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    if "reboot" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Reboot host?", callback_mess="reboot_host")
-    else:
-        await update.effective_message.reply_text("Rebooting host", quote=True)
-        await ws_helper.reboot_pi_host()
+    await command_confirm_message_ext(update=update, command="reboot", confirm_text="Reboot host?", exec_text="Rebooting host", callback_mess="reboot_host", exec_func=ws_helper.reboot_pi_host())
 
 
 async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    if "bot_restart" in configWrap.telegram_ui.confirmed_bot_commands:
-        await command_confirm_message(update, text="Restart bot?", callback_mess="bot_restart")
-    else:
-        await update.effective_message.reply_text("Restarting bot", quote=True)
-        restart_bot()
+    await command_confirm_message_ext(update=update, command="bot_restart", confirm_text="Restart bot?", exec_text="Restarting bot", callback_mess="bot_restart", exec_func=restart_bot())
 
 
 def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
@@ -499,7 +508,7 @@ async def upload_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         await upload_logs_no_confirm(update.effective_message)
 
 
-def restart_bot() -> None:
+async def restart_bot() -> None:
     a_scheduler.shutdown(wait=False)
     # if ws_helper.websocket:
     #     ws_helper.websocket.close()
@@ -668,32 +677,28 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 update.effective_message.reply_to_message.message_id,
             )
     elif query.data == "emergency_stop":
-        await ws_helper.emergency_stop_printer()
+        await command_exec(effective_message=update.effective_message, exec_text="Executing emergency stop", exec_func=ws_helper.emergency_stop_printer())
     elif query.data == "firmware_restart":
-        await ws_helper.firmware_restart_printer()
+        await command_exec(effective_message=update.effective_message, exec_text="Restarting klipper firmware", exec_func=ws_helper.firmware_restart_printer())
     elif query.data == "cancel_printing":
-        await ws_helper.manage_printing("cancel")
+        await command_exec(effective_message=update.effective_message, exec_text="Canceling printing", exec_func=ws_helper.manage_printing("cancel"))
     elif query.data == "pause_printing":
-        await ws_helper.manage_printing("pause")
+        await command_exec(effective_message=update.effective_message, exec_text="Pausing printing", exec_func=ws_helper.manage_printing("pause"))
     elif query.data == "resume_printing":
-        await ws_helper.manage_printing("resume")
+        await command_exec(effective_message=update.effective_message, exec_text="Resuming printing", exec_func=ws_helper.manage_printing("resume"))
     elif query.data == "cleanup_timelapse_unfinished":
         await context.bot.send_message(chat_id=configWrap.secrets.chat_id, text="Removing unfinished timelapses data")
         cameraWrap.cleanup_unfinished_lapses()
     elif "gcode:" in query.data:
         await ws_helper.execute_ws_gcode_script(query.data.replace("gcode:", ""))
-        delete_query = False
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
     elif query.data == "shutdown_host":
-        await update.effective_message.reply_to_message.reply_text("Shutting down host", quote=True)
-        await ws_helper.shutdown_pi_host()
+        await command_exec(effective_message=update.effective_message, exec_text="Shutting down host", exec_func=ws_helper.shutdown_pi_host())
     elif query.data == "reboot_host":
-        await update.effective_message.reply_to_message.reply_text("Rebooting host", quote=True)
-        await ws_helper.reboot_pi_host()
+        await command_exec(effective_message=update.effective_message, exec_text="Rebooting host", exec_func=ws_helper.reboot_pi_host())
     elif query.data == "bot_restart":
-        await update.effective_message.reply_to_message.reply_text("Restarting bot", quote=True)
-        restart_bot()
+        await command_exec(effective_message=update.effective_message, exec_text="Restarting bot", exec_func=restart_bot())
     elif query.data == "power_off_printer":
         await psu_power_device.switch_device(False)
         if psu_power_device.device_error:
@@ -718,12 +723,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     elif "macro:" in query.data:
         command = query.data.replace("macro:", "")
-        await update.effective_message.reply_to_message.reply_text(
-            f"Running macro: {command}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-        await ws_helper.execute_ws_gcode_script(command)
+        await command_exec(effective_message=update.effective_message, exec_text=f"Running macro: {command}", exec_func=ws_helper.execute_ws_gcode_script(command))
     elif "macroc:" in query.data:
         command = query.data.replace("macroc:", "")
         await query.edit_message_text(
@@ -760,12 +760,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         delete_query = False
     elif "rstrt_srv:" in query.data:
         service_name = query.data.replace("rstrt_srv:", "")
-        await update.effective_message.reply_to_message.reply_text(
-            f"Restarting service: {service_name}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
-        await ws_helper.restart_system_service(service_name)
+        await command_exec(effective_message=update.effective_message, exec_text=f"Restarting service: {service_name}", exec_func=ws_helper.restart_system_service(service_name))
     elif "upload_logs:" in query.data:
         await upload_logs_no_confirm(update.effective_message.reply_to_message)
     elif "send_logs:" in query.data:
@@ -894,7 +889,10 @@ async def exec_gcode(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
     if update.effective_message.text != "/gcode":
         command = update.effective_message.text.replace("/gcode ", "")
-        await ws_helper.execute_ws_gcode_script(command)
+        if command in configWrap.telegram_ui.confirmed_bot_commands or "gcode" in configWrap.telegram_ui.confirmed_bot_commands:
+            await command_confirm_message(update, text=f"Execute gcode:`'{command}'`?", callback_mess=f"gcode:{command}")
+        else:
+            await ws_helper.execute_ws_gcode_script(command)
     else:
         await update.effective_message.reply_text("No command provided", quote=True)
 
@@ -1253,11 +1251,11 @@ def start_bot(bot_token, socks):
     application.add_handler(CommandHandler("services", services_keyboard))
     application.add_handler(CommandHandler("files", get_gcode_files, block=False))
     application.add_handler(CommandHandler("macros", get_macros, block=False))
-    application.add_handler(CommandHandler("gcode", exec_gcode, block=False))  # Todo: add confirm
+    application.add_handler(CommandHandler("gcode", exec_gcode, block=False))
     application.add_handler(CommandHandler("logs", send_logs, block=False))
     application.add_handler(CommandHandler("upload_logs", upload_logs, block=False))
 
-    application.add_handler(MessageHandler(filters.COMMAND, macros_handler, block=False))  # Todo: some refactor
+    application.add_handler(MessageHandler(filters.COMMAND, macros_handler, block=False))
 
     application.add_handler(MessageHandler(filters.Document.ALL & (~filters.COMMAND), upload_file, block=False))
 
