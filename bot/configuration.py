@@ -406,6 +406,9 @@ class TelegramUIConfig(ConfigHelper):
         self.send_greeting_message: bool = self._get_boolean("send_greeting_message", default=True)
         self.confirmed_bot_commands: List[str] = self._get_list("confirmed_bot_commands", default=[])
 
+    def is_present_confirmed_commands(self, command: str) -> bool:
+        return command.strip() in self.confirmed_bot_commands
+
 
 class StatusMessageContentConfig(ConfigHelper):
     _section = "status_message_content"
