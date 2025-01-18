@@ -135,9 +135,6 @@ async def unknown_chat(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         logger.warning("Undefined effective chat")
         return
 
-    if update.effective_chat.id in configWrap.notifications.notify_groups:
-        return
-
     if update.effective_chat.id < 0 or update.effective_message is None:
         return
 

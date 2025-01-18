@@ -3,7 +3,7 @@ import os
 import pathlib
 from pathlib import Path
 import re
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 
 class ConfigHelper:
@@ -294,8 +294,22 @@ class NotifierConfig(ConfigHelper):
         self.percent: int = self._get_int("percent", default=0, min_value=0)
         self.height: float = self._get_float("height", default=0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
-        self.notify_groups: List[int] = self._get_list("groups", default=[], el_type=int)
+        self.notify_groups: List[Tuple[int, Optional[int]]] = self._get_groups_list()
         self.group_only: bool = self._get_boolean("group_only", default=False)
+
+    def _get_groups_list(self) -> List[Tuple[int, Optional[int]]]:
+        els = [self._get_group_with_thread_id(el) for el in self._get_list("groups", default=[], el_type=str)]
+        return list(ell for ell in els if ell is not None)
+
+    @staticmethod
+    def _get_group_with_thread_id(group_id: str) -> Optional[Tuple[int, Optional[int]]]:
+        parts = group_id.split(":")
+        if len(parts) == 2:
+            return int(parts[0]), int(parts[1])
+        elif len(parts) == 1:
+            return int(parts[0]), None
+        else:
+            return None
 
 
 class TimelapseConfig(ConfigHelper):

@@ -5,7 +5,7 @@ from io import BytesIO
 import logging
 from pathlib import Path
 import re
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
@@ -42,7 +42,7 @@ class Notifier:
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
-        self._notify_groups: List[int] = config.notifications.notify_groups
+        self._notify_groups: List[Tuple[int, Optional[int]]] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
         self._max_upload_file_size: int = config.bot_config.max_upload_file_size
 
@@ -156,8 +156,8 @@ class Notifier:
                 if not self._status_message and not manual:
                     self._status_message = sent_message
 
-        for group in self._notify_groups:
-            await self._bot.send_chat_action(chat_id=group, action=ChatAction.TYPING)
+        for group, message_thread_id in self._notify_groups:
+            await self._bot.send_chat_action(chat_id=group, message_thread_id=message_thread_id, action=ChatAction.TYPING)
             if group in self._groups_status_mesages and not manual:
                 mess = self._groups_status_mesages[group]
                 if mess.caption:
@@ -166,7 +166,8 @@ class Notifier:
                     await mess.edit_text(text=message, parse_mode=ParseMode.MARKDOWN_V2)
             else:
                 sent_message = await self._bot.send_message(
-                    group,
+                    chat_id=group,
+                    message_thread_id=message_thread_id,
                     text=message,
                     parse_mode=ParseMode.MARKDOWN_V2,
                     disable_notification=silent,
@@ -207,16 +208,17 @@ class Notifier:
                     if not self._status_message and not manual:
                         self._status_message = sent_message
 
-            for group in self._notify_groups:
+            for group, message_thread_id in self._notify_groups:
                 photo.seek(0)
-                await self._bot.send_chat_action(chat_id=group, action=ChatAction.UPLOAD_PHOTO)
+                await self._bot.send_chat_action(chat_id=group, message_thread_id=message_thread_id, action=ChatAction.UPLOAD_PHOTO)
                 if group in self._groups_status_mesages and not manual:
                     mess = self._groups_status_mesages[group]
                     await mess.edit_media(media=InputMediaPhoto(photo))
                     await mess.edit_caption(caption=message, parse_mode=ParseMode.MARKDOWN_V2)
                 else:
                     sent_message = await self._bot.send_photo(
-                        group,
+                        chat_id=group,
+                        message_thread_id=message_thread_id,
                         photo=photo,
                         caption=message,
                         parse_mode=ParseMode.MARKDOWN_V2,
@@ -428,19 +430,20 @@ class Notifier:
                 caption=message,
                 disable_notification=self.silent_status,
             )
-            for group_ in self._notify_groups:
+            for group_, message_thread_id in self._notify_groups:
                 bio.seek(0)
                 self._groups_status_mesages[group_] = await self._bot.send_photo(
-                    group_,
+                    chat_id=group_,
+                    message_thread_id=message_thread_id,
                     photo=bio,
                     caption=message,
                     disable_notification=self.silent_status,
                 )
             bio.close()
         else:
-            status_message = await self._bot.send_message(self._chat_id, message, disable_notification=self.silent_status)
-            for group_ in self._notify_groups:
-                self._groups_status_mesages[group_] = await self._bot.send_message(group_, message, disable_notification=self.silent_status)
+            status_message = await self._bot.send_message(chat_id=self._chat_id, text=message, disable_notification=self.silent_status)
+            for group_, message_thread_id in self._notify_groups:
+                self._groups_status_mesages[group_] = await self._bot.send_message(chat_id=group_, message_thread_id=message_thread_id, text=message, disable_notification=self.silent_status)
         self._status_message = status_message
 
         if self._pin_status_single_message:
