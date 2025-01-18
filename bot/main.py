@@ -325,7 +325,6 @@ async def command_confirm_message_ext(update: Update, command: str, confirm_text
 
     await update.effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.TYPING)
     if configWrap.telegram_ui.is_present_in_require_confirmation_commands(command):
-
         await update.effective_message.reply_text(
             confirm_text,
             reply_markup=confirm_keyboard(callback_mess),
@@ -337,7 +336,7 @@ async def command_confirm_message_ext(update: Update, command: str, confirm_text
 
 
 async def command_exec(effective_message: Message, exec_text: str, exec_func: Coroutine[Any, Any, None]):
-    if exec_func is not None:
+    if exec_text is not None:
         await effective_message.reply_text(exec_text, quote=True)
     await exec_func
 
@@ -694,16 +693,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 update.effective_message.chat_id,
                 update.effective_message.reply_to_message.message_id,
             )
-    elif query.data == "emergency_stop":
-        await command_exec(effective_message=update.effective_message, exec_text="Executing emergency stop", exec_func=ws_helper.emergency_stop_printer())
-    elif query.data == "firmware_restart":
-        await command_exec(effective_message=update.effective_message, exec_text="Restarting klipper firmware", exec_func=ws_helper.firmware_restart_printer())
-    elif query.data == "cancel_printing":
-        await command_exec(effective_message=update.effective_message, exec_text="Canceling printing", exec_func=ws_helper.manage_printing("cancel"))
-    elif query.data == "pause_printing":
-        await command_exec(effective_message=update.effective_message, exec_text="Pausing printing", exec_func=ws_helper.manage_printing("pause"))
-    elif query.data == "resume_printing":
-        await command_exec(effective_message=update.effective_message, exec_text="Resuming printing", exec_func=ws_helper.manage_printing("resume"))
     elif query.data == "cleanup_timelapse_unfinished":
         await context.bot.send_message(chat_id=configWrap.secrets.chat_id, text="Removing unfinished timelapses data")
         cameraWrap.cleanup_unfinished_lapses()
@@ -711,12 +700,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await ws_helper.execute_ws_gcode_script(query.data.replace("gcode:", ""))
     elif update.effective_message.reply_to_message is None:
         logger.error("Undefined reply_to_message for %s", update.effective_message.to_json())
+    elif query.data == "emergency_stop":
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Executing emergency stop", exec_func=ws_helper.emergency_stop_printer())
+    elif query.data == "firmware_restart":
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Restarting klipper firmware", exec_func=ws_helper.firmware_restart_printer())
+    elif query.data == "cancel_printing":
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Canceling printing", exec_func=ws_helper.manage_printing("cancel"))
+    elif query.data == "pause_printing":
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Pausing printing", exec_func=ws_helper.manage_printing("pause"))
+    elif query.data == "resume_printing":
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Resuming printing", exec_func=ws_helper.manage_printing("resume"))
     elif query.data == "shutdown_host":
-        await command_exec(effective_message=update.effective_message, exec_text="Shutting down host", exec_func=ws_helper.shutdown_pi_host())
+        await query.delete_message()
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Shutting down host", exec_func=ws_helper.shutdown_pi_host())
     elif query.data == "reboot_host":
-        await command_exec(effective_message=update.effective_message, exec_text="Rebooting host", exec_func=ws_helper.reboot_pi_host())
+        await query.delete_message()
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Rebooting host", exec_func=ws_helper.reboot_pi_host())
     elif query.data == "bot_restart":
-        await command_exec(effective_message=update.effective_message, exec_text="Restarting bot", exec_func=restart_bot())
+        await query.delete_message()
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Restarting bot", exec_func=restart_bot())
     elif query.data == "power_off_printer":
         await psu_power_device.switch_device(False)
         if psu_power_device.device_error:
@@ -741,7 +743,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     elif "macro:" in query.data:
         command = query.data.replace("macro:", "")
-        await command_exec(effective_message=update.effective_message, exec_text=f"Running macro: {command}", exec_func=ws_helper.execute_ws_gcode_script(command))
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text=f"Running macro: {command}", exec_func=ws_helper.execute_ws_gcode_script(command))
     elif "macroc:" in query.data:
         command = query.data.replace("macroc:", "")
         await query.edit_message_text(
@@ -778,7 +780,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         delete_query = False
     elif "rstrt_srv:" in query.data:
         service_name = query.data.replace("rstrt_srv:", "")
-        await command_exec(effective_message=update.effective_message, exec_text=f"Restarting service: {service_name}", exec_func=ws_helper.restart_system_service(service_name))
+        await command_exec(effective_message=update.effective_message.reply_to_message, exec_text=f"Restarting service: {service_name}", exec_func=ws_helper.restart_system_service(service_name))
     elif "upload_logs:" in query.data:
         await upload_logs_no_confirm(update.effective_message.reply_to_message)
     elif "send_logs:" in query.data:
@@ -788,7 +790,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif "services:" in query.data:
         await services_keyboard_no_confirm(update.effective_message.reply_to_message)
     elif "macros:" in query.data:
-        await get_gcode_files_no_confirm(update.effective_message.reply_to_message)
+        await get_macros_no_confirm(update.effective_message.reply_to_message)
     elif "help:" in query.data:
         await help_command_no_confirm(update.effective_message.reply_to_message)
     elif "status:" in query.data:
@@ -922,7 +924,11 @@ async def get_macros_no_confirm(effective_message: Message) -> None:
             lambda el: [
                 InlineKeyboardButton(
                     el,
-                    callback_data=f"macroc:{el}" if configWrap.telegram_ui.is_present_in_require_confirmation_commands(el) else f"macro:{el}",
+                    callback_data=(
+                        f"macroc:{el}"
+                        if configWrap.telegram_ui.is_present_in_require_confirmation_commands(el) or configWrap.telegram_ui.is_present_in_require_confirmation_commands("macro")
+                        else f"macro:{el}"
+                    ),
                 )
             ],
             klippy.macros,
