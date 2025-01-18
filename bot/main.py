@@ -46,8 +46,23 @@ with contextlib.suppress(ImportError):
 
 sys.modules["json"] = orjson
 
+
+class SensitiveFormatter(logging.Formatter):
+    """Formatter that removes sensitive information in urls."""
+
+    @staticmethod
+    def _filter(s):
+        return re.sub(r"\d{10}:[0-9A-Za-z_-]{35}", "**************", s)
+
+    def format(self, record):
+        original = logging.Formatter.format(self, record)
+        return self._filter(original)
+
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(SensitiveFormatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
 logging.basicConfig(
-    handlers=[logging.StreamHandler(sys.stdout)],
+    handlers=[console_handler],
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
     level=logging.INFO,
 )
@@ -427,7 +442,15 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
 
 
 async def send_logs_no_confirm(effective_message: Message) -> None:
-    await effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    if effective_message is None or effective_message.get_bot() is None:
+        logger.warning("Undefined effective message or bot")
+        return
+
+    resp_message = await effective_message.reply_text(
+        "Collecting logs",
+        disable_notification=notifier.silent_commands,
+        quote=True,
+    )
 
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     for log_file in prepare_log_files()[0]:
@@ -438,15 +461,13 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         except FileNotFoundError as err:
             logger.warning(err)
 
-    await effective_message.reply_text(text=f"{await klippy.get_versions_info()}\nUpload logs to analyzer /upload_logs", disable_notification=notifier.silent_commands, quote=True)
     if logs_list:
-        await effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True)
+        await resp_message.edit_text("Uploading logs")
+        await effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+        await effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, quote=True, write_timeout=120)
+        await resp_message.edit_text(text=f"{await klippy.get_versions_info()}\nUpload logs to analyzer /upload_logs")
     else:
-        await effective_message.reply_text(
-            text=f"No logs found in log_path `{configWrap.bot_config.log_path}`",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
+        await resp_message.edit_text(text=f"No logs found in log_path `{configWrap.bot_config.log_path}`")
 
 
 async def send_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -461,13 +482,15 @@ async def send_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def upload_logs_no_confirm(effective_message: Message) -> None:
+    resp_message = await effective_message.reply_text(
+        "Collecting logs",
+        disable_notification=notifier.silent_commands,
+        quote=True,
+    )
+
     files_list, dmesg_success, dmesg_error = prepare_log_files()
     if not dmesg_success:
-        await effective_message.reply_text(
-            text=f"Dmesg log file creation error {dmesg_error}",
-            disable_notification=notifier.silent_commands,
-            quote=True,
-        )
+        await resp_message.edit_text(f"Dmesg log file creation error {dmesg_error}")
         return
 
     if Path(f"{configWrap.bot_config.log_path}/logs.tar.xz").exists():
@@ -478,23 +501,18 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
             if Path(f"{configWrap.bot_config.log_path}/{file}").exists():
                 tar.add(Path(f"{configWrap.bot_config.log_path}/{file}"), arcname=file)
 
+    await resp_message.edit_text("Uploading logs to parser")
+    await effective_message.get_bot().send_chat_action(chat_id=configWrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+
     with open(f"{configWrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb:
         resp = httpx.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": log_archive_ojb}, follow_redirects=False, timeout=25)
         if resp.status_code < 400:
             logs_path = resp.headers["location"]
             logger.info(logs_path)
-            await effective_message.reply_text(
-                text=f"Logs are available at https://coderus.openrepos.net{logs_path}",
-                disable_notification=notifier.silent_commands,
-                quote=True,
-            )
+            await resp_message.edit_text(f"Logs are available at https://coderus.openrepos.net{logs_path}")
         else:
             logger.error(resp.status_code)
-            await effective_message.reply_text(
-                text=f"Logs upload failed `{resp.status_code}`",
-                disable_notification=notifier.silent_commands,
-                quote=True,
-            )
+            await resp_message.edit_text(f"Logs upload failed `{resp.status_code}`")
 
 
 async def upload_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1102,21 +1120,23 @@ def bot_commands() -> Dict[str, str]:
         "help": "list bot commands",
         "status": "send klipper status",
         "ip": "send private ip of the bot installation",
+        "video": "record and upload a video",
         "pause": "pause printing",
         "resume": "resume printing",
         "cancel": "cancel printing",
-        "files": "list available gcode files",
-        "logs": "get klipper, moonraker, bot logs",
-        "upload_logs": "upload logs to analyzer",
-        "macros": "list all visible macros from klipper",
-        "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
-        "video": "record and upload a video",
         "power": "toggle moonraker power device from config",
         "light": "toggle light",
         "emergency": "emergency stop printing",
-        "bot_restart": "restarts the bot service, useful for config updates",
         "shutdown": "shutdown bot host gracefully",
         "reboot": "reboot bot host gracefully",
+        "bot_restart": "restarts the bot service, useful for config updates",
+        "fw_restart": "Execute klipper FIRMWARE_RESTART",
+        "services": "List services and restart them",
+        "files": "list available gcode files",
+        "macros": "list all visible macros from klipper",
+        "gcode": 'run any gcode command, spaces are supported. "gcode G28 Z"',
+        "logs": "get klipper, moonraker, bot logs",
+        "upload_logs": "upload logs to analyzer",
     }
     return {c: a for c, a in commands.items() if c not in configWrap.telegram_ui.hidden_bot_commands}
 
@@ -1211,16 +1231,18 @@ def start_bot(bot_token, socks):
     app_builder = Application.builder()
     (
         app_builder.base_url(configWrap.bot_config.api_url)
-        .connection_pool_size(10)
-        .pool_timeout(10)
-        .connect_timeout(30)
-        .read_timeout(30)
-        .write_timeout(30)
+        .connection_pool_size(265)
+        .pool_timeout(1)
+        .connect_timeout(10)
+        .read_timeout(45)
+        .write_timeout(60)
+        .media_write_timeout(240)
+        .concurrent_updates(2)
         .get_updates_connection_pool_size(4)
-        .get_updates_connect_timeout(30)
-        .get_updates_read_timeout(30)
-        .get_updates_write_timeout(30)
-        .media_write_timeout(120)
+        .get_updates_pool_timeout(1)
+        .get_updates_connect_timeout(10)
+        .get_updates_read_timeout(45)
+        .get_updates_write_timeout(60)
         .token(bot_token)
     )
 
@@ -1266,6 +1288,18 @@ def start_bot(bot_token, socks):
     return application
 
 
+async def start_scheduler(context: ContextTypes.DEFAULT_TYPE):
+    a_scheduler.start()
+    a_scheduler.add_job(
+        greeting_message,
+        # kwargs={"bot": bot_updater.bot},
+        kwargs={"bot": context.bot},
+    )
+    # bot_updater.create_task(ws_helper.run_forever_async())
+    loop = asyncio.get_event_loop()
+    loop.create_task(ws_helper.run_forever_async())
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Moonraker Telegram Bot")
     parser.add_argument(
@@ -1295,7 +1329,7 @@ if __name__ == "__main__":
         maxBytes=26214400,
         backupCount=3,
     )
-    rotating_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
+    rotating_handler.setFormatter(SensitiveFormatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"))
     logger.addHandler(rotating_handler)
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -1311,6 +1345,8 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         logging.getLogger("apscheduler").addHandler(rotating_handler)
         logging.getLogger("apscheduler").setLevel(logging.DEBUG)
+        logging.getLogger("httpx").setLevel(logging.DEBUG)
+        # logging.getLogger("httpcore").setLevel(logging.DEBUG)
 
     klippy = Klippy(configWrap, rotating_handler)
 
@@ -1331,16 +1367,7 @@ if __name__ == "__main__":
 
     ws_helper = WebSocketHelper(configWrap, klippy, notifier, timelapse, a_scheduler, rotating_handler)
 
-    a_scheduler.start()
-
-    loop = asyncio.get_event_loop()
-    loop.create_task(ws_helper.run_forever_async())
-
-    a_scheduler.add_job(
-        greeting_message,
-        kwargs={"bot": bot_updater.bot},
-    )
-
+    bot_updater.job_queue.run_once(start_scheduler, 1)
     bot_updater.run_polling(allowed_updates=Update.ALL_TYPES)
 
     logger.info("Shutting down the bot")

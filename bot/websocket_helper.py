@@ -6,6 +6,7 @@ import ssl
 import time
 
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")  # pylint: disable=C0413
+os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")  # pylint: disable=C0413
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 import orjson
@@ -338,13 +339,7 @@ class WebSocketHelper:
                                 self._scheduler.remove_job("ws_reschedule")
                     elif klippy_state in ["error", "shutdown", "startup"]:
                         await self._klippy.set_connected(False)
-                        self._scheduler.add_job(
-                            self.reshedule,
-                            "interval",
-                            seconds=2,
-                            id="ws_reschedule",
-                            replace_existing=True,
-                        )
+                        self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                         state_message = message_result["state_message"]
                         if self._klippy.state_message != state_message and klippy_state != "startup":
                             self._klippy.state_message = state_message
@@ -352,13 +347,7 @@ class WebSocketHelper:
                     else:
                         logger.error("UnKnown klippy state: %s", klippy_state)
                         await self._klippy.set_connected(False)
-                        self._scheduler.add_job(
-                            self.reshedule,
-                            "interval",
-                            seconds=2,
-                            id="ws_reschedule",
-                            replace_existing=True,
-                        )
+                        self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                     return
 
                 if "devices" in message_result:
@@ -375,13 +364,7 @@ class WebSocketHelper:
                 logger.warning("klippy disconnect detected with message: %s", json_message["method"])
                 await self.stop_all()
                 await self._klippy.set_connected(False)
-                self._scheduler.add_job(
-                    self.reshedule,
-                    "interval",
-                    seconds=2,
-                    id="ws_reschedule",
-                    replace_existing=True,
-                )
+                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
 
             if "params" not in json_message:
                 return
@@ -446,7 +429,7 @@ class WebSocketHelper:
         ):
             try:
                 self._ws = websocket
-                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True)
+                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                 # async for message in self._ws:
                 #     await self.websocket_to_message(message)
 
@@ -457,5 +440,6 @@ class WebSocketHelper:
             except Exception as ex:
                 # Todo: add some TG notification?
                 logger.error(ex)
+                await self._klippy.set_connected(False)
                 if self._scheduler.get_job("ws_reschedule"):
                     self._scheduler.remove_job("ws_reschedule")

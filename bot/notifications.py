@@ -243,7 +243,7 @@ class Notifier:
     # manual notification methods
     def send_error(self, message: str, logs_upload: bool = False) -> None:
         if logs_upload:
-            message += "\n Upload logs to analyzer /upload_logs"
+            message += "\nUpload logs to analyzer /upload_logs\nSend logs to chat /logs"
         self._sched.add_job(
             self._send_message,
             kwargs={
@@ -341,7 +341,7 @@ class Notifier:
         self._sched.add_job(
             self._notify,
             kwargs={"message": mess, "silent": self._silent_progress, "group_only": self._group_only, "finish": finish},
-            misfire_grace_time=None,
+            misfire_grace_time=180,
             coalesce=False,
             max_instances=6,
             replace_existing=False,

@@ -1,4 +1,5 @@
 # Todo: class for printer states!
+import asyncio
 from datetime import datetime, timedelta
 from io import BytesIO
 import logging
@@ -28,7 +29,9 @@ class PowerDevice:
 
     def __init__(self, name: str, klippy_: "Klippy"):
         self.name: str = name
+        # Todo: refactor! check lighting lock in camera
         self._state_lock = threading.Lock()
+        self._state_lock_async = asyncio.Lock()
         self._device_on: bool = False
         self._device_error: str = ""
         self._klippy: Klippy = klippy_
@@ -39,20 +42,18 @@ class PowerDevice:
 
     @property
     def device_state(self) -> bool:
-        with self._state_lock:
-            return self._device_on
+        return self._device_on
 
     @device_state.setter
     def device_state(self, state: bool) -> None:
-        with self._state_lock:
-            self._device_on = state
+        self._device_on = state
 
     async def toggle_device(self) -> bool:
         return await self.switch_device(not self.device_state)
 
     # Todo: return exception?
     async def switch_device(self, state: bool) -> bool:
-        with self._state_lock:
+        async with self._state_lock_async:
             res = await self._klippy.make_request("POST", f"/machine/device_power/device?device={self.name}&action={'on' if state else 'off'}")
             if res.is_success:
                 self._device_on = state
@@ -192,7 +193,10 @@ class Klippy:
         self.printing = False
         self.paused = False
         self._reset_file_info()
-        await self._update_printer_objects()
+        if new_value:
+            await self._update_printer_objects()
+        else:
+            self._objects_list = []
 
     # Todo: save macros list until klippy restart
     @property
@@ -528,8 +532,16 @@ class Klippy:
         return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
 
     async def get_status(self) -> str:
-        resp = orjson.loads((await self.make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status")).text)["result"]["status"]
-        print_stats = resp["print_stats"]
+        try:
+            resp = await self.make_request("GET", "/printer/objects/query?webhooks&print_stats&display_status")
+            if not resp.is_success:
+                resp.raise_for_status()
+        except httpx.HTTPError as err:
+            logger.error("Get status failed `%s`", err)
+            return f"Failed to get status: `{err}`"
+
+        resp_json = orjson.loads(resp.text)
+        print_stats = resp_json["result"]["status"]["print_stats"]
         message = ""
 
         # Todo: refactor!
