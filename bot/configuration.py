@@ -301,14 +301,18 @@ class NotifierConfig(ConfigHelper):
         els = [self._get_group_with_thread_id(el) for el in self._get_list("groups", default=[], el_type=str)]
         return list(ell for ell in els if ell is not None)
 
-    @staticmethod
-    def _get_group_with_thread_id(group_id: str) -> Optional[Tuple[int, Optional[int]]]:
-        parts = group_id.split(":")
-        if len(parts) == 2:
-            return int(parts[0]), int(parts[1])
-        elif len(parts) == 1:
-            return int(parts[0]), None
-        else:
+    def _get_group_with_thread_id(self, group_id: str) -> Optional[Tuple[int, Optional[int]]]:
+        try:
+            parts = group_id.split(":")
+            if len(parts) == 2:
+                return int(parts[0]), int(parts[1])
+            elif len(parts) == 1:
+                return int(parts[0]), None
+            else:
+                self._parsing_errors.append(f"Malformed group_id `{group_id}`")
+                return None
+        except Exception as ex:
+            self._parsing_errors.append(f"Error parsing group_id `{group_id}` \n {ex}")
             return None
 
 
