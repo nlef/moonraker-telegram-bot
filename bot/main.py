@@ -1190,12 +1190,13 @@ async def greeting_message(bot: telegram.Bot) -> None:
             if config_wrap.configuration_errors:
                 mess += await klippy.get_versions_info(bot_only=True) + config_wrap.configuration_errors
 
+        use_keyboard = configWrap.telegram_ui.send_reply_keyboard
         await bot.send_message(
             config_wrap.secrets.chat_id,
             text=mess,
             parse_mode=ParseMode.HTML,
-            reply_markup=ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True),
             disable_notification=notifier.silent_status,
+            reply_markup=ReplyKeyboardMarkup(create_keyboard(), resize_keyboard=True) if use_keyboard else None,
         )
 
     await bot.set_my_commands(commands=prepare_commands_list(await klippy.get_macros_force(), config_wrap.telegram_ui.include_macros_in_command_list))

@@ -369,6 +369,7 @@ class TelegramUIConfig(ConfigHelper):
         "silent_status",
         "pin_status_single_message",
         "send_greeting_message",
+        "send_reply_keyboard",
         "buttons",
         "progress_update_message",
         "include_macros_in_command_list",
@@ -409,6 +410,7 @@ class TelegramUIConfig(ConfigHelper):
             )
         )
         self.progress_update_message: bool = self._get_boolean("progress_update_message", default=False)
+        self.send_reply_keyboard: bool = self._get_boolean("send_reply_keyboard", default=True)
         self.silent_progress: bool = self._get_boolean("silent_progress", default=False)
         self.silent_commands: bool = self._get_boolean("silent_commands", default=False)
         self.silent_status: bool = self._get_boolean("silent_status", default=False)
