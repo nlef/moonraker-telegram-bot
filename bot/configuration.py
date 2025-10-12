@@ -197,6 +197,7 @@ class BotConfig(ConfigHelper):
         "light_device",
         "upload_path",
         "services",
+        "start_delay",
     ]
 
     def __init__(self, config: configparser.ConfigParser):
@@ -218,6 +219,7 @@ class BotConfig(ConfigHelper):
         self.upload_path: str = self._get_str("upload_path", default="")
         self.services: List[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
+        self.start_delay: int = self._get_int("start_delay", default=1)
 
         host_parts = self.host.split(":")
         if len(host_parts) == 2 and host_parts[1].isdigit():

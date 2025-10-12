@@ -1366,7 +1366,7 @@ if __name__ == "__main__":
 
     ws_helper = WebSocketHelper(configWrap, klippy, notifier, timelapse, a_scheduler, rotating_handler)
 
-    bot_updater.job_queue.run_once(start_scheduler, 1)
+    bot_updater.job_queue.run_once(start_scheduler, configWrap.bot_config.start_delay)
     bot_updater.run_polling(allowed_updates=Update.ALL_TYPES)
 
     logger.info("Shutting down the bot")
