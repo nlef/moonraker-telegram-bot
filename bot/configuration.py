@@ -172,6 +172,7 @@ class SecretsConfig(ConfigHelper):
 
         self.token: str = self._get_str("bot_token", default="")
         self.chat_id: int = self._get_int("chat_id", default=0)
+        self.thread_id: int = self._get_int("thread_id", default=0)
         self.user: str = self._get_str("user", default="")
         self.passwd: str = self._get_str("password", default="")
         self.api_token: str = self._get_str("api_token", default="")
@@ -182,6 +183,7 @@ class BotConfig(ConfigHelper):
     _KNOWN_ITEMS = [
         "bot_token",
         "chat_id",
+        "thread_id",
         "user",
         "password",
         "api_token",
