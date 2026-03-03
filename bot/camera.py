@@ -9,6 +9,7 @@ import os
 import pathlib
 from pathlib import Path
 import pickle
+import subprocess
 import threading
 import time
 from typing import List, Optional, Tuple
@@ -780,5 +781,52 @@ class MjpegCamera(Camera):
         with open(filepath, "rb") as video_file:
             video_bio.write(video_file.read())
         os.remove(filepath)
+        video_bio.seek(0)
+        return video_bio, thumb_bio, width, height
+
+
+class RawStreamCamera(MjpegCamera):
+
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
+        super().__init__(config, klippy, logging_handler)
+
+        if self._flip_vertically or self._flip_horizontally or self._rotate_code > -10:
+            logger.warning("raw_stream camera: flip/rotate not supported for video (stream copy). Use type=ffmpeg if you need video transforms.")
+
+    @cam_light_toggle
+    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+        with self._camera_lock:
+            os_nice(15)
+
+            thumb_frame = self._image_to_frame(self.take_photo(force_rotate=False))
+            height, width, channels = thumb_frame.shape
+            thumb_bio = self._create_thumb(thumb_frame)
+            del thumb_frame, channels
+
+            filepath = os.path.join("/tmp/", "video.mp4")
+            host = str(self._host)
+
+            cmd = ["ffmpeg", "-y"]
+            if host.startswith("rtsp://"):
+                cmd.extend(["-rtsp_transport", "tcp"])
+            cmd.extend(["-i", host, "-t", str(self._video_duration), "-c:v", "copy", "-an", "-avoid_negative_ts", "make_zero", filepath])
+
+            logger.debug("RawStreamCamera ffmpeg cmd: %s", " ".join(cmd))
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, timeout=self._video_duration + 30, check=False)
+                if result.returncode != 0:
+                    logger.error("ffmpeg stream copy failed (rc=%d): %s", result.returncode, result.stderr.decode("utf-8", errors="replace"))
+            except subprocess.TimeoutExpired:
+                logger.error("ffmpeg stream copy timed out after %d seconds", self._video_duration + 30)
+
+            os_nice(0)
+
+        video_bio = BytesIO()
+        video_bio.name = "video.mp4"
+        if os.path.isfile(filepath):
+            with open(filepath, "rb") as video_file:
+                video_bio.write(video_file.read())
+            os.remove(filepath)
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height

@@ -261,7 +261,7 @@ class CameraConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.cam_type: str = self._get_str("type", default="mjpeg", allowed_values=["opencv", "ffmpeg", "mjpeg"])
+        self.cam_type: str = self._get_str("type", default="mjpeg", allowed_values=["opencv", "ffmpeg", "mjpeg", "raw_stream"])
         self.host: str = self._get_str("host", default="")
         self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
