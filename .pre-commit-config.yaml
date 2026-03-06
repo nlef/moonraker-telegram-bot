@@ -8,28 +8,17 @@ repos:
       - id: requirements-txt-fixer
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
   - repo: local
     hooks:
-      - id: black
-        name: black
-        entry: black
-        language: system
-        types: [python]
-        require_serial: true
-      - id: isort
-        name: isort
-        entry: isort
-        language: system
-        types: [python]
-        require_serial: true
       - id: mypy
         name: mypy
         entry: mypy
-        language: system
-        types: [python]
-      - id: pylint
-        name: pylint
-        entry: pylint
         language: system
         types: [python]
 #      - id: pytest
