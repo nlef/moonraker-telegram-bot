@@ -238,7 +238,7 @@ async def get_video_no_confirm(effective_message: Message) -> None:
         await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
 
         loop_loc = asyncio.get_running_loop()
-        (video_bio, thumb_bio, width, height) = await loop_loc.run_in_executor(executors_pool, cameraWrap.take_video)
+        video_bio, thumb_bio, width, height = await loop_loc.run_in_executor(executors_pool, cameraWrap.take_video)
         await info_reply.edit_text(text="Uploading video")
         max_upload_file_size: int = config_wrap.bot_config.max_upload_file_size
         if video_bio.getbuffer().nbytes > max_upload_file_size * 1024 * 1024:

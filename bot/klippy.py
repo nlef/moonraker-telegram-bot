@@ -271,12 +271,12 @@ class Klippy:
             self._reset_file_info()
             return
 
+        self._printing_filename = new_value
         response = await self.make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(new_value)}")
-        # Todo: add response status check!
         if not response.is_success:
             logger.warning("bad response for file request %s", response.status_code)
+            return
         resp = orjson.loads(response.text)["result"]
-        self._printing_filename = new_value
         self.file_estimated_time = resp["estimated_time"] if resp.get("estimated_time") else 0.0
         self.file_print_start_time = resp["print_start_time"] if resp.get("print_start_time") else time.time()
         self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0

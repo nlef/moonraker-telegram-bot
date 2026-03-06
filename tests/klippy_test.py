@@ -69,3 +69,16 @@ async def test_jwt_refresh_updates_headers_on_retry(mock_klippy):
 
     await mock_klippy.make_request("GET", "/api/test")
     assert retry_headers.get("Authorization") == "Bearer new_token"
+
+
+@pytest.mark.asyncio
+async def test_set_printing_filename_handles_bad_response(mock_klippy):
+    error_response = httpx.Response(
+        status_code=404,
+        text='{"error": {"message": "File not found"}}',
+        request=httpx.Request("GET", "http://localhost:7125/server/files/metadata"),
+    )
+    mock_klippy.make_request = AsyncMock(return_value=error_response)
+
+    await mock_klippy.set_printing_filename("nonexistent_file.gcode")
+    assert mock_klippy.printing_filename == "nonexistent_file.gcode"
