@@ -9,11 +9,11 @@ import time
 from typing import List, Tuple
 import urllib
 
-from PIL import Image
 import emoji
 import httpx
 from httpx import AsyncClient, Client
 import orjson
+from PIL import Image
 
 from configuration import ConfigWrapper
 
@@ -286,7 +286,7 @@ class Klippy:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
             file_dir = resp["filename"].rpartition("/")[0]
             if file_dir:
-                self._thumbnail_path = f'{file_dir}/{thumb["relative_path"]}'
+                self._thumbnail_path = f"{file_dir}/{thumb['relative_path']}"
             else:
                 self._thumbnail_path = thumb["relative_path"]
         else:

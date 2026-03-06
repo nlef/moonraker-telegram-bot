@@ -13,7 +13,6 @@ import threading
 import time
 from typing import List, Optional, Tuple
 
-from PIL import Image, _webp  # type: ignore
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit  # type: ignore
 import ffmpegcv  # type: ignore
 from ffmpegcv import FFmpegReader
@@ -22,6 +21,7 @@ import httpx
 from httpx import HTTPError
 import numpy
 from numpy import ndarray
+from PIL import Image, _webp  # type: ignore
 from telegram import Message
 
 from configuration import ConfigWrapper
@@ -81,7 +81,6 @@ def os_nice(value: int):
 
 
 class Camera:
-
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
@@ -623,7 +622,6 @@ class Camera:
 
 
 class FFmpegCamera(Camera):
-
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         super().__init__(config, klippy, logging_handler)
 
@@ -673,7 +671,6 @@ class MjpegCamera(Camera):
 
             os_nice(15)
             if response.is_success and response.headers["Content-Type"] == "image/jpeg":
-
                 if force_rotate:
                     img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
                     img.save(bio, format="JPEG")

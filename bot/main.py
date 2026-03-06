@@ -1348,7 +1348,9 @@ if __name__ == "__main__":
     cameraWrap = (
         MjpegCamera(config_wrap, klippy, rotating_handler)
         if config_wrap.camera.cam_type == "mjpeg"
-        else FFmpegCamera(config_wrap, klippy, rotating_handler) if config_wrap.camera.cam_type == "ffmpeg" else Camera(config_wrap, klippy, rotating_handler)
+        else FFmpegCamera(config_wrap, klippy, rotating_handler)
+        if config_wrap.camera.cam_type == "ffmpeg"
+        else Camera(config_wrap, klippy, rotating_handler)
     )
     bot_updater = start_bot(config_wrap.secrets.token, config_wrap.bot_config.socks_proxy)
     timelapse = Timelapse(config_wrap, klippy, cameraWrap, a_scheduler, bot_updater.bot, rotating_handler)
