@@ -5,11 +5,16 @@ repos:
       - id: check-added-large-files
       - id: check-yaml
       - id: check-toml
-      - id: requirements-txt-fixer
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: local
     hooks:
+      - id: sync-requirements
+        name: sync requirements.txt
+        entry: uv export --no-hashes --no-dev --no-emit-project -o scripts/requirements.txt
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
       - id: ruff-check
         name: ruff check
         entry: uv run ruff check --fix
