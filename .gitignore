@@ -1,4 +1,5 @@
 venv
+.venv
 .idea
 __pycache__
 timelapse
