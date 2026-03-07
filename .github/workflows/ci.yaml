@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  pre-commit:
-    name: Pre-commit
+  lint-test:
+    name: Lint & Test
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
@@ -18,27 +18,30 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v6.0.1
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.1.0
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
 
-      - name: Install dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install ffmpeg
         run: |
           sudo apt update
           sudo apt install ffmpeg -y
-          pip install -r scripts/requirements.dev.txt
+
+      - name: Install dependencies
+        run: uv sync
 
       - name: Run prek on all files
         run: |
-          prek run --all-files --show-diff-on-failure --color=always
+          uv run prek run --all-files --show-diff-on-failure --color=always
 
       - name: Test with pytest
         run: |
-          pytest -v
+          uv run pytest -v
 
   docker:
-    needs: pre-commit
+    needs: lint-test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
