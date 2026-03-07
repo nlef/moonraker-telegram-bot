@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
       - id: check-yaml
@@ -8,17 +8,21 @@ repos:
       - id: requirements-txt-fixer
       - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.15.5
-    hooks:
-      - id: ruff-check
-      - id: ruff-format
   - repo: local
     hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
       - id: mypy
         name: mypy
-        entry: mypy bot
+        entry: uv run mypy bot
         language: system
         types: [python]
         pass_filenames: false
@@ -26,6 +30,6 @@ repos:
 #        name: pytest
 #        language: system
 #        types: [python]
-#        entry: pytest -v
+#        entry: uv run pytest -v
 #        pass_filenames: false
 #        always_run: true
