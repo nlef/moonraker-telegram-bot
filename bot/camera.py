@@ -786,7 +786,6 @@ class MjpegCamera(Camera):
 
 
 class RawStreamCamera(MjpegCamera):
-
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         super().__init__(config, klippy, logging_handler)
 

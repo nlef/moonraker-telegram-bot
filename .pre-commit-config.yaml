@@ -18,9 +18,10 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: mypy
+        entry: mypy bot
         language: system
         types: [python]
+        pass_filenames: false
 #      - id: pytest
 #        name: pytest
 #        language: system
