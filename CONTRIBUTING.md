@@ -1,7 +1,7 @@
 # Please open PR only in `development` branch
 
 # Setup environment
-## Active virtualenv
+## Activate virtualenv
 This is the default location.
 ```shell
 source ~/moonraker-telegram-bot-env/bin/activate
@@ -10,35 +10,39 @@ source ~/moonraker-telegram-bot-env/bin/activate
 ```shell
 pip install -r scripts/requirements.dev.txt
 ```
-## Install pre-commit hook
+## Install git hook
+We use [prek](https://prek.j178.dev/) for running linters and formatters. [pre-commit](https://pre-commit.com/) can also be used as a drop-in alternative.
 ```shell
-pre-commit install
+prek install
 ```
 
-You can also run pre-commit manually on all files:
-Before commiting changes you should also run pre-commit and tests manually on all files:
+You can also run linters and tests manually:
 ```shell
-pre-commit run --all-files  --show-diff-on-failure --color=always
+prek run --all-files --show-diff-on-failure --color=always
 pytest -v
 ```
 
-Run bot localy:
+## Run bot locally
 
-create dev config file `telegram_dev.conf ` for example in bot folder
+Create a dev config file `telegram_dev.conf`, for example in the bot folder:
 ```shell
 cd ~/moonraker-telegram-bot
 ~/moonraker-telegram-bot-env/bin/python3 ~/moonraker-telegram-bot/bot/main.py -c ~/moonraker-telegram-bot/telegram_dev.conf
 ```
 
-Test changes using docker and arm64 arc( docker buildx or docker desktop required). New container with the bot will be created and started.
+## Test changes using Docker
+
+Docker Buildx or Docker Desktop is required. A new container with the bot will be created and started on arm64.
 ```shell
-pre-commit run --all-files
 docker compose -f .\docker-compose-dev.yml up --build -d
 ```
-you mast create bot config file under `./docker_data/config` or copy created earlier telegram_dev.conf to container config folder and rename in to `telegram.conf`
-dev container contains preinstalled `memray` and `memory-profiler` for easy memory problem retrieval
+You must create a bot config file under `./docker_data/config` or copy the previously created `telegram_dev.conf` to the container config folder and rename it to `telegram.conf`.
 
-Test building docker images (buildx required):
+The dev container contains preinstalled `memray` and `memory-profiler` for memory profiling.
+
+## Test building Docker images
+
+Buildx is required.
 ```shell
 docker buildx build --platform linux/arm64 -t test -f Dockerfile-mjpeg .
 docker buildx build --platform linux/arm64 -t test -f Dockerfile .
