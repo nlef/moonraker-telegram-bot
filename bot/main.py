@@ -519,7 +519,7 @@ async def power_toggle_no_confirm(effective_message: Message) -> None:
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.TYPING)
     if psu_power_device:
         await effective_message.reply_text(
-            "Power " + "Off" if psu_power_device.device_state else "On" + " printer?",
+            "Power " + ("Off" if psu_power_device.device_state else "On") + " printer?",
             reply_markup=confirm_keyboard("power_off_printer" if psu_power_device.device_state else "power_on_printer"),
             disable_notification=notifier.silent_commands,
             do_quote=True,
