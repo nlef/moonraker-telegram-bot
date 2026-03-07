@@ -39,6 +39,7 @@ jobs:
 
   docker:
     needs: pre-commit
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       -
