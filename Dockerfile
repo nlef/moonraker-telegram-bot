@@ -17,11 +17,11 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
  && mkdir -p printer_data/logs printer_data/config timelapse timelapse_finished \
  && chown -R moonraker-telegram-bot:moonraker-telegram-bot /opt/*
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
-RUN pip3 install --no-cache-dir -r moonraker-telegram-bot/scripts/requirements.docker.opencv.txt
-
+RUN cd moonraker-telegram-bot && uv sync --no-dev --group docker-opencv
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]
-ENTRYPOINT ["python3", "moonraker-telegram-bot/bot/main.py"]
+ENTRYPOINT ["moonraker-telegram-bot/.venv/bin/python3", "moonraker-telegram-bot/bot/main.py"]
 CMD ["-c", "/opt/printer_data/config/telegram.conf", "-l", "/opt/printer_data/logs"]
