@@ -207,7 +207,7 @@ install_instances(){
 }
 
 setup_dialog(){
-    ### count amount of mooonraker services
+    ### count amount of moonraker services
     SERVICE_FILES=$(find "$SYSTEMDDIR" -regextype posix-extended -regex "$SYSTEMDDIR/moonraker(-[^0])+[0-9]*.service")
     if [ -f /etc/init.d/moonraker ] || [ -f /etc/systemd/system/moonraker.service ]; then
       MOONRAKER_COUNT=1
@@ -219,16 +219,16 @@ setup_dialog(){
 
     echo -e "/=======================================================\\"
     if [[ $MOONRAKER_COUNT -eq 0 ]]; then
-      printf "|${yellow}%-55s${default}|\n" " No Mooonraker instance was found!"
+      printf "|${yellow}%-55s${default}|\n" " No moonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -eq 1 ]]; then
-      printf "|${green}%-55s${default}|\n" " 1 Mooonraker instance was found!"
+      printf "|${green}%-55s${default}|\n" " 1 moonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -gt 1 ]]; then
-      printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} Mooonraker instances were found!"
+      printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} moonraker instances were found!"
     else
-      echo -e "| ${yellow}INFO: No existing Mooonraker installation found!${default}        |"
+      echo -e "| ${yellow}INFO: No existing moonraker installation found!${default}        |"
       init_config_path
     fi
-    echo -e "| Usually you need one Moonraker telegram bot instance per Mooonraker   |"
+    echo -e "| Usually you need one Moonraker telegram bot instance per moonraker   |"
     echo -e "| instance. Though you can install as many as you wish. |"
     echo -e "\=======================================================/"
     echo
