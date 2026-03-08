@@ -18,6 +18,11 @@ from klippy import Klippy
 from notifications import Notifier
 from timelapse import Timelapse
 
+JSONRPC_METHOD_NOT_FOUND = -32601
+
+# Methods that may not be available depending on Moonraker configuration
+_OPTIONAL_METHODS = frozenset({"machine.device_power.devices"})
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,6 +63,7 @@ class WebSocketHelper:
         self._log_parser: bool = config.bot_config.log_parser
 
         self._ws: ClientConnection
+        self._pending_requests: dict = {}
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
@@ -70,8 +76,16 @@ class WebSocketHelper:
         logger.error(error)
 
     @property
-    def _my_id(self) -> int:
+    def _next_request_id(self) -> int:
         return random.randint(0, 300000)
+
+    async def _send_jsonrpc(self, method: str, params=None):
+        request_id = self._next_request_id
+        self._pending_requests[request_id] = method
+        msg = {"jsonrpc": "2.0", "method": method, "id": request_id}
+        if params:
+            msg["params"] = params
+        await self._ws.send(orjson.dumps(msg))
 
     async def subscribe(self):
         subscribe_objects = {
@@ -86,22 +100,13 @@ class WebSocketHelper:
         if sensors:
             subscribe_objects.update(sensors)
 
-        await self._ws.send(
-            orjson.dumps(
-                {
-                    "jsonrpc": "2.0",
-                    "method": "printer.objects.subscribe",
-                    "params": {"objects": subscribe_objects},
-                    "id": self._my_id,
-                }
-            )
-        )
+        await self._send_jsonrpc("printer.objects.subscribe", {"objects": subscribe_objects})
 
     async def on_open(self):
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.info", "id": self._my_id}))
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.device_power.devices", "id": self._my_id}))
+        await self._send_jsonrpc("printer.info")
+        await self._send_jsonrpc("machine.device_power.devices")
 
-    async def reshedule(self):
+    async def reschedule(self):
         if not self._klippy.connected and self._ws.state is State.OPEN:
             await self.on_open()
 
@@ -314,11 +319,12 @@ class WebSocketHelper:
     async def websocket_to_message(self, ws_message):
         json_message = orjson.loads(ws_message)
 
-        if "error" in json_message:
+        if "error" in json_message and "id" not in json_message:
             logger.warning("Error received from websocket: %s", json_message["error"])
             return
 
         if "id" in json_message:
+            method = self._pending_requests.pop(json_message["id"], "unknown")
             if "result" in json_message:
                 message_result = json_message["result"]
 
@@ -340,15 +346,15 @@ class WebSocketHelper:
                                 self._scheduler.remove_job("ws_reschedule")
                     elif klippy_state in ["error", "shutdown", "startup"]:
                         await self._klippy.set_connected(False)
-                        self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
+                        self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                         state_message = message_result["state_message"]
                         if self._klippy.state_message != state_message and klippy_state != "startup":
                             self._klippy.state_message = state_message
                             self._notifier.send_error(f"Klippy changed state to {self._klippy.state}", logs_upload=True, preformat_text=self._klippy.state_message)
                     else:
-                        logger.error("UnKnown klippy state: %s", klippy_state)
+                        logger.error("Unknown klippy state: %s", klippy_state)
                         await self._klippy.set_connected(False)
-                        self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
+                        self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                     return
 
                 if "devices" in message_result:
@@ -357,7 +363,11 @@ class WebSocketHelper:
                     return
 
             if "error" in json_message:
-                self._notifier.send_error("", logs_upload=True, preformat_text=f"{json_message['error']['message']}")
+                error = json_message["error"]
+                if error.get("code") == JSONRPC_METHOD_NOT_FOUND and method in _OPTIONAL_METHODS:
+                    logger.info("Optional method %s is not available", method)
+                else:
+                    logger.warning("Error response for %s: %s", method, error)
 
         else:
             message_method = json_message["method"]
@@ -365,7 +375,7 @@ class WebSocketHelper:
                 logger.warning("klippy disconnect detected with message: %s", json_message["method"])
                 await self.stop_all()
                 await self._klippy.set_connected(False)
-                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
+                self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
 
             if "params" not in json_message:
                 return
@@ -383,25 +393,25 @@ class WebSocketHelper:
                 await self.notify_status_update(message_params)
 
     async def manage_printing(self, command: str) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": f"printer.print.{command}", "id": self._my_id}))
+        await self._send_jsonrpc(f"printer.print.{command}")
 
     async def emergency_stop_printer(self) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.emergency_stop", "id": self._my_id}))
+        await self._send_jsonrpc("printer.emergency_stop")
 
     async def firmware_restart_printer(self) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.firmware_restart", "id": self._my_id}))
+        await self._send_jsonrpc("printer.firmware_restart")
 
     async def shutdown_pi_host(self) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.shutdown", "id": self._my_id}))
+        await self._send_jsonrpc("machine.shutdown")
 
     async def reboot_pi_host(self) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.reboot", "id": self._my_id}))
+        await self._send_jsonrpc("machine.reboot")
 
     async def restart_system_service(self, service_name: str) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "machine.services.restart", "params": {"service": service_name}, "id": self._my_id}))
+        await self._send_jsonrpc("machine.services.restart", {"service": service_name})
 
     async def execute_ws_gcode_script(self, gcode: str) -> None:
-        await self._ws.send(orjson.dumps({"jsonrpc": "2.0", "method": "printer.gcode.script", "params": {"script": gcode}, "id": self._my_id}))
+        await self._send_jsonrpc("printer.gcode.script", {"script": gcode})
 
     def parselog(self):
         with open("../telegram.log", encoding="utf-8") as file:
@@ -430,7 +440,7 @@ class WebSocketHelper:
         ):
             try:
                 self._ws = websocket
-                self._scheduler.add_job(self.reshedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
+                self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                 # async for message in self._ws:
                 #     await self.websocket_to_message(message)
 
