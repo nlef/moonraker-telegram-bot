@@ -56,7 +56,8 @@ class Notifier:
         self._use_status_update_button: bool = config.telegram_ui.status_update_button
         self._message_parts: List[str] = config.status_message_content.content
 
-        self._last_height: int = 0
+        self._last_height: float = 0
+        self._below_threshold: bool = False
         self._last_percent: int = 0
         self._last_m117_status: str = ""
         self._last_tgnotify_status: str = ""
@@ -303,6 +304,7 @@ class Notifier:
     async def reset_notifications(self) -> None:
         self._last_percent = 0
         self._last_height = 0
+        self._below_threshold = False
         self._klippy.printing_duration = 0
         self._last_m117_status = ""
         self._last_tgnotify_status = ""
@@ -347,7 +349,7 @@ class Notifier:
             replace_existing=False,
         )
 
-    def schedule_notification(self, progress: int = 0, position_z: int = 0) -> None:
+    def schedule_notification(self, progress: int = 0, position_z: float = 0) -> None:
         if not self._klippy.printing or self._klippy.printing_duration <= 0.0 or (self._height == 0 and self._percent == 0):
             return
 
@@ -360,10 +362,19 @@ class Notifier:
                 notify = True
 
         if position_z != 0 and self._height != 0:
+            # Z dropped significantly — reset for sequential objects or print restart
             if position_z < self._last_height - self._height:
-                self._last_height = position_z
-            if position_z % self._height == 0 and position_z > self._last_height:
-                self._last_height = position_z
+                self._last_height = round((position_z // self._height) * self._height, 2)
+                self._below_threshold = True
+            # Only fire when Z rises through threshold within proximity.
+            # This rejects wild Z jumps during start gcode, travel moves, etc.
+            next_threshold = self._last_height + self._height
+            if position_z < next_threshold:
+                self._below_threshold = True
+            elif self._below_threshold and position_z < next_threshold + 1.0:
+                self._last_height = round((position_z // self._height) * self._height, 2)
+                self._below_threshold = False
+                logger.info("Height notification at Z=%.2f (threshold %.2f)", position_z, next_threshold)
                 notify = True
 
         if notify:
