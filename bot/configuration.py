@@ -28,9 +28,9 @@ class ConfigHelper:
     def _check_config(self) -> str:
         if not self._config.has_section(self._section):
             return ""
-        unknwn = [f"  {fil[0]}: {fil[1]}\n" for fil in self._config.items(self._section) if fil[0] not in self._KNOWN_ITEMS]
-        if unknwn:
-            return f"Unknown/bad items in section [{self._section}]:\n{''.join(unknwn)}\n"
+        unknown = [f"  {fil[0]}: {fil[1]}\n" for fil in self._config.items(self._section) if fil[0] not in self._KNOWN_ITEMS]
+        if unknown:
+            return f"Unknown/bad items in section [{self._section}]:\n{''.join(unknown)}\n"
         else:
             return ""
 
@@ -127,11 +127,11 @@ class ConfigHelper:
                     val = default
                 else:
                     val = []
-                    # Todo: reaise some parsing exception
+                    # Todo: raise some parsing exception
         elif default is not None:
             val = default
         else:
-            # Todo: reaise some parsing exception
+            # Todo: raise some parsing exception
             val = []
 
         self._check_list_values(option, val, allowed_values)

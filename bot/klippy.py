@@ -636,7 +636,7 @@ class Klippy:
     async def add_bot_announcements_feed(self):
         await self.make_request("POST", "/server/announcements/feed?name=moonraker-telegram-bot")
 
-    # moonraker databse section
+    # moonraker database section
     async def get_param_from_db(self, param_name: str):
         res = await self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.is_success:

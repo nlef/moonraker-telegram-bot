@@ -234,7 +234,7 @@ class WebSocketHelper:
     async def parse_print_stats(self, message_params):
         state = ""
         print_stats_loc = message_params[0]["print_stats"]
-        # Fixme:  maybe do not parse without state? history data may not be avaliable
+        # Fixme:  maybe do not parse without state? history data may not be available
         # Message with filename will be sent before printing is started
         if "filename" in print_stats_loc:
             await self._klippy.set_printing_filename(print_stats_loc["filename"])

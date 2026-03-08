@@ -38,7 +38,7 @@ ok_msg(){
 init_config_path() {
   report_status "Telegram bot configuration file location selection"
   echo -e "\n"
-  echo "Enter the path for the configuration files location. Subfolders for multiple instances wil be created under this path."
+  echo "Enter the path for the configuration files location. Subfolders for multiple instances will be created under this path."
   echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
   read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
   KLIPPER_CONF_DIR=${klip_conf_dir}

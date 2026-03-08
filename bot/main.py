@@ -1008,7 +1008,7 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    # Todo: add context managment!
+    # Todo: add context management!
     uploaded_bio = BytesIO()
     uploaded_bio.name = doc.file_name
     uploaded_bio.write(file_byte_array)
