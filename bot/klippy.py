@@ -1,6 +1,7 @@
 # Todo: class for printer states!
 import asyncio
 from datetime import datetime, timedelta
+from enum import Enum
 from io import BytesIO
 import logging
 import re
@@ -18,6 +19,23 @@ from PIL import Image
 from configuration import ConfigWrapper
 
 logger = logging.getLogger(__name__)
+
+
+class PrintState(Enum):
+    STANDBY = "standby"
+    START = "start"
+    PRINTING = "printing"
+    FINISH = "finish"
+    CANCELLED = "cancelled"
+    ERROR = "error"
+
+    @property
+    def is_start(self) -> bool:
+        return self == PrintState.START
+
+    @property
+    def is_finished(self) -> bool:
+        return self in (PrintState.FINISH, PrintState.CANCELLED, PrintState.ERROR)
 
 
 class PowerDevice:
@@ -121,6 +139,7 @@ class Klippy:
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
         self.printing_height: float = 0.0
+        self.file_object_height: float = 0.0
         self._printing_filename: str = ""
         self.file_estimated_time: float = 0.0
         self.file_print_start_time: float = 0.0
@@ -251,6 +270,7 @@ class Klippy:
         self.printing_duration = 0.0
         self.printing_progress = 0.0
         self.printing_height = 0.0
+        self.file_object_height = 0.0
         self._printing_filename = ""
         self.file_estimated_time = 0.0
         self.file_print_start_time = 0.0
@@ -286,6 +306,7 @@ class Klippy:
         self.file_print_start_time = resp["print_start_time"] if resp.get("print_start_time") else time.time()
         self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
         self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
+        self.file_object_height = resp["object_height"] if resp.get("object_height") else 0.0
 
         if "thumbnails" in resp and "filename" in resp:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
@@ -504,35 +525,63 @@ class Klippy:
         img.close()
         return message, bio
 
-    async def get_file_info(self, message: str = "") -> Tuple[str, BytesIO]:
-        message = self.get_print_stats(message)
+    async def get_file_info(self, state: PrintState = PrintState.PRINTING) -> Tuple[str, BytesIO]:
+        message = self.get_print_stats(state=state)
         return await self._populate_with_thumb(self._thumbnail_path, message)
 
-    def _get_printing_file_info(self, message_pre: str = "") -> str:
-        message = f"Printing: {self.printing_filename} \n" if not message_pre else f"{message_pre}: {self.printing_filename} \n"
+    _STATE_TITLES = {
+        PrintState.START: "Printer started printing",
+        PrintState.PRINTING: "Printing",
+        PrintState.FINISH: "Finished printing",
+        PrintState.CANCELLED: "Cancelled printing",
+        PrintState.ERROR: "Printing was interrupted with an error",
+    }
+
+    def _get_printing_file_info(self, state: PrintState = PrintState.PRINTING) -> str:
+        result = f"<b>{self._STATE_TITLES[state]}: {self.printing_filename}</b>\n"
         if "progress" in self._message_parts:
-            message += f"Progress {round(self.printing_progress * 100, 0)}%"
+            result += f"Progress {int(self.printing_progress * 100)}%"
         if "height" in self._message_parts:
-            message += f", height: {round(self.printing_height, 2)}mm\n" if self.printing_height > 0.0 else "\n"
+            show_current_height = state == PrintState.PRINTING
+            if show_current_height and self.printing_height > 0.0 and self.file_object_height > 0.0:
+                result += f", height: {round(self.printing_height, 2)} / {round(self.file_object_height, 2)}mm\n"
+            elif self.file_object_height > 0.0:
+                result += f", print height: {round(self.file_object_height, 2)}mm\n"
+            elif show_current_height and self.printing_height > 0.0:
+                result += f", height: {round(self.printing_height, 2)}mm\n"
+            else:
+                result += "\n"
         if self.filament_total > 0.0:
             if "filament_length" in self._message_parts:
-                message += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m"
+                if state.is_start:
+                    result += f"Filament: {round(self.filament_total / 1000, 2)}m"
+                elif state.is_finished:
+                    result += f"Filament used: {round(self.filament_used / 1000, 2)}m"
+                else:
+                    result += f"Filament: {round(self.filament_used / 1000, 2)}m / {round(self.filament_total / 1000, 2)}m"
             if self.filament_weight > 0.0 and "filament_weight" in self._message_parts:
-                message += f", weight: {round(self._filament_weight_used(), 2)}/{self.filament_weight}g"
-            message += "\n"
-        if "print_duration" in self._message_parts:
-            message += f"Printing for {timedelta(seconds=round(self.printing_duration))}\n"
+                if state.is_start:
+                    result += f", weight: {self.filament_weight}g"
+                elif state.is_finished:
+                    result += f", weight: {round(self._filament_weight_used(), 2)}g"
+                else:
+                    result += f", weight: {round(self._filament_weight_used(), 2)} / {self.filament_weight}g"
+            result += "\n"
+        if "print_duration" in self._message_parts and not state.is_start:
+            duration_prefix = "Printed for" if state.is_finished else "Printing for"
+            result += f"{duration_prefix} {timedelta(seconds=round(self.printing_duration))}\n"
 
-        eta = self._get_eta()
-        if "eta" in self._message_parts:
-            message += f"Estimated time left: {eta}\n"
-        if "finish_time" in self._message_parts:
-            message += f"Finish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
+        if state in (PrintState.START, PrintState.PRINTING):
+            eta = self._get_eta()
+            if "eta" in self._message_parts:
+                result += f"Estimated time left: {eta}\n"
+            if "finish_time" in self._message_parts:
+                result += f"Finish at {datetime.now() + eta:%Y-%m-%d %H:%M}\n"
 
-        return message
+        return result
 
-    def get_print_stats(self, message_pre: str = "") -> str:
-        return self._get_printing_file_info(message_pre) + self._get_sensors_message() + self._get_power_devices_mess()
+    def get_print_stats(self, state: PrintState = PrintState.PRINTING) -> str:
+        return self._get_printing_file_info(state=state) + self._get_sensors_message() + self._get_power_devices_mess()
 
     async def get_status(self) -> str:
         try:

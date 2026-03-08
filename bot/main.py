@@ -47,7 +47,7 @@ from telegram.ext import Application, CallbackContext, CallbackQueryHandler, Com
 
 from camera import Camera, FFmpegCamera, MjpegCamera, RawStreamCamera
 from configuration import ConfigWrapper
-from klippy import Klippy, PowerDevice
+from klippy import Klippy, PowerDevice, PrintState
 from notifications import Notifier
 from telegram_helper import TelegramMessageRepr
 from timelapse import Timelapse
@@ -167,7 +167,7 @@ async def status_no_confirm(effective_message: Message) -> None:
         notifier.update_status()
     else:
         text = await klippy.get_status()
-        message = TelegramMessageRepr(text, parse_mode=ParseMode.HTML, silent=notifier.silent_commands, reply_markup=notifier.get_status_keyboard())
+        message = TelegramMessageRepr(text, parse_mode=ParseMode.HTML, silent=notifier.silent_commands, reply_markup=notifier.get_status_keyboard(state=PrintState.STANDBY))
         if camera_wrap.enabled:
             loop_loc = asyncio.get_running_loop()
             with await loop_loc.run_in_executor(executors_pool, camera_wrap.take_photo) as bio:

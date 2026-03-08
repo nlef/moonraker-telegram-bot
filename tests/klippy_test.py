@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from bot.klippy import Klippy  # type: ignore
+from bot.klippy import Klippy, PrintState  # type: ignore
 
 test_sensors = {
     "heater": {"temperature": 155.345325234, "target": 255.343434, "power": 0.60},
@@ -82,3 +82,118 @@ async def test_set_printing_filename_handles_bad_response(mock_klippy):
 
     await mock_klippy.set_printing_filename("nonexistent_file.gcode")
     assert mock_klippy.printing_filename == "nonexistent_file.gcode"
+
+
+def test_progress_shows_current_and_object_height(mock_klippy):
+    mock_klippy._message_parts = ["progress", "height"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_height = 5.2
+    mock_klippy.file_object_height = 19.6
+    msg = mock_klippy._get_printing_file_info()
+    assert "height: 5.2 / 19.6mm" in msg
+
+
+def test_start_shows_only_object_height(mock_klippy):
+    mock_klippy._message_parts = ["progress", "height"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_height = 15.3
+    mock_klippy.file_object_height = 19.6
+    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    assert "print height: 19.6mm" in msg
+    assert "15.3" not in msg
+
+
+def test_finish_shows_only_object_height(mock_klippy):
+    mock_klippy._message_parts = ["progress", "height"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_height = 2.0
+    mock_klippy.file_object_height = 19.6
+    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    assert "print height: 19.6mm" in msg
+    assert "2.0" not in msg
+
+
+def test_height_fallback_without_object_height(mock_klippy):
+    mock_klippy._message_parts = ["progress", "height"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_height = 5.2
+    mock_klippy.file_object_height = 0.0
+    msg = mock_klippy._get_printing_file_info()
+    assert "height: 5.2mm" in msg
+
+
+def test_no_height_when_both_zero(mock_klippy):
+    mock_klippy._message_parts = ["progress", "height"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_height = 0.0
+    mock_klippy.file_object_height = 0.0
+    msg = mock_klippy._get_printing_file_info()
+    assert "height" not in msg
+
+
+def test_start_shows_only_total_filament(mock_klippy):
+    mock_klippy._message_parts = ["progress", "filament_length", "filament_weight"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.filament_total = 5000.0
+    mock_klippy.filament_used = 1200.0
+    mock_klippy.filament_weight = 15.0
+    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    assert "Filament: 5.0m" in msg
+    assert "1.2m" not in msg
+    assert "weight: 15.0g" in msg
+    assert "/" not in msg.split("Filament:")[1]
+
+
+def test_finish_shows_only_used_filament(mock_klippy):
+    mock_klippy._message_parts = ["progress", "filament_length", "filament_weight"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.filament_total = 5000.0
+    mock_klippy.filament_used = 1200.0
+    mock_klippy.filament_weight = 15.0
+    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    assert "Filament used: 1.2m" in msg
+    assert "5.0m" not in msg
+    assert "/" not in msg.split("Filament")[1]
+
+
+def test_finish_shows_printed_for(mock_klippy):
+    mock_klippy._message_parts = ["progress", "print_duration"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_duration = 1800.0
+    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    assert "Printed for" in msg
+    assert "Printing for" not in msg
+
+
+def test_finish_hides_eta(mock_klippy):
+    mock_klippy._message_parts = ["progress", "eta", "finish_time"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.file_estimated_time = 3600.0
+    mock_klippy.printing_duration = 1800.0
+    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    assert "Estimated time left" not in msg
+    assert "Finish at" not in msg
+
+
+def test_start_hides_duration(mock_klippy):
+    mock_klippy._message_parts = ["progress", "print_duration"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_duration = 1800.0
+    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    assert "Printing for" not in msg
+
+
+def test_title_bold(mock_klippy):
+    mock_klippy._message_parts = ["progress"]
+    mock_klippy._printing_filename = "test.gcode"
+    msg = mock_klippy._get_printing_file_info()
+    assert "<b>" in msg and "</b>" in msg
+
+
+def test_progress_no_trailing_zero(mock_klippy):
+    mock_klippy._message_parts = ["progress"]
+    mock_klippy._printing_filename = "test.gcode"
+    mock_klippy.printing_progress = 0.8
+    msg = mock_klippy._get_printing_file_info()
+    assert "Progress 80%" in msg
+    assert "80.0%" not in msg

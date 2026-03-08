@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Tuple, Union
 import aiofiles
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
 from camera import Camera
 from configuration import ConfigWrapper
-from klippy import Klippy
+from klippy import Klippy, PrintState
 from telegram_helper import TelegramMessageRepr
 
 logger = logging.getLogger(__name__)
@@ -130,9 +130,9 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
-    def get_status_keyboard(self, finish: bool = False) -> Optional[InlineKeyboardMarkup]:
+    def get_status_keyboard(self, state: PrintState) -> Optional[InlineKeyboardMarkup]:
         inline_keyboard = None
-        if self._use_status_update_button and not finish:
+        if self._use_status_update_button and not state.is_finished:
             inline_keyboard = InlineKeyboardMarkup(
                 [
                     [
@@ -203,8 +203,8 @@ class Notifier:
 
             photo.close()
 
-    async def _notify(self, message: TelegramMessageRepr, group_only: bool = False, manual: bool = False, finish: bool = False) -> None:
-        if finish:
+    async def _notify(self, message: TelegramMessageRepr, group_only: bool = False, manual: bool = False, state: PrintState = PrintState.PRINTING) -> None:
+        if state.is_finished:
             await asyncio.sleep(5)
         try:
             if self._cam_wrap.enabled:
@@ -214,7 +214,7 @@ class Notifier:
         except Exception as ex:
             logger.error(ex, exc_info=True, stack_info=True)
         finally:
-            if finish:
+            if state.is_finished:
                 await self.reset_notifications()
 
     # manual notification methods
@@ -306,6 +306,7 @@ class Notifier:
         self._last_height = 0
         self._below_threshold = False
         self._klippy.printing_duration = 0
+        self._klippy.printing_height = 0.0
         self._last_m117_status = ""
         self._last_tgnotify_status = ""
 
@@ -325,8 +326,8 @@ class Notifier:
             finally:
                 self._bzz_mess_id = 0
 
-    def _schedule_notification(self, message: str = "", finish: bool = False) -> None:  # pylint: disable=W0613
-        mess = self._klippy.get_print_stats(message)
+    def _schedule_notification(self, state: PrintState = PrintState.PRINTING) -> None:
+        mess = self._klippy.get_print_stats(state=state)
         if self._last_m117_status and "m117_status" in self._message_parts:
             mess += self._last_m117_status + "\n"
         if self._last_tgnotify_status and "tgnotify_status" in self._message_parts:
@@ -337,12 +338,12 @@ class Notifier:
         tg_message = TelegramMessageRepr(
             text=mess,
             silent=self._silent_progress,
-            reply_markup=self.get_status_keyboard(finish=finish),
+            reply_markup=self.get_status_keyboard(state=state),
         )
 
         self._sched.add_job(
             self._notify,
-            kwargs={"message": tg_message, "group_only": self._group_only, "finish": finish},
+            kwargs={"message": tg_message, "group_only": self._group_only, "state": state},
             misfire_grace_time=180,
             coalesce=False,
             max_instances=6,
@@ -416,7 +417,7 @@ class Notifier:
 
     # Todo: refactor with TelegramMessageRepr class
     async def _send_print_start_info(self) -> None:
-        message, bio = await self._klippy.get_file_info("Printer started printing")
+        message, bio = await self._klippy.get_file_info(state=PrintState.START)
 
         if bio is not None:
             if not self._group_only:
@@ -424,7 +425,8 @@ class Notifier:
                     self._chat_id,
                     photo=bio,
                     caption=message,
-                    reply_markup=self.get_status_keyboard(),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=self.get_status_keyboard(state=PrintState.START),
                     disable_notification=self.silent_status,
                 )
                 self._status_message = status_message
@@ -436,18 +438,26 @@ class Notifier:
                     message_thread_id=message_thread_id,
                     photo=bio,
                     caption=message,
-                    reply_markup=self.get_status_keyboard(),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=self.get_status_keyboard(state=PrintState.START),
                     disable_notification=self.silent_status,
                 )
             bio.close()
         else:
             if not self._group_only:
-                status_message = await self._bot.send_message(chat_id=self._chat_id, text=message, reply_markup=self.get_status_keyboard(), disable_notification=self.silent_status)
+                status_message = await self._bot.send_message(
+                    chat_id=self._chat_id, text=message, parse_mode=ParseMode.HTML, reply_markup=self.get_status_keyboard(state=PrintState.START), disable_notification=self.silent_status
+                )
                 self._status_message = status_message
 
             for group_, message_thread_id in self._notify_groups:
                 self._groups_status_messages[group_] = await self._bot.send_message(
-                    chat_id=group_, message_thread_id=message_thread_id, text=message, reply_markup=self.get_status_keyboard(), disable_notification=self.silent_status
+                    chat_id=group_,
+                    message_thread_id=message_thread_id,
+                    text=message,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=self.get_status_keyboard(state=PrintState.START),
+                    disable_notification=self.silent_status,
                 )
 
         if self._pin_status_single_message and self._status_message is not None:
@@ -466,7 +476,7 @@ class Notifier:
         # Todo: reset something? or check if reset by setting new filename?
 
     async def _send_print_finish(self) -> None:
-        self._schedule_notification(message="Finished printing", finish=True)
+        self._schedule_notification(state=PrintState.FINISH)
 
     def send_print_finish(self) -> None:
         if self._enabled:
@@ -478,14 +488,14 @@ class Notifier:
                 replace_existing=True,
             )
 
-    async def _update_status_on_abort(self, message) -> None:
-        self._schedule_notification(message=message, finish=True)
+    async def _update_status_on_abort(self, state: PrintState) -> None:
+        self._schedule_notification(state=state)
 
-    def update_status_on_abort(self, message) -> None:
+    def update_status_on_abort(self, state: PrintState) -> None:
         if self._enabled:
             self._sched.add_job(
                 self._update_status_on_abort,
-                kwargs={"message": message},
+                kwargs={"state": state},
                 misfire_grace_time=None,
                 coalesce=False,
                 max_instances=1,

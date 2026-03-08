@@ -14,7 +14,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
 
 from configuration import ConfigWrapper
-from klippy import Klippy
+from klippy import Klippy, PrintState
 from notifications import Notifier
 from timelapse import Timelapse
 
@@ -279,7 +279,7 @@ class WebSocketHelper:
             # Fixme: add finish printing method in notifier
             self._notifier.send_print_finish()
         elif state == "error":
-            self._notifier.update_status_on_abort(message="Printing was interrupted with an error")
+            self._notifier.update_status_on_abort(state=PrintState.ERROR)
             self._klippy.printing = False
             self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
@@ -297,7 +297,7 @@ class WebSocketHelper:
             # self._timelapse.send_timelapse()
             self._notifier.send_printer_status_notification(f"Printer state change: {print_stats_loc['state']} \n")
         elif state == "cancelled":
-            self._notifier.update_status_on_abort(message="Printing cancelled")
+            self._notifier.update_status_on_abort(state=PrintState.CANCELLED)
             self._klippy.paused = False
             self._klippy.printing = False
             self._timelapse.is_running = False
