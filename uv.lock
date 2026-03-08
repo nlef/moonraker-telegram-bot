@@ -692,8 +692,6 @@ dev = [
     { name = "memory-profiler" },
     { name = "mypy", version = "1.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "mypy", version = "1.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "opencv-python" },
     { name = "pipdeptree", marker = "python_full_version >= '3.10'" },
     { name = "prek" },
@@ -715,9 +713,6 @@ dev = [
 docker-dev = [
     { name = "memory-profiler" },
     { name = "memray" },
-]
-docker-mjpeg = [
-    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 docker-opencv = [
     { name = "opencv-python" },
@@ -746,8 +741,6 @@ dev = [
     { name = "memory-profiler", specifier = "==0.61.0" },
     { name = "mypy", marker = "python_full_version == '3.9.*'", specifier = "==1.15.0" },
     { name = "mypy", marker = "python_full_version >= '3.10'", specifier = "==1.19.1" },
-    { name = "numpy", marker = "python_full_version == '3.10.*'", specifier = "~=2.2.5" },
-    { name = "numpy", marker = "python_full_version >= '3.11'", specifier = "~=2.4.2" },
     { name = "opencv-python", specifier = "~=4.11.0.86" },
     { name = "pipdeptree", marker = "python_full_version >= '3.10'", specifier = "==2.30.0" },
     { name = "prek", specifier = "==0.3.4" },
@@ -770,7 +763,6 @@ docker-dev = [
     { name = "memory-profiler", specifier = "==0.61.0" },
     { name = "memray", specifier = "==1.14.0" },
 ]
-docker-mjpeg = [{ name = "numpy", marker = "python_full_version >= '3.11'", specifier = "~=2.4.2" }]
 docker-opencv = [{ name = "opencv-python", specifier = "~=4.11.0.86" }]
 
 [[package]]

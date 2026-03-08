@@ -18,7 +18,7 @@ RUN groupadd moonraker-telegram-bot --gid 1000 \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --chown=moonraker-telegram-bot:moonraker-telegram-bot . ./moonraker-telegram-bot
-RUN cd moonraker-telegram-bot && uv sync --no-dev --group docker-mjpeg
+RUN cd moonraker-telegram-bot && uv sync --no-dev
 
 USER moonraker-telegram-bot
 VOLUME [ "/opt/printer_data/logs", "/opt/printer_data/config", "/opt/timelapse","/opt/timelapse_finished"]
