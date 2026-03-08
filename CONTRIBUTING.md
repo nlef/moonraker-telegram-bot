@@ -1,25 +1,23 @@
 # Please open PR only in `development` branch
 
 # Setup environment
-## Activate virtualenv
-This is the default location.
-```shell
-source ~/moonraker-telegram-bot-env/bin/activate
-```
+## Install uv
+See [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
+
 ## Install dependencies
 ```shell
-pip install -r scripts/requirements.dev.txt
+uv sync
 ```
 ## Install git hook
 We use [prek](https://prek.j178.dev/) for running linters and formatters. [pre-commit](https://pre-commit.com/) can also be used as a drop-in alternative.
 ```shell
-prek install
+uv run prek install
 ```
 
 You can also run linters and tests manually:
 ```shell
-prek run --all-files --show-diff-on-failure --color=always
-pytest -v
+uv run prek run --all-files --show-diff-on-failure --color=always
+uv run pytest -v
 ```
 
 ## Run bot locally
@@ -27,7 +25,7 @@ pytest -v
 Create a dev config file `telegram_dev.conf`, for example in the bot folder:
 ```shell
 cd ~/moonraker-telegram-bot
-~/moonraker-telegram-bot-env/bin/python3 ~/moonraker-telegram-bot/bot/main.py -c ~/moonraker-telegram-bot/telegram_dev.conf
+uv run python3 bot/main.py -c ~/moonraker-telegram-bot/telegram_dev.conf
 ```
 
 ## Test changes using Docker
