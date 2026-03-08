@@ -779,6 +779,7 @@ dev = [
     { name = "opencv-python" },
     { name = "prek" },
     { name = "psutil" },
+    { name = "pyproject-fmt", marker = "python_full_version >= '3.10'" },
     { name = "pytest", version = "8.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest-asyncio", version = "0.25.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -813,8 +814,8 @@ requires-dist = [
     { name = "orjson", marker = "python_full_version >= '3.10'", specifier = "==3.11.7" },
     { name = "pillow", marker = "python_full_version == '3.9.*'", specifier = "==10.4.0" },
     { name = "pillow", marker = "python_full_version >= '3.10'", specifier = "==12.1.1" },
-    { name = "python-telegram-bot", extras = ["socks", "http2", "rate-limiter", "callback-data", "job-queue"], marker = "python_full_version == '3.9.*'", specifier = "==22.5" },
-    { name = "python-telegram-bot", extras = ["socks", "http2", "rate-limiter", "callback-data", "job-queue"], marker = "python_full_version >= '3.10'", specifier = "==22.6" },
+    { name = "python-telegram-bot", extras = ["callback-data", "http2", "job-queue", "rate-limiter", "socks"], marker = "python_full_version == '3.9.*'", specifier = "==22.5" },
+    { name = "python-telegram-bot", extras = ["callback-data", "http2", "job-queue", "rate-limiter", "socks"], marker = "python_full_version >= '3.10'", specifier = "==22.6" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = "==0.22.1" },
     { name = "websockets", marker = "python_full_version == '3.9.*'", specifier = "==15.0.1" },
     { name = "websockets", marker = "python_full_version >= '3.10'", specifier = "==16.0" },
@@ -829,6 +830,7 @@ dev = [
     { name = "opencv-python", specifier = "~=4.11.0.86" },
     { name = "prek", specifier = "==0.3.4" },
     { name = "psutil", specifier = "==7.2.2" },
+    { name = "pyproject-fmt", marker = "python_full_version >= '3.10'", specifier = ">=2.18.0" },
     { name = "pytest", marker = "python_full_version == '3.9.*'", specifier = "==8.3.5" },
     { name = "pytest", marker = "python_full_version >= '3.10'", specifier = "==9.0.2" },
     { name = "pytest-asyncio", marker = "python_full_version == '3.9.*'", specifier = "==0.25.3" },
@@ -1696,6 +1698,27 @@ wheels = [
 ]
 
 [[package]]
+name = "pyproject-fmt"
+version = "2.18.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "toml-fmt-common", marker = "python_full_version >= '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7d/c4/6b1361c1ca268c03ada092356d655581bbeae4996eec0529c593c87f852e/pyproject_fmt-2.18.1.tar.gz", hash = "sha256:c51e9e30ff76ee7c9ca27b0e2a4fcd36d458803a08841b0a279b7a0c24b3d54a", size = 144273, upload-time = "2026-03-03T19:39:24.28Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/ad/047ff1921e16d8967493701b45977cf5b834a6411abb2b64d8021fb6666c/pyproject_fmt-2.18.1-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:cfc9f6e7875c11f4127dec0e99326a952968f76c86e1104619bf5c03612aafd6", size = 4726078, upload-time = "2026-03-03T19:39:02.677Z" },
+    { url = "https://files.pythonhosted.org/packages/76/bc/3b9d157ff3b110720d10fcdf0b644c23208ca02fe1fd5abfe487d0350fbc/pyproject_fmt-2.18.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:e2371a16067421ab8f57372e9ba4850cccee211bd9847d012432943a94845305", size = 4547991, upload-time = "2026-03-03T19:39:04.972Z" },
+    { url = "https://files.pythonhosted.org/packages/41/63/56de9130fd5f3d1265e1207c0a5ccc9106ba884b1b4acb412f1d1162c479/pyproject_fmt-2.18.1-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:5e32763e9ed2f696948426595fbc093bbc39bf1462179ca113fca3b4bd042fd1", size = 4696340, upload-time = "2026-03-03T19:39:07.595Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/6c/31b74f84e6d3bc6144c4f52c35291f3e083e83bf9a47c09706d442ea5647/pyproject_fmt-2.18.1-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ccd78bd180061d38b00f74b27f2965e5e5da434d720f858cf127b52638b7dd82", size = 5017466, upload-time = "2026-03-03T19:39:09.776Z" },
+    { url = "https://files.pythonhosted.org/packages/65/62/b9938ccf81986539a704b9d1039b539f1d9d1c1b98442e071eb00e22ecbc/pyproject_fmt-2.18.1-cp39-abi3-manylinux_2_31_riscv64.whl", hash = "sha256:e507f52ecd8255f54004d1fa611c1955e4eb2c907a8952855baa51f9d1bb5439", size = 4734857, upload-time = "2026-03-03T19:39:11.649Z" },
+    { url = "https://files.pythonhosted.org/packages/46/5d/6090c916839f62606c269362f46eb54dfbcabe66112d6cb5ca58b0b5df8c/pyproject_fmt-2.18.1-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:f0106803a12ab861e379c5db6c251bbf2b1ae295d40be0497feb2c536bf287c6", size = 5219127, upload-time = "2026-03-03T19:39:14.024Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/22/1ae8529cb612ddd9b338454688fc97db355db51c99b62367cdae834fcc5b/pyproject_fmt-2.18.1-cp39-abi3-win_amd64.whl", hash = "sha256:798a7f5a536d6d5fa1e3fbf49b02dd9a70566c665d43522261692bc02a9c0af4", size = 4827432, upload-time = "2026-03-03T19:39:15.823Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/0b/e52fd34ff3f538744e8c3c421fecc4d88dab014fd0d345a93a6edce50f70/pyproject_fmt-2.18.1-pp311-pypy311_pp73-macosx_10_12_x86_64.whl", hash = "sha256:40a687090f281104df700bfa12a00bd480f1c61aa5ee353af0aca4f5101784dc", size = 4722316, upload-time = "2026-03-03T19:39:18.174Z" },
+    { url = "https://files.pythonhosted.org/packages/07/1f/fc936b3a9a1aaa4dd73f486dd0dcf29520b14d5b0e8b399d8ac7f92cf6d2/pyproject_fmt-2.18.1-pp311-pypy311_pp73-macosx_11_0_arm64.whl", hash = "sha256:1a0bb7ab4f0d7d4cb058174bdb37dea1fec73aeb336502054795b5d069bd3d72", size = 4544732, upload-time = "2026-03-03T19:39:20.17Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/e1/d32ba5d3e16eb10edbe2c33f821059b89d4dec31896bf34b041731082ebe/pyproject_fmt-2.18.1-pp311-pypy311_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:ee70afdc15242d6bc5c1062bb245cc9943c3b54b82445595daffc504b426e99a", size = 5011794, upload-time = "2026-03-03T19:39:22.791Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "8.3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1938,6 +1961,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/08/c6bcb1e3c4c9528ec9049f4ac685afdafc72866664270f0deb416ccbba2a/textual-8.0.2.tar.gz", hash = "sha256:7b342f3ee9a5f2f1bd42d7b598cae00ff1275da68536769510db4b7fe8cabf5d", size = 6099270, upload-time = "2026-03-03T20:23:46.858Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/bc/0cd17f96f00b6e8bfbca64c574088c85f3c614912b3030f313752e30a099/textual-8.0.2-py3-none-any.whl", hash = "sha256:4ceadbe0e8a30eb80f9995000f4d031f711420a31b02da38f3482957b7c50ce4", size = 719174, upload-time = "2026-03-03T20:23:50.46Z" },
+]
+
+[[package]]
+name = "toml-fmt-common"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tomli", marker = "python_full_version == '3.10.*'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/32/4689172cc19f55b8390dca4a0384d8e177f623621156f0c9b3963c720eab/toml_fmt_common-1.3.1.tar.gz", hash = "sha256:da19c5a485e9f3f1f154a54e05c7b4aadd6147478286d7547e91ba54e4f755fc", size = 7433, upload-time = "2026-03-02T04:23:20.113Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/b5/c58d6ac40438898a4a19d958e67bf5f55a22afbc3cddb1cb23eda1d18a55/toml_fmt_common-1.3.1-py3-none-any.whl", hash = "sha256:5468567afe9702679682ab3fa973c79279a9f1420767e5c54481cd211df752fc", size = 5472, upload-time = "2026-03-02T04:23:18.925Z" },
 ]
 
 [[package]]

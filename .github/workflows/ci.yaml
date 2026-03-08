@@ -35,6 +35,8 @@ jobs:
       - name: Run prek on all files
         run: |
           uv run prek run --all-files --show-diff-on-failure --color=always
+        env:
+          SKIP: ${{ matrix.python-version == '3.9' && 'pyproject-fmt' || '' }}
 
       - name: Test with pytest
         run: |

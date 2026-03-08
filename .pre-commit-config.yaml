@@ -25,6 +25,11 @@ repos:
         entry: uv run ruff format
         language: system
         types: [python]
+      - id: pyproject-fmt
+        name: pyproject-fmt
+        entry: uv run pyproject-fmt
+        language: system
+        files: ^pyproject\.toml$
       - id: codespell
         name: codespell
         entry: uv run codespell

@@ -27,6 +27,7 @@ dev = [
     "mypy==1.19.1 ; python_version>='3.10'",
     "opencv-python~=4.11.0.86",
     "prek==0.3.4",
+    "pyproject-fmt>=2.18.0; python_version>='3.10'",
     "psutil==7.2.2",
     "pytest==8.3.5 ; python_version=='3.9'",
     "pytest==9.0.2 ; python_version>='3.10'",
@@ -48,7 +49,7 @@ docker-opencv = [
 docker-dev = [
     "memray==1.19.1",
     "memory-profiler==0.61.0",
-    "line_profiler==5.0.2"
+    "line_profiler==5.0.2",
 ]
 
 [tool.ruff]
@@ -74,6 +75,12 @@ known-first-party = [
     "websocket_helper",
     "telegram_helper",
 ]
+
+[tool.pyproject-fmt]
+indent = 4
+keep_full_version = true
+generate_python_version_classifiers = false
+table_format = "long"
 
 [tool.codespell]
 skip = "uv.lock"
