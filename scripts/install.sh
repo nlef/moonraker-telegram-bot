@@ -107,16 +107,16 @@ create_initial_config() {
   fi
 }
 
-#Todo: stop multiple?
-stop_service() {
-  serviceName="moonraker-telegram-bot"
-  if sudo systemctl --all --type service --no-legend | grep "$serviceName" | grep -q running; then
-    ## stop existing instance
-    report_status "Stopping moonraker-telegram-bot instance ..."
-    sudo systemctl stop moonraker-telegram-bot
-  else
-    report_status "$serviceName service does not exist or is not running."
+stop_services() {
+  services_list=($(sudo systemctl list-units -t service --full | grep moonraker-telegram-bot | awk '{print $1}'))
+  if [ ${#services_list[@]} -eq 0 ]; then
+    report_status "No running moonraker-telegram-bot services found."
+    return
   fi
+  for service in "${services_list[@]}"; do
+    report_status "Stopping $service ..."
+    sudo systemctl stop "$service"
+  done
 }
 
 install_packages() {
@@ -195,7 +195,7 @@ EOF
 install_instances(){
   INSTANCE_COUNT=$1
 
-  sudo systemctl stop moonraker-telegram-bot*
+  stop_services
   status_msg "Installing dependencies"
   install_packages
   fix_permissions
