@@ -39,7 +39,7 @@ init_config_path() {
   report_status "Telegram bot configuration file location selection"
   echo -e "\n"
   echo "Enter the path for the configuration files location. Subfolders for multiple instances will be created under this path."
-  echo "Its recommended to store it together with the klipper configuration for easier backup and usage."
+  echo "It's recommended to store it together with the klipper configuration for easier backup and usage."
   read -p "Enter desired path: " -e -i "${KLIPPER_CONF_DIR}" klip_conf_dir
   KLIPPER_CONF_DIR=${klip_conf_dir}
 
@@ -53,7 +53,7 @@ init_config_path() {
 create_initial_config() {
   if [[ $INSTANCE_COUNT -eq 1 ]]; then
     MOONRAKER_BOT_CONF=${KLIPPER_CONF_DIR}
-    # check in config exists!
+    # check if config exists
     if [[ ! -f "${MOONRAKER_BOT_CONF}"/telegram.conf ]]; then
       report_status "Creating base config file"
       cp -n "${MOONRAKER_BOT_DIR}"/scripts/base_install_template "${MOONRAKER_BOT_CONF}"/telegram.conf
@@ -108,7 +108,7 @@ create_initial_config() {
 }
 
 #Todo: stop multiple?
-stop_sevice() {
+stop_service() {
   serviceName="moonraker-telegram-bot"
   if sudo systemctl --all --type service --no-legend | grep "$serviceName" | grep -q running; then
     ## stop existing instance
@@ -207,7 +207,7 @@ install_instances(){
 }
 
 setup_dialog(){
-    ### count amount of mooonraker services
+    ### count amount of moonraker services
     SERVICE_FILES=$(find "$SYSTEMDDIR" -regextype posix-extended -regex "$SYSTEMDDIR/moonraker(-[^0])+[0-9]*.service")
     if [ -f /etc/init.d/moonraker ] || [ -f /etc/systemd/system/moonraker.service ]; then
       MOONRAKER_COUNT=1
@@ -219,16 +219,16 @@ setup_dialog(){
 
     echo -e "/=======================================================\\"
     if [[ $MOONRAKER_COUNT -eq 0 ]]; then
-      printf "|${yellow}%-55s${default}|\n" " No Mooonraker instance was found!"
+      printf "|${yellow}%-55s${default}|\n" " No Moonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -eq 1 ]]; then
-      printf "|${green}%-55s${default}|\n" " 1 Mooonraker instance was found!"
+      printf "|${green}%-55s${default}|\n" " 1 Moonraker instance was found!"
     elif [[ $MOONRAKER_COUNT -gt 1 ]]; then
-      printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} Mooonraker instances were found!"
+      printf "|${green}%-55s${default}|\n" "${MOONRAKER_COUNT} Moonraker instances were found!"
     else
-      echo -e "| ${yellow}INFO: No existing Mooonraker installation found!${default}        |"
+      echo -e "| ${yellow}INFO: No existing Moonraker installation found!${default}        |"
       init_config_path
     fi
-    echo -e "| Usually you need one Moonraker telegram bot instance per Mooonraker   |"
+    echo -e "| Usually you need one Moonraker telegram bot instance per Moonraker   |"
     echo -e "| instance. Though you can install as many as you wish. |"
     echo -e "\=======================================================/"
     echo

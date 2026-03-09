@@ -26,9 +26,9 @@ remove_all(){
   sudo systemctl daemon-reload
   sudo systemctl reset-failed
 
-  ### remove MoonrakerTelegramBot VENV dir
+  ### remove moonraker-telegram-bot venv dir
   if [ -d $MOONRAKER_BOT_ENV ]; then
-    echo -e "Removing MoonrakerTelegramBot VENV directory ..."
+    echo -e "Removing moonraker-telegram-bot venv directory ..."
     rm -rf "${MOONRAKER_BOT_ENV}" && echo -e "Directory removed!"
   fi
 
