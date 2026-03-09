@@ -500,14 +500,14 @@ class Camera:
 
         lapse_dir = f"{self._base_dir}/{printing_filename}"
 
-        lock_file = Path(f"{lapse_dir}/lapse.lock")
-        if not lock_file.is_file():
-            lock_file.touch()
-
         raw_frames = glob.glob(f"{glob.escape(lapse_dir)}/*.{self._raw_frame_extension}")
         photo_count = len(raw_frames)
         if photo_count == 0:
             raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
+
+        lock_file = Path(lapse_dir) / "lapse.lock"
+        if not lock_file.is_file():
+            lock_file.touch()
 
         raw_frames.sort(key=os.path.getmtime)
 
