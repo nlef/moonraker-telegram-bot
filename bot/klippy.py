@@ -7,7 +7,7 @@ import logging
 import re
 import threading
 import time
-from typing import List, Tuple
+from typing import Final, List, Tuple
 import urllib
 
 import emoji
@@ -99,11 +99,11 @@ class PowerDevice:
 
 
 class Klippy:
-    _DATA_MACRO = "bot_data"
+    _DATA_MACRO: Final = "bot_data"
 
-    _SENSOR_PARAMS = {"temperature": "temperature", "target": "target", "power": "power", "speed": "speed", "rpm": "rpm"}
+    _SENSOR_PARAMS: Final = {"temperature": "temperature", "target": "target", "power": "power", "speed": "speed", "rpm": "rpm"}
 
-    _POWER_DEVICE_PARAMS = {"device": "device", "status": "status", "locked_while_printing": "locked_while_printing", "type": "type", "is_shutdown": "is_shutdown"}
+    _POWER_DEVICE_PARAMS: Final = {"device": "device", "status": "status", "locked_while_printing": "locked_while_printing", "type": "type", "is_shutdown": "is_shutdown"}
 
     def __init__(
         self,
@@ -529,7 +529,7 @@ class Klippy:
         message = self.get_print_stats(state=state)
         return await self._populate_with_thumb(self._thumbnail_path, message)
 
-    _STATE_TITLES = {
+    _STATE_TITLES: Final = {
         PrintState.START: "Printer started printing",
         PrintState.PRINTING: "Printing",
         PrintState.FINISH: "Finished printing",

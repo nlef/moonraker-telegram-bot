@@ -3,12 +3,12 @@ import os
 import pathlib
 from pathlib import Path
 import re
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, ClassVar, Final, List, Optional, Tuple, Union
 
 
 class ConfigHelper:
     _section: str
-    _KNOWN_ITEMS: List[str]
+    _KNOWN_ITEMS: ClassVar[List[str]]
 
     def __init__(self, config: configparser.ConfigParser):
         self._config = config
@@ -136,7 +136,7 @@ class ConfigHelper:
 
 class SecretsConfig(ConfigHelper):
     _section = "secrets"
-    _KNOWN_ITEMS = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = [
         "bot_token",
         "chat_id",
         "user",
@@ -170,7 +170,7 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = [
         "bot_token",
         "chat_id",
         "user",
@@ -238,7 +238,7 @@ class BotConfig(ConfigHelper):
 
 class CameraConfig(ConfigHelper):
     _section = "camera"
-    _KNOWN_ITEMS = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = [
         "host",
         "host_snapshot",
         "threads",
@@ -277,7 +277,7 @@ class CameraConfig(ConfigHelper):
 
 class NotifierConfig(ConfigHelper):
     _section = "progress_notification"
-    _KNOWN_ITEMS = ["percent", "height", "time", "groups", "group_only"]
+    _KNOWN_ITEMS: ClassVar[List[str]] = ["percent", "height", "time", "groups", "group_only"]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
@@ -309,7 +309,7 @@ class NotifierConfig(ConfigHelper):
 
 class TimelapseConfig(ConfigHelper):
     _section = "timelapse"
-    _KNOWN_ITEMS = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = [
         "basedir",
         "copy_finished_timelapse_dir",
         "cleanup",
@@ -359,7 +359,7 @@ class TimelapseConfig(ConfigHelper):
 
 class TelegramUIConfig(ConfigHelper):
     _section = "telegram_ui"
-    _KNOWN_ITEMS = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = [
         "silent_progress",
         "silent_commands",
         "silent_status",
@@ -377,7 +377,7 @@ class TelegramUIConfig(ConfigHelper):
         "require_confirmation",
         "status_update_button",
     ]
-    _MESSAGE_CONTENT = [
+    _MESSAGE_CONTENT: Final = [
         "progress",
         "height",
         "filament_length",
@@ -437,8 +437,8 @@ class TelegramUIConfig(ConfigHelper):
 
 class StatusMessageContentConfig(ConfigHelper):
     _section = "status_message_content"
-    _KNOWN_ITEMS = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
-    _MESSAGE_CONTENT = [
+    _KNOWN_ITEMS: ClassVar[List[str]] = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
+    _MESSAGE_CONTENT: Final = [
         "progress",
         "height",
         "filament_length",
