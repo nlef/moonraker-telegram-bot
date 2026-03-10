@@ -83,7 +83,6 @@ ignore = [
     "E501",    # line length handled by formatter
     "C417",    # nested map/filter — existing pattern, refactor later
     "PERF203", # try-except in loop — intentional error handling
-    "PERF401", # list.extend — existing pattern
     "RUF006",  # fire-and-forget asyncio task — existing pattern
     "RUF012",  # mutable class attrs — existing pattern with _KNOWN_ITEMS
     "SIM108",  # ternary — would produce very long lines

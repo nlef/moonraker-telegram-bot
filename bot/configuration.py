@@ -63,11 +63,7 @@ class ConfigHelper:
     def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
         if not self._config.has_option(self._section, option):
             return
-        unallowed_params = []
-        if allowed_values is not None:
-            for val in values:
-                if val not in allowed_values:
-                    unallowed_params.append(val)
+        unallowed_params = [val for val in values if val not in allowed_values] if allowed_values is not None else []
         if unallowed_params:
             self._parsing_errors.append(f"Option '{option}: {values}': values [" + ",".join(unallowed_params) + "] are not allowed")
 
