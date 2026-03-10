@@ -222,15 +222,13 @@ class WebSocketHelper:
         for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
             self._klippy.update_sensor(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
-        for fan in [
-            key for key in message_parts_loc if key.startswith("heater_fan") or key == "fan" or key.startswith("controller_fan") or key.startswith("temperature_fan") or key.startswith("fan_generic")
-        ]:
+        for fan in [key for key in message_parts_loc if key.startswith(("heater_fan", "controller_fan", "temperature_fan", "fan_generic")) or key == "fan"]:
             self._klippy.update_sensor(
                 fan.replace("heater_fan ", "").replace("controller_fan ", "").replace("temperature_fan ", "").replace("fan_generic ", ""),
                 message_parts_loc[fan],
             )
 
-        for heater in [key for key in message_parts_loc if key.startswith("extruder") or key.startswith("heater_bed") or key.startswith("heater_generic")]:
+        for heater in [key for key in message_parts_loc if key.startswith(("extruder", "heater_bed", "heater_generic"))]:
             self._klippy.update_sensor(
                 heater.replace("extruder ", "").replace("heater_bed ", "").replace("heater_generic ", ""),
                 message_parts_loc[heater],
@@ -284,7 +282,7 @@ class WebSocketHelper:
             self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
             error_mess = f"Printer state change error: {print_stats_loc['state']}\n"
-            if "message" in print_stats_loc and print_stats_loc["message"]:
+            if print_stats_loc.get("message"):
                 self._notifier.send_error(error_mess, logs_upload=True, preformat_text=print_stats_loc["message"])
             else:
                 self._notifier.send_error(error_mess, logs_upload=True)
@@ -423,7 +421,6 @@ class WebSocketHelper:
         for mes in messages:
             self.websocket_to_message(mes)
             time.sleep(0.01)
-        print("lalal")
 
     async def run_forever_async(self):
         # Todo: use headers instead of inline token

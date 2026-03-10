@@ -291,7 +291,7 @@ class Timelapse:
                 await self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
         except Exception as ex:
             logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
-            await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {str(ex)}")
+            await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {ex!s}")
 
     async def _send_lapse(self) -> None:
         if not self._enabled or not self._klippy.printing_filename:
