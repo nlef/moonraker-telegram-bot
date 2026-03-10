@@ -499,16 +499,15 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
     await resp_message.edit_text("Uploading logs to parser")
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
 
-    async with aiofiles.open(f"{config_wrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb:
-        async with httpx.AsyncClient() as client_loc:
-            resp = await client_loc.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": await log_archive_ojb.read()}, follow_redirects=False, timeout=25)
-            if resp.status_code < 400:
-                logs_path = resp.headers["location"]
-                logger.info(logs_path)
-                await resp_message.edit_text(f"Logs are available at https://coderus.openrepos.net{logs_path}")
-            else:
-                logger.error(resp.status_code)
-                await resp_message.edit_text(f"Logs upload failed `{resp.status_code}`")
+    async with aiofiles.open(f"{config_wrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
+        resp = await client_loc.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": await log_archive_ojb.read()}, follow_redirects=False, timeout=25)
+        if resp.status_code < 400:
+            logs_path = resp.headers["location"]
+            logger.info(logs_path)
+            await resp_message.edit_text(f"Logs are available at https://coderus.openrepos.net{logs_path}")
+        else:
+            logger.error(resp.status_code)
+            await resp_message.edit_text(f"Logs upload failed `{resp.status_code}`")
 
 
 async def upload_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1341,7 +1340,7 @@ if __name__ == "__main__":
     logging.getLogger("httpcore").addHandler(rotating_handler)
 
     if config_wrap.parsing_errors or config_wrap.unknown_fields:
-        logger.error(config_wrap.parsing_errors + "\n" + config_wrap.unknown_fields)
+        logger.error("%s\n%s", config_wrap.parsing_errors, config_wrap.unknown_fields)
 
     if config_wrap.bot_config.debug:
         faulthandler.enable()

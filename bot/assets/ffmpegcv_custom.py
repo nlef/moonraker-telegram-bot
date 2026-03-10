@@ -13,11 +13,11 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):
     @staticmethod
     def VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout, videoinfo):
         vid = FFmpegReaderStreamRTCustom()
-        videoinfo = videoinfo if videoinfo else get_info(stream_url, timeout)
+        videoinfo = videoinfo or get_info(stream_url, timeout)
         vid.origin_width = videoinfo.width
         vid.origin_height = videoinfo.height
         vid.fps = videoinfo.fps
-        vid.codec = codec if codec else videoinfo.codec
+        vid.codec = codec or videoinfo.codec
         vid.count = videoinfo.count
         vid.duration = videoinfo.duration
         vid.pix_fmt = pix_fmt

@@ -212,7 +212,7 @@ class Notifier:
             else:
                 await self._send_message(message, group_only=group_only, manual=manual)
         except Exception as ex:
-            logger.error(ex, exc_info=True, stack_info=True)
+            logger.exception(ex, stack_info=True)
         finally:
             if state.is_finished:
                 await self.reset_notifications()
@@ -508,11 +508,7 @@ class Notifier:
     @staticmethod
     def _parse_message(ws_message) -> str:
         message_match = re.search(r"message\s*=\s*\'(.[^\']*)\'", ws_message)
-        if message_match:
-            message = message_match.group(1)
-        else:
-            message = ""
-        return message
+        return message_match.group(1) if message_match else ""
 
     @staticmethod
     def _parse_path(ws_message) -> List[str]:
@@ -711,10 +707,7 @@ class Notifier:
         )
 
         title_mathc = re.search(r"message\s*=\s*\'(.[^\']*)\'", message)
-        if title_mathc:
-            title = title_mathc.group(1)
-        else:
-            title = ""
+        title = title_mathc.group(1) if title_mathc else ""
 
         await self._bot.send_message(
             self._chat_id,

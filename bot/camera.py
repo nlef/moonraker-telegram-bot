@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 from functools import wraps
 import glob
@@ -75,10 +76,8 @@ def cam_light_toggle(func):
 
 
 def os_nice(value: int):
-    try:
+    with contextlib.suppress(Exception):
         os.nice(value)  # type: ignore
-    except Exception:
-        pass
 
 
 class Camera:
@@ -479,7 +478,7 @@ class Camera:
             return self._target_fps
         elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
-            return fps if fps >= 1 else 1
+            return max(fps, 1)
         elif actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
         else:
@@ -640,7 +639,7 @@ class MjpegCamera(Camera):
         self._img_extension = "jpeg"
         self._raw_frame_extension: str = "jpeg"
         self._host = config.camera.host
-        self._host_snapshot = config.camera.host_snapshot if config.camera.host_snapshot else self._host.replace("stream", "snapshot")
+        self._host_snapshot = config.camera.host_snapshot or self._host.replace("stream", "snapshot")
 
         self._rotate_code_mjpeg: Image.Transpose
         if config.camera.rotate == "90_cw":
