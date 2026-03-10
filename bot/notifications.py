@@ -691,7 +691,7 @@ class Notifier:
                 logger.warning("Bad command!")
                 return None
 
-        keyboard: List[List[InlineKeyboardButton]] = list(
+        keyboard: List[List[InlineKeyboardButton]] = list(  # noqa: C417
             map(
                 lambda el: list(
                     filter(

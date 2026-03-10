@@ -394,9 +394,9 @@ class TelegramUIConfig(ConfigHelper):
         super().__init__(config)
         self.eta_source: str = self._get_str("eta_source", default="slicer", allowed_values=["slicer", "file"])
         self.buttons_default: bool = bool(not config.has_option(self._section, "buttons"))
-        self.buttons: List[List[str]] = list(
+        self.buttons: List[List[str]] = list(  # noqa: C417
             map(
-                lambda el: list(
+                lambda el: list(  # noqa: C417
                     map(
                         lambda iel: f"/{iel.strip()}",
                         el.replace("[", "").replace("]", "").split(","),

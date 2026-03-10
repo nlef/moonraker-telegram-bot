@@ -81,7 +81,6 @@ select = [
 ]
 ignore = [
     "E501",    # line length handled by formatter
-    "C417",    # nested map/filter — existing pattern, refactor later
     "PERF203", # try-except in loop — intentional error handling
     "RUF006",  # fire-and-forget asyncio task — existing pattern
     "SIM108",  # ternary — would produce very long lines
