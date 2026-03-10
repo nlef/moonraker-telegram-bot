@@ -81,7 +81,6 @@ select = [
 ]
 ignore = [
     "E501",    # line length handled by formatter
-    "E722",    # bare except — existing pattern, fix later
     "C417",    # nested map/filter — existing pattern, refactor later
     "PERF203", # try-except in loop — intentional error handling
     "PERF401", # list.extend — existing pattern
