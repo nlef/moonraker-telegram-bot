@@ -1,8 +1,8 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 import gc
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, Message
@@ -16,7 +16,7 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
-def logging_callback(future):
+def logging_callback(future: "Future[Any]") -> None:
     exc = future.exception()
 
     if exc is None:
@@ -82,7 +82,7 @@ class Timelapse:
         return self._enabled
 
     @enabled.setter
-    def enabled(self, new_value: bool):
+    def enabled(self, new_value: bool) -> None:
         self._enabled = new_value
 
     @property
@@ -90,7 +90,7 @@ class Timelapse:
         return self._mode_manual
 
     @manual_mode.setter
-    def manual_mode(self, new_value: bool):
+    def manual_mode(self, new_value: bool) -> None:
         self._mode_manual = new_value
 
     @property
@@ -98,7 +98,7 @@ class Timelapse:
         return self._interval
 
     @interval.setter
-    def interval(self, new_value: int):
+    def interval(self, new_value: int) -> None:
         if new_value == 0:
             self._interval = new_value
             self._remove_timelapse_timer()
@@ -111,7 +111,7 @@ class Timelapse:
         return self._height
 
     @height.setter
-    def height(self, new_value: float):
+    def height(self, new_value: float) -> None:
         if new_value >= 0:
             self._height = new_value
 
@@ -120,7 +120,7 @@ class Timelapse:
         return self._target_fps
 
     @target_fps.setter
-    def target_fps(self, new_value: int):
+    def target_fps(self, new_value: int) -> None:
         if new_value >= 1:
             self._target_fps = new_value
             self._camera.target_fps = new_value
@@ -130,7 +130,7 @@ class Timelapse:
         return self._min_lapse_duration
 
     @min_lapse_duration.setter
-    def min_lapse_duration(self, new_value: int):
+    def min_lapse_duration(self, new_value: int) -> None:
         if new_value >= 0:
             if new_value <= self._max_lapse_duration and new_value != 0:
                 logger.warning("Min lapse duration %s is lower than max lapse duration %s", new_value, self._max_lapse_duration)
@@ -142,7 +142,7 @@ class Timelapse:
         return self._max_lapse_duration
 
     @max_lapse_duration.setter
-    def max_lapse_duration(self, new_value: int):
+    def max_lapse_duration(self, new_value: int) -> None:
         if new_value >= 0:
             if new_value <= self._min_lapse_duration and new_value != 0:
                 logger.warning("Max lapse duration %s is lower than min lapse duration %s", new_value, self._min_lapse_duration)
@@ -154,7 +154,7 @@ class Timelapse:
         return self._last_frame_duration
 
     @last_frame_duration.setter
-    def last_frame_duration(self, new_value: int):
+    def last_frame_duration(self, new_value: int) -> None:
         if new_value >= 0:
             self._last_frame_duration = new_value
             self._camera.last_frame_duration = new_value
@@ -178,7 +178,7 @@ class Timelapse:
         return self._paused
 
     @paused.setter
-    def paused(self, new_val: bool):
+    def paused(self, new_val: bool) -> None:
         self._paused = new_val
         if new_val:
             self._remove_timelapse_timer()
@@ -239,7 +239,7 @@ class Timelapse:
                 replace_existing=True,
             )
 
-    async def upload_timelapse(self, lapse_filename: str, info_mess, gcode_name_out: Optional[str] = None) -> None:
+    async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: Optional[str] = None) -> None:
         try:
             (
                 video_bytes,
