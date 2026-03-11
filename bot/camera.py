@@ -22,7 +22,7 @@ from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 import httpx
 from httpx import HTTPError
 import numpy
-from numpy import ndarray
+from numpy.typing import NDArray
 from PIL import Image, _webp
 from telegram import Message
 
@@ -243,7 +243,7 @@ class Camera:
         self._lapse_missed_frames = new_value
 
     @staticmethod
-    def _create_thumb(image: ndarray) -> BytesIO:
+    def _create_thumb(image: NDArray[Any]) -> BytesIO:
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
         bio.name = "thumbnail.jpeg"
@@ -293,7 +293,7 @@ class Camera:
         cv2.setNumThreads(self._threads)
 
     @cam_light_toggle
-    def _take_raw_frame(self, rgb: bool = True) -> ndarray:
+    def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
         with self._camera_lock:
             st_time = time.time()
             self._init_cam()
@@ -310,7 +310,7 @@ class Camera:
                     del img
                 else:
                     # image is None
-                    return cast("ndarray", numpy.empty(0))
+                    return cast("NDArray[Any]", numpy.empty(0))
             else:
                 if self._flip_vertically:
                     image = numpy.flipud(image)
@@ -323,9 +323,9 @@ class Camera:
             image = None
             del image, success
 
-        return cast("ndarray", ndaarr)
+        return cast("NDArray[Any]", ndaarr)
 
-    def take_photo(self, ndarr: Optional[ndarray] = None) -> BytesIO:
+    def take_photo(self, ndarr: Optional[NDArray[Any]] = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
         os_nice(15)
@@ -354,7 +354,7 @@ class Camera:
 
     @cam_light_toggle
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
-        def process_video_frame(frame_local: ndarray) -> ndarray:
+        def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
             if self._flip_vertically:
                 frame_local = numpy.flipud(frame_local)
             if self._flip_horizontally:
@@ -451,7 +451,7 @@ class Camera:
         numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
-        raw_frame = None  # type: ignore[assignment]
+        del raw_frame
         os_nice(0)
 
         # never add self in params there!
@@ -463,8 +463,7 @@ class Camera:
                     outfile.write(photo.getvalue())
                 photo.close()
 
-        raw_frame_rgb = None
-        del raw_frame, raw_frame_rgb
+        del raw_frame_rgb
 
     async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[bytes, bytes, int, int, str, str]:
         loop = asyncio.get_running_loop()
@@ -489,8 +488,8 @@ class Camera:
             logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
             return self._target_fps
 
-    def _get_frame(self, path: str) -> ndarray:
-        return cast("ndarray", numpy.load(path, allow_pickle=True)["raw"])
+    def _get_frame(self, path: str) -> NDArray[Any]:
+        return cast("NDArray[Any]", numpy.load(path, allow_pickle=True)["raw"])
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> Tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
@@ -569,7 +568,6 @@ class Camera:
             out = None
             del out
 
-        img = None  # type: ignore[assignment]
         del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
@@ -666,7 +664,7 @@ class MjpegCamera(Camera):
         return img
 
     @cam_light_toggle
-    def take_photo(self, ndarr: Optional[ndarray] = None, force_rotate: bool = True) -> BytesIO:
+    def take_photo(self, ndarr: Optional[NDArray[Any]] = None, force_rotate: bool = True) -> BytesIO:
         bio = BytesIO()
         os_nice(15)
         try:
@@ -712,16 +710,16 @@ class MjpegCamera(Camera):
             else:
                 self._lapse_missed_frames += 1
 
-    def _image_to_frame(self, image_bio: BytesIO) -> ndarray:
+    def _image_to_frame(self, image_bio: BytesIO) -> NDArray[Any]:
         image_bio.seek(0)
         img = self._rotate_img(Image.open(image_bio))
         res = numpy.array(img)
         img.close()
         del img
-        return cast("ndarray", res[:, :, [2, 1, 0]].copy())
+        return cast("NDArray[Any]", res[:, :, [2, 1, 0]].copy())
 
     # Todo: apply frames rotation during ffmpeg call!
-    def _get_frame(self, path: str) -> ndarray:
+    def _get_frame(self, path: str) -> NDArray[Any]:
         with open(path, "rb") as image_file:
             buff = BytesIO(image_file.read())
             res = self._image_to_frame(buff)
