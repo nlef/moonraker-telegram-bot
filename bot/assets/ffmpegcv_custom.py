@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Optional, Tuple
 
 from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore[import-untyped]
 from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
@@ -7,11 +8,21 @@ logger = logging.getLogger(__name__)
 
 
 class FFmpegReaderStreamRTCustom(FFmpegReader):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     @staticmethod
-    def VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout, videoinfo):
+    def VideoReader(
+        stream_url: str,
+        codec: Optional[str],
+        pix_fmt: str,
+        crop_xywh: Optional[Tuple[int, int, int, int]],
+        resize: Optional[Tuple[int, int]],
+        resize_keepratio: bool,
+        resize_keepratioalign: str,
+        timeout: Optional[int],
+        videoinfo: Any,
+    ) -> "FFmpegReaderStreamRTCustom":
         vid = FFmpegReaderStreamRTCustom()
         videoinfo = videoinfo or get_info(stream_url, timeout)
         vid.origin_width = videoinfo.width
@@ -42,6 +53,14 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):
 
 
 def FFmpegReaderStreamRTCustomInit(
-    stream_url, codec=None, pix_fmt="bgr24", crop_xywh=None, resize=None, resize_keepratio=True, resize_keepratioalign="center", timeout=None, videoinfo=None
+    stream_url: str,
+    codec: Optional[str] = None,
+    pix_fmt: str = "bgr24",
+    crop_xywh: Optional[Tuple[int, int, int, int]] = None,
+    resize: Optional[Tuple[int, int]] = None,
+    resize_keepratio: bool = True,
+    resize_keepratioalign: str = "center",
+    timeout: Optional[int] = None,
+    videoinfo: Any = None,
 ) -> FFmpegReaderStreamRTCustom:
     return FFmpegReaderStreamRTCustom.VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout=timeout, videoinfo=videoinfo)
