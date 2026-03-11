@@ -8,7 +8,7 @@ import re
 from typing import Dict, List, Optional, Tuple, Union
 
 import aiofiles
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest

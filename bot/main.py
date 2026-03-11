@@ -21,8 +21,8 @@ from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import aiofiles
-from apscheduler.events import EVENT_JOB_ERROR  # type: ignore
-from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
+from apscheduler.events import EVENT_JOB_ERROR  # type: ignore[import-untyped]
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 import emoji
 import httpx
 import orjson
@@ -612,7 +612,7 @@ async def button_lapse_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     await context.bot.send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.RECORD_VIDEO)
     await timelapse.upload_timelapse(lapse_name, info_mess)
-    info_mess = None  # type: ignore
+    info_mess = None  # type: ignore[assignment]
     await query.delete_message()
     await check_unfinished_lapses(context.bot)
 

@@ -4,7 +4,7 @@ import gc
 import logging
 from typing import Optional
 
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, Message
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
@@ -279,8 +279,8 @@ class Timelapse:
 
             video_bio_nbytes = len(video_bytes)
 
-            thumb_bytes = None  # type: ignore
-            video_bytes = None  # type: ignore
+            thumb_bytes = None  # type: ignore[assignment]
+            video_bytes = None  # type: ignore[assignment]
             del video_bytes, thumb_bytes
 
             gc.collect()
@@ -317,7 +317,7 @@ class Timelapse:
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
         await self.upload_timelapse(lapse_filename, info_mess, gcode_name)
-        info_mess = None  # type: ignore
+        info_mess = None  # type: ignore[assignment]
 
     def send_timelapse(self) -> None:
         self._sched.add_job(

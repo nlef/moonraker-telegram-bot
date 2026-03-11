@@ -32,7 +32,7 @@ from klippy import Klippy, PowerDevice
 try:
     import cv2
 except ImportError:
-    cv2 = None  # type: ignore
+    cv2 = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -248,7 +248,7 @@ class Camera:
         img.save(bio, "JPEG", quality=100, optimize=True)
         bio.seek(0)
         img.close()
-        img = None  # type: ignore
+        img = None  # type: ignore[assignment]
         del img
         return bio
 
@@ -315,7 +315,7 @@ class Camera:
                 if self._rotate_code > -10:
                     image = numpy.rot90(image, k=self._rotate_code, axes=(1, 0))
 
-            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()  # type: ignore
+            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()  # type: ignore[index, union-attr]
             image = None
             del image, success
 
@@ -588,7 +588,7 @@ class Camera:
         res_thumb_bytes = thumb_bio.getvalue()
 
         thumb_bio.close()
-        thumb_bio = None  # type: ignore
+        thumb_bio = None  # type: ignore[assignment]
         del thumb_bio
 
         return video_bytes, res_thumb_bytes, width, height, video_filepath, gcode_name
@@ -649,7 +649,7 @@ class MjpegCamera(Camera):
         elif config.camera.rotate == "180":
             self._rotate_code_mjpeg = Image.Transpose.ROTATE_180
         else:
-            self._rotate_code_mjpeg = None  # type: ignore
+            self._rotate_code_mjpeg = None  # type: ignore[assignment]
 
     def _rotate_img(self, img: Image.Image) -> Image.Image:
         if self._flip_vertically or self._flip_horizontally or self._rotate_code_mjpeg:

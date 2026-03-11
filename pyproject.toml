@@ -116,3 +116,5 @@ python_version = "3.9"
 no_namespace_packages = true
 exclude = "tests"
 warn_unused_ignores = true
+show_error_codes = true
+enable_error_code = [ "ignore-without-code" ]

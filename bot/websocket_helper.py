@@ -8,7 +8,7 @@ import time
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")  # pylint: disable=C0413
 os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")  # pylint: disable=C0413
 
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore
+from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 import orjson
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
