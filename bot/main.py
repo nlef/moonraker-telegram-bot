@@ -132,8 +132,8 @@ camera_wrap: Camera
 timelapse: Timelapse
 notifier: Notifier
 klippy: Klippy
-light_power_device: PowerDevice
-psu_power_device: PowerDevice
+light_power_device: Optional[PowerDevice]
+psu_power_device: Optional[PowerDevice]
 ws_helper: WebSocketHelper
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2, thread_name_prefix="bot_pool")
 
@@ -721,6 +721,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.delete_message()
         await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Restarting bot", exec_func=restart_bot())
     elif query.data == "power_off_printer":
+        assert psu_power_device is not None
         await psu_power_device.switch_device(False)
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle off\nError: {psu_power_device.device_error}"
@@ -732,6 +733,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             do_quote=True,
         )
     elif query.data == "power_on_printer":
+        assert psu_power_device is not None
         await psu_power_device.switch_device(True)
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle on\nError: {psu_power_device.device_error}"
@@ -1352,8 +1354,8 @@ if __name__ == "__main__":
 
     klippy = Klippy(config_wrap, rotating_handler)
 
-    light_power_device = PowerDevice(config_wrap.bot_config.light_device_name, klippy)
-    psu_power_device = PowerDevice(config_wrap.bot_config.poweroff_device_name, klippy)
+    light_power_device = PowerDevice(config_wrap.bot_config.light_device_name, klippy) if config_wrap.bot_config.light_device_name else None
+    psu_power_device = PowerDevice(config_wrap.bot_config.poweroff_device_name, klippy) if config_wrap.bot_config.poweroff_device_name else None
 
     klippy.psu_device = psu_power_device
     klippy.light_device = light_power_device

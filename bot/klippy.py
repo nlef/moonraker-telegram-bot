@@ -39,13 +39,7 @@ class PrintState(Enum):
 
 
 class PowerDevice:
-    def __new__(cls, name: str, klippy_: "Klippy") -> Optional["PowerDevice"]:  # type: ignore[misc]
-        if name:
-            return super(PowerDevice, cls).__new__(cls)
-        else:
-            return None
-
-    def __init__(self, name: str, klippy_: "Klippy"):
+    def __init__(self, name: str, klippy_: "Klippy") -> None:
         self.name: str = name
         # Todo: refactor! check lighting lock in camera
         self._state_lock = threading.Lock()
@@ -117,8 +111,8 @@ class Klippy:
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: List[str] = config.status_message_content.content
         self._eta_source: str = config.telegram_ui.eta_source
-        self._light_device: PowerDevice
-        self._psu_device: PowerDevice
+        self._light_device: Optional[PowerDevice]
+        self._psu_device: Optional[PowerDevice]
         self._sensors_list: List[str] = config.status_message_content.sensors
         self._heaters_list: List[str] = config.status_message_content.heaters
         self._fans_list: List[str] = config.status_message_content.fans
@@ -188,19 +182,19 @@ class Klippy:
         return self.filament_weight * (self.filament_used / self.filament_total)
 
     @property
-    def psu_device(self) -> PowerDevice:
+    def psu_device(self) -> Optional[PowerDevice]:
         return self._psu_device
 
     @psu_device.setter
-    def psu_device(self, psu_device: PowerDevice) -> None:
+    def psu_device(self, psu_device: Optional[PowerDevice]) -> None:
         self._psu_device = psu_device
 
     @property
-    def light_device(self) -> PowerDevice:
+    def light_device(self) -> Optional[PowerDevice]:
         return self._light_device
 
     @light_device.setter
-    def light_device(self, light_device: PowerDevice) -> None:
+    def light_device(self, light_device: Optional[PowerDevice]) -> None:
         self._light_device = light_device
 
     @property
