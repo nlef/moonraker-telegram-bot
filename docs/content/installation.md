@@ -52,7 +52,7 @@ Simply add `[respond]` anywhere in your configuration.
 
 ## Step 5: Add the bot to the moonraker update manager
 
-Mainsail and Fluidd both support checking for updates as well as updating installed klipper components. If you regularly update klipper and moonraker, you should keep the bot updated as well.
+Mainsail and Fluidd both support checking for updates as well as updating installed Klipper components. If you regularly update Klipper and Moonraker, you should keep the bot updated as well.
 
 Paste this to the moonraker config and restart moonraker.
 
@@ -72,7 +72,7 @@ If you need more information on the process, you can check it out in detail on [
 
 If you intend on using the timelapse module to make timelapse videos, you should add a macro to store finished lapse parameters.
 
-Simply paste this little macro to any place in your klipper configuration:
+Simply paste this little macro to any place in your Klipper configuration:
 
 ```jinja2
 [gcode_macro _bot_data]

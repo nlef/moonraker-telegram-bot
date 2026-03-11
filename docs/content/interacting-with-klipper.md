@@ -8,7 +8,7 @@ The commands in this document are formatted so that it is possible to cut-and-pa
 
 ## Running Macros
 
-You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.
+You have the possibility to run Klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in Klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.
 
 This allows you to have a "respond-type" message with pre-typed `/MY_FAVOURITE_MACRO`, allowing you to simply click on it in the chat to respond to a specific action.
 
@@ -150,7 +150,7 @@ Parameters for the notifications give you the option to control settings similar
 ```
 RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"
 ```
-This run-time setting behaves similarly to klipper - the requested parameters remain consistent until the next restart of the bot.
+This run-time setting behaves similarly to Klipper — the requested parameters remain consistent until the next restart of the bot.
 
 ## Sending Files
 

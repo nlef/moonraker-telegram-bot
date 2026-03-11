@@ -20,7 +20,7 @@
 
 This is a basic overview of different commands available "out of the box" after installation.
 To get an in-depth overview of available functionality you can check out the [sample config](sample-config.md) page.
-To get a better understanding on how to do useful stuff with the bot, see the [page on klipper interaction](interacting-with-klipper.md) and for ideas on usage check out the [macro](ideas-for-macros.md) page.
+To get a better understanding on how to do useful stuff with the bot, see the [page on Klipper interaction](interacting-with-klipper.md) and for ideas on usage check out the [macro](ideas-for-macros.md) page.
 Commands can be entered directly in chat, suggested by Telegram highlighting or placed as buttons.
 
 |Command|Description|
