@@ -419,46 +419,29 @@ class Notifier:
     async def _send_print_start_info(self) -> None:
         message, bio = await self._klippy.get_file_info(state=PrintState.START)
 
-        if bio is not None:
-            if not self._group_only:
-                status_message = await self._bot.send_photo(
-                    self._chat_id,
-                    photo=bio,
-                    caption=message,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=self.get_status_keyboard(state=PrintState.START),
-                    disable_notification=self.silent_status,
-                )
-                self._status_message = status_message
+        if not self._group_only:
+            status_message = await self._bot.send_photo(
+                self._chat_id,
+                photo=bio,
+                caption=message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=self.get_status_keyboard(state=PrintState.START),
+                disable_notification=self.silent_status,
+            )
+            self._status_message = status_message
 
-            for group_, message_thread_id in self._notify_groups:
-                bio.seek(0)
-                self._groups_status_messages[group_] = await self._bot.send_photo(
-                    chat_id=group_,
-                    message_thread_id=message_thread_id,
-                    photo=bio,
-                    caption=message,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=self.get_status_keyboard(state=PrintState.START),
-                    disable_notification=self.silent_status,
-                )
-            bio.close()
-        else:
-            if not self._group_only:
-                status_message = await self._bot.send_message(
-                    chat_id=self._chat_id, text=message, parse_mode=ParseMode.HTML, reply_markup=self.get_status_keyboard(state=PrintState.START), disable_notification=self.silent_status
-                )
-                self._status_message = status_message
-
-            for group_, message_thread_id in self._notify_groups:
-                self._groups_status_messages[group_] = await self._bot.send_message(
-                    chat_id=group_,
-                    message_thread_id=message_thread_id,
-                    text=message,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=self.get_status_keyboard(state=PrintState.START),
-                    disable_notification=self.silent_status,
-                )
+        for group_, message_thread_id in self._notify_groups:
+            bio.seek(0)
+            self._groups_status_messages[group_] = await self._bot.send_photo(
+                chat_id=group_,
+                message_thread_id=message_thread_id,
+                photo=bio,
+                caption=message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=self.get_status_keyboard(state=PrintState.START),
+                disable_notification=self.silent_status,
+            )
+        bio.close()
 
         if self._pin_status_single_message and self._status_message is not None:
             await self._bot.unpin_all_chat_messages(self._chat_id)
