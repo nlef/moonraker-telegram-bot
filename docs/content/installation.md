@@ -11,7 +11,7 @@ This is done by talking to [BotFather](https://telegram.me/botfather) on telegra
 ## Step 2: Install the bot
 
 **We recommend installing the bot with [KIAUH](https://github.com/th33xitus/KIAUH), and updating it via moonraker or via KIAUH.**
-**Moonraker [history] component must be configured.**
+**Moonraker `[history]` component must be configured.**
 
 You may of course still install the bot manually:
 Simply clone the distro:
@@ -43,9 +43,9 @@ You should get a response from the bot in chat, and base functionality should be
 If you are not getting any meaningful responses from the bot, or no response at all, you probably have made mistakes while installing it and have a corrupted installation, or the bot is not able to reach telegram servers.
 Try checking the logs in (default would be `~/printer_data/logs`) or do a clean reinstall.
 
-**After step 3 the bot should be running properly and respond to commands, as well as present you with buttons. You can restart the bot directly with /bot_restart after this for any config changes.**
+**After step 3 the bot should be running properly and respond to commands, as well as present you with buttons. You can restart the bot directly with `/bot_restart` after this for any config changes.**
 
-## Step 4: Add [respond] section to your klipper
+## Step 4: Add `[respond]` section to your Klipper
 
 Most of the features like sending notifications, or generating keyboards require the [respond](https://github.com/Klipper3d/klipper/blob/master/docs/Config_Reference.md#respond) section to work.
 Simply add `[respond]` anywhere in your configuration.
