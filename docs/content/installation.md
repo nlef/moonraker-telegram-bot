@@ -47,7 +47,7 @@ Try checking the logs in (default would be `~/printer_data/logs`) or do a clean 
 
 ## Step 4: Add `[respond]` section to your Klipper
 
-Most of the features like sending notifications, or generating keyboards require the [respond](https://github.com/Klipper3d/klipper/blob/master/docs/Config_Reference.md#respond) section to work.
+Most of the features like sending notifications, or generating keyboards require the [respond](https://www.klipper3d.org/Config_Reference.html#respond) section to work.
 Simply add `[respond]` anywhere in your configuration.
 
 ## Step 5: Add the bot to the moonraker update manager

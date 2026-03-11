@@ -4,7 +4,7 @@ This document is a reference for available interactions between Klipper and moon
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
 **Some interactions are done via `M118`/`RESPOND` extended commands.**
-**You will need to enable the corresponding [section](https://github.com/KevinOConnor/klipper/blob/master/docs/Config_Reference.md#respond) in your printer.cfg file.**
+**You will need to enable the corresponding [section](https://www.klipper3d.org/Config_Reference.html#respond) in your printer.cfg file.**
 
 ## Running Macros
 
