@@ -13,7 +13,7 @@ import pickle
 import subprocess
 import threading
 import time
-from typing import List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
 import ffmpegcv  # type: ignore[import-untyped]
@@ -38,9 +38,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def cam_light_toggle(func):
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def cam_light_toggle(func: F) -> F:
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         self.use_light()
 
         if self.light_timeout > 0 and self.light_device and not self.light_device.device_state and not self.light_lock.locked():
@@ -58,7 +61,7 @@ def cam_light_toggle(func):
 
         self.free_light()
 
-        def delayed_light_off():
+        def delayed_light_off() -> None:
             if self.light_requests == 0:
                 if self.light_lock.locked():
                     self.light_lock.release()
@@ -72,10 +75,10 @@ def cam_light_toggle(func):
 
         return result
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
-def os_nice(value: int):
+def os_nice(value: int) -> None:
     with contextlib.suppress(Exception):
         os.nice(value)
 
@@ -167,7 +170,7 @@ class Camera:
             return self._light_need_off
 
     @light_need_off.setter
-    def light_need_off(self, new_value: bool):
+    def light_need_off(self, new_value: bool) -> None:
         with self._light_need_off_lock:
             self._light_need_off = new_value
 
@@ -209,7 +212,7 @@ class Camera:
         return self._min_lapse_duration
 
     @min_lapse_duration.setter
-    def min_lapse_duration(self, new_value: int):
+    def min_lapse_duration(self, new_value: int) -> None:
         if new_value >= 0:
             self._min_lapse_duration = new_value
 
@@ -240,7 +243,7 @@ class Camera:
         self._lapse_missed_frames = new_value
 
     @staticmethod
-    def _create_thumb(image) -> BytesIO:
+    def _create_thumb(image: ndarray) -> BytesIO:
         img = Image.fromarray(image[:, :, [2, 1, 0]])
         bio = BytesIO()
         bio.name = "thumbnail.jpeg"
@@ -260,17 +263,18 @@ class Camera:
         except ValueError:
             return False
 
-    def _set_cv2_params(self):
+    def _set_cv2_params(self) -> None:
         self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         for prop_name, value in self._cv2_params:
             if prop_name.upper() == "CAP_PROP_FOURCC":
                 try:
                     prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))
+                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))  # type: ignore[attr-defined]
                 except AttributeError as err:
                     logger.error(err, err)
             else:
+                val: Any
                 if value.isnumeric():
                     val = int(value)
                 elif self._isfloat(value):
@@ -283,7 +287,7 @@ class Camera:
                 except AttributeError as err:
                     logger.error(err, err)
 
-    def _init_cam(self):
+    def _init_cam(self) -> None:
         self.cam_cam.open(self._host)
         self._set_cv2_params()
         cv2.setNumThreads(self._threads)
@@ -350,7 +354,7 @@ class Camera:
 
     @cam_light_toggle
     def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
-        def process_video_frame(frame_local):
+        def process_video_frame(frame_local: ndarray) -> ndarray:
             if self._flip_vertically:
                 frame_local = numpy.flipud(frame_local)
             if self._flip_horizontally:
@@ -447,7 +451,7 @@ class Camera:
         numpy.savez_compressed(f"{self.lapse_dir}/{time.time()}", raw=raw_frame)
 
         raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
-        raw_frame = None
+        raw_frame = None  # type: ignore[assignment]
         os_nice(0)
 
         # never add self in params there!
@@ -485,10 +489,10 @@ class Camera:
             logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
             return self._target_fps
 
-    def _get_frame(self, path: str):
+    def _get_frame(self, path: str) -> ndarray:
         return numpy.load(path, allow_pickle=True)["raw"]
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop) -> Tuple[bytes, bytes, int, int, str, str]:
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> Tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")
 
@@ -565,7 +569,7 @@ class Camera:
             out = None
             del out
 
-        img = None
+        img = None  # type: ignore[assignment]
         del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
@@ -616,7 +620,7 @@ class Camera:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
         return [pathlib.PurePath(el).parent.name for el in glob.glob(f"{self._base_dir}/*/*.lock")]
 
-    def cleanup_unfinished_lapses(self):
+    def cleanup_unfinished_lapses(self) -> None:
         for lapse_name in self.detect_unfinished_lapses():
             self.cleanup(lapse_name, force=True)
 
@@ -629,8 +633,8 @@ class FFmpegCamera(Camera):
         self.videoinfo = get_info(self._host, self._cam_timeout)
         self.cam_cam: FFmpegReader
 
-    def _init_cam(self):
-        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
+    def _init_cam(self) -> None:
+        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)  # type: ignore[arg-type]
 
 
 class MjpegCamera(Camera):
@@ -708,7 +712,7 @@ class MjpegCamera(Camera):
             else:
                 self._lapse_missed_frames += 1
 
-    def _image_to_frame(self, image_bio: BytesIO):
+    def _image_to_frame(self, image_bio: BytesIO) -> ndarray:
         image_bio.seek(0)
         img = self._rotate_img(Image.open(image_bio))
         res = numpy.array(img)
@@ -717,7 +721,7 @@ class MjpegCamera(Camera):
         return res[:, :, [2, 1, 0]].copy()
 
     # Todo: apply frames rotation during ffmpeg call!
-    def _get_frame(self, path: str):
+    def _get_frame(self, path: str) -> ndarray:
         with open(path, "rb") as image_file:
             buff = BytesIO(image_file.read())
             res = self._image_to_frame(buff)
