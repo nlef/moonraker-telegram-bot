@@ -302,11 +302,11 @@ class Klippy:
             return
 
         resp = orjson.loads(response.text)["result"]
-        self.file_estimated_time = resp["estimated_time"] if resp.get("estimated_time") else 0.0
-        self.file_print_start_time = resp["print_start_time"] if resp.get("print_start_time") else time.time()
-        self.filament_total = resp["filament_total"] if "filament_total" in resp else 0.0
-        self.filament_weight = resp["filament_weight_total"] if "filament_weight_total" in resp else 0.0
-        self.file_object_height = resp["object_height"] if resp.get("object_height") else 0.0
+        self.file_estimated_time = resp.get("estimated_time", 0.0)
+        self.file_print_start_time = resp.get("print_start_time") or time.time()
+        self.filament_total = resp.get("filament_total", 0.0)
+        self.filament_weight = resp.get("filament_weight_total", 0.0)
+        self.file_object_height = resp.get("object_height", 0.0)
 
         if "thumbnails" in resp and "filename" in resp:
             thumb = max(resp["thumbnails"], key=lambda el: el["size"])
