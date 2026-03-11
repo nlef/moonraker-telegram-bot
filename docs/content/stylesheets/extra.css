@@ -1,0 +1,8 @@
+/* Telegram-inspired palette */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #3a9ad9;
+  --md-primary-fg-color--light: #6bb8e6;
+  --md-primary-fg-color--dark: #2a7bb5;
+  --md-accent-fg-color: #34b7f1;
+  --md-accent-fg-color--transparent: rgba(52, 183, 241, 0.1);
+}

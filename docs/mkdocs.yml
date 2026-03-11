@@ -1,0 +1,48 @@
+site_name: Moonraker Telegram Bot
+site_description: Telegram bot for remote control and monitoring of 3D printers running Klipper/Moonraker
+site_url: https://moonraker-telegram-bot.readthedocs.io/
+repo_url: https://github.com/nlef/moonraker-telegram-bot
+repo_name: nlef/moonraker-telegram-bot
+edit_uri: edit/master/docs/content/
+
+docs_dir: content
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: custom
+    accent: custom
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.sections
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Overview: index.md
+  - Installation: installation.md
+  - Sample Config: sample-config.md
+  - Camera Modes: camera-modes.md
+  - Interacting with Klipper: interacting-with-klipper.md
+  - Ideas for Macros: ideas-for-macros.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true

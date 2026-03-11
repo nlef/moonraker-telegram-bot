@@ -43,6 +43,9 @@ dev = [
     "types-setuptools==81.0.0.20260209",
     "typing-extensions==4.15.0",
 ]
+docs = [
+    "mkdocs-material==9.7.5",
+]
 docker-dev = [
     "line-profiler==5.0.2",
     "memory-profiler==0.61.0",
