@@ -21,15 +21,17 @@ Example usage would be typing `/gcode G28 X Y` into the chat.
 
 
 ## Manual Timelapse
+
 If you have set manual_mode in [timelapse](sample-config.md#timelapse), you can use commands to manage timelapse capturing by the bot.
 The following commands are available:
-- `RESPOND PREFIX=timelapse MSG=photo` Used to capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
-- `RESPOND PREFIX=timelapse MSG=photo_and_gcode` Used to capture a single timelapse frame. Runs the command specified in the config in the "after_photo_gcode" parameter in the `[timelapse]` section after the photo is taken.
-- `RESPOND PREFIX=timelapse MSG=start` Marks the beginning of the timelapse capture. Useful, if you want to skip some time before you start the recording.
-- `RESPOND PREFIX=timelapse MSG=stop` Marks the end of the timelapse capture. You can only run "create" after this command. Useful if you want to skip something at the end of the print, like bed extension, or purge operations.
-- `RESPOND PREFIX=timelapse MSG=pause` Pauses the automatic capturing. Useful, if you have to run service operations, like switching filament, or if you do not want automated lapse features to run for a reason.
-- `RESPOND PREFIX=timelapse MSG=resume` Resumes the automated capturing, if it was paused.
-- `RESPOND PREFIX=timelapse MSG=create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
+
+- `RESPOND PREFIX=timelapse MSG=photo` — Capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
+- `RESPOND PREFIX=timelapse MSG=photo_and_gcode` — Capture a single timelapse frame. Runs the command specified in the "after_photo_gcode" parameter in the `[timelapse]` section after the photo is taken.
+- `RESPOND PREFIX=timelapse MSG=start` — Mark the beginning of the timelapse capture. Useful if you want to skip some time before you start the recording.
+- `RESPOND PREFIX=timelapse MSG=stop` — Mark the end of the timelapse capture. You can only run "create" after this command. Useful if you want to skip something at the end of the print, like bed extension or purge operations.
+- `RESPOND PREFIX=timelapse MSG=pause` — Pause the automatic capturing. Useful if you have to run service operations, like switching filament.
+- `RESPOND PREFIX=timelapse MSG=resume` — Resume the automated capturing, if it was paused.
+- `RESPOND PREFIX=timelapse MSG=create` — Start the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this while you are not printing, since video rendering is resource-intensive.
 
 
 ## Sending Messages from Klipper
@@ -87,15 +89,17 @@ Examples will follow in the [Ideas for macros](ideas-for-macros.md) document.
 
 
 ## Message Formatting
-All configurable messages (status, command, keyboard etc.) support some of the html formatting.
+
+All configurable messages (status, command, keyboard etc.) support some of the HTML formatting.
 Valid formatting tags are:
-`<b></b>` for <b>bold</b>,
-`<u></u>` for <u>underlined</u>,
-`<i></i>` for  <i>cursive</i>,
-`<tg-spoiler></tg-spoiler>` for telegram spoilers,
-`<del></del>` for <del>strikethrough</del>,
-`<pre></pre>` doubles as `codeblock` and also forces a new line,
-`<a href='http://www.example.com/'>inline URL</a>` can be used to insert links. Make sure you use single quotes.
+
+- `<b></b>` — bold
+- `<u></u>` — underlined
+- `<i></i>` — italic
+- `<tg-spoiler></tg-spoiler>` — Telegram spoiler
+- `<del></del>` — strikethrough
+- `<pre></pre>` — code block, also forces a new line
+- `<a href='http://www.example.com/'>inline URL</a>` — insert links (make sure you use single quotes)
 
 An example message using bold formatting looks the following way:
 `RESPOND PREFIX=tgnotify MSG=my_message with <b>bold text</b>`

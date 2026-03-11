@@ -123,6 +123,7 @@ This contraption works in the following way:
 4. (Optional) If you feel like extending that, you can also upload the .csv to telegram as well. Open an issue, if you have an implementation you would like to share.
 
 ![](img/resonances.png)
+
 Have fun and let us know if you can invent some other nifty usages!
 
 ## Head movements for timelapsing
