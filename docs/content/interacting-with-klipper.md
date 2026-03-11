@@ -1,10 +1,10 @@
-This document is a reference for available interactions between klipper and moonraker-telegram-bot.
+# Interacting with Klipper
+
+This document is a reference for available interactions between Klipper and moonraker-telegram-bot.
+The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
 **Some interactions are done via "M118"/RESPOND extended commands.**
 **You will need to enable the corresponding [section](https://github.com/KevinOConnor/klipper/blob/master/docs/Config_Reference.md#respond) in your printer.cfg file.**
-
-# Interacting with klipper
-The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
 ## Running Macros
 You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.

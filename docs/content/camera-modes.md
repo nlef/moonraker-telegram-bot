@@ -1,6 +1,6 @@
-# Camera modes in 2.0
+# Camera modes in v2.0
 
-With 2.0 the camera handling has received a significant rework.
+With v2.0 the camera handling has received a significant rework.
 This document is a intended to help choose the right type of camera handling.
 Principally the development will move towards mjpeg-only, since this is what the majority is using, and supporting multiple variants is quite tiresome.
 For now, three types of cameras will exist:
