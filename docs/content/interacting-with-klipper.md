@@ -7,6 +7,7 @@ The commands in this document are formatted so that it is possible to cut-and-pa
 **You will need to enable the corresponding [section](https://github.com/KevinOConnor/klipper/blob/master/docs/Config_Reference.md#respond) in your printer.cfg file.**
 
 ## Running Macros
+
 You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.
 
 This allows you to have a "respond-type" message with pre-typed `/MY_FAVOURITE_MACRO`, allowing you to simply click on it in the chat to respond to a specific action.
@@ -15,6 +16,7 @@ While not directly useful on first sight, it opens up some interesting possibili
 
 
 ## Running G-Code
+
 You have the possibility to run any gcode directly from the chat interface.
 Simply type `/gcode %your gcode here%` into the chat. Spaces are supported.
 Example usage would be typing `/gcode G28 X Y` into the chat.
@@ -35,6 +37,7 @@ The following commands are available:
 
 
 ## Sending Messages from Klipper
+
 You can use `RESPOND`-type commands to send custom messages to the bot.
 You have three types of messages:
 
