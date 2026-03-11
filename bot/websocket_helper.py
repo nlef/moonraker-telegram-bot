@@ -4,6 +4,7 @@ import os
 import random
 import ssl
 import time
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")  # pylint: disable=C0413
 os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")  # pylint: disable=C0413
@@ -26,16 +27,19 @@ _OPTIONAL_METHODS = frozenset({"machine.device_power.devices"})
 logger = logging.getLogger(__name__)
 
 
-def websocket_alive(func):
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def websocket_alive(func: F) -> F:
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         if self.websocket is None:
             logger.warning("Websocket call `%s` on non initialized ws", func.__name__)
             return None
         else:
             return func(self, *args, **kwargs)
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 class WebSocketHelper:
@@ -72,14 +76,14 @@ class WebSocketHelper:
             logger.addHandler(logging_handler)
 
     @staticmethod
-    def on_error(error):
+    def on_error(error: Exception) -> None:
         logger.error(error)
 
     @property
     def _next_request_id(self) -> int:
         return random.randint(0, 300000)
 
-    async def _send_jsonrpc(self, method: str, params=None):
+    async def _send_jsonrpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
         request_id = self._next_request_id
         self._pending_requests[request_id] = method
         msg = {"jsonrpc": "2.0", "method": method, "id": request_id}
@@ -87,7 +91,7 @@ class WebSocketHelper:
             msg["params"] = params
         await self._ws.send(orjson.dumps(msg))
 
-    async def subscribe(self):
+    async def subscribe(self) -> None:
         subscribe_objects = {
             "print_stats": None,
             "display_status": None,
@@ -102,20 +106,20 @@ class WebSocketHelper:
 
         await self._send_jsonrpc("printer.objects.subscribe", {"objects": subscribe_objects})
 
-    async def on_open(self):
+    async def on_open(self) -> None:
         await self._send_jsonrpc("printer.info")
         await self._send_jsonrpc("machine.device_power.devices")
 
-    async def reschedule(self):
+    async def reschedule(self) -> None:
         if not self._klippy.connected and self._ws.state is State.OPEN:
             await self.on_open()
 
-    async def stop_all(self):
+    async def stop_all(self) -> None:
         self._klippy.stop_all()
         await self._notifier.stop_all()
         self._timelapse.stop_all()
 
-    async def status_response(self, status_resp):
+    async def status_response(self, status_resp: Dict[str, Any]) -> None:
         if "print_stats" in status_resp:
             print_stats = status_resp["print_stats"]
             if print_stats["state"] in ["printing", "paused"]:
@@ -146,7 +150,7 @@ class WebSocketHelper:
 
         self.parse_sensors(status_resp)
 
-    async def notify_gcode_response(self, message_params):
+    async def notify_gcode_response(self, message_params: List[str]) -> None:
         if self._timelapse.manual_mode:
             if "timelapse start" in message_params:
                 if not self._klippy.printing_filename:
@@ -193,7 +197,7 @@ class WebSocketHelper:
         if message_params_loc.startswith("tg_send_document"):
             self._notifier.send_document(message_params_loc)
 
-    async def notify_status_update(self, message_params):
+    async def notify_status_update(self, message_params: List[Dict[str, Any]]) -> None:
         message_params_loc = message_params[0]
         if "display_status" in message_params_loc:
             if "message" in message_params_loc["display_status"]:
@@ -218,7 +222,7 @@ class WebSocketHelper:
 
         self.parse_sensors(message_params_loc)
 
-    def parse_sensors(self, message_parts_loc):
+    def parse_sensors(self, message_parts_loc: Dict[str, Any]) -> None:
         for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
             self._klippy.update_sensor(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
@@ -234,7 +238,7 @@ class WebSocketHelper:
                 message_parts_loc[heater],
             )
 
-    async def parse_print_stats(self, message_params):
+    async def parse_print_stats(self, message_params: List[Dict[str, Any]]) -> None:
         state = ""
         print_stats_loc = message_params[0]["print_stats"]
         # Fixme:  maybe do not parse without state? history data may not be available
@@ -305,7 +309,7 @@ class WebSocketHelper:
         elif state:
             logger.error("Unknown state: %s", state)
 
-    def power_device_state(self, device):
+    def power_device_state(self, device: Dict[str, Any]) -> None:
         device_name = device["device"]
         device_state = bool(device["status"] == "on")
         self._klippy.update_power_device(device_name, device)
@@ -314,7 +318,7 @@ class WebSocketHelper:
         if self._klippy.light_device and self._klippy.light_device.name == device_name:
             self._klippy.light_device.device_state = device_state
 
-    async def websocket_to_message(self, ws_message):
+    async def websocket_to_message(self, ws_message: bytes) -> None:
         json_message = orjson.loads(ws_message)
 
         if "error" in json_message and "id" not in json_message:
@@ -411,18 +415,18 @@ class WebSocketHelper:
     async def execute_ws_gcode_script(self, gcode: str) -> None:
         await self._send_jsonrpc("printer.gcode.script", {"script": gcode})
 
-    def parselog(self):
+    async def parselog(self) -> None:
         with open("../telegram.log", encoding="utf-8") as file:
             lines = file.readlines()
 
         wslines = list(filter(lambda it: " - b'{" in it, lines))
-        messages = [el.split(" - b'")[-1].replace("'\n", "") for el in wslines]
+        messages = [el.split(" - b'")[-1].replace("'\n", "").encode() for el in wslines]
 
         for mes in messages:
-            self.websocket_to_message(mes)
+            await self.websocket_to_message(mes)
             time.sleep(0.01)
 
-    async def run_forever_async(self):
+    async def run_forever_async(self) -> None:
         # Todo: use headers instead of inline token
         async for websocket in connect(
             uri=f"{self._protocol}://{self._host}:{self._port}/websocket{await self._klippy.get_one_shot_token()}",
