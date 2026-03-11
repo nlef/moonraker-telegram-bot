@@ -67,7 +67,7 @@ class WebSocketHelper:
         self._log_parser: bool = config.bot_config.log_parser
 
         self._ws: ClientConnection
-        self._pending_requests: dict = {}
+        self._pending_requests: dict[int, str] = {}
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)

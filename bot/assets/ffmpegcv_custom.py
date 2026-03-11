@@ -7,7 +7,7 @@ from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 logger = logging.getLogger(__name__)
 
 
-class FFmpegReaderStreamRTCustom(FFmpegReader):
+class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
     def __init__(self) -> None:
         super().__init__()
 

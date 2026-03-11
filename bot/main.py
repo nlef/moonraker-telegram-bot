@@ -1096,7 +1096,7 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     sending_bio.close()
 
 
-def bot_error_handler(_: object, context: CallbackContext) -> None:
+def bot_error_handler(_: object, context: CallbackContext) -> None:  # type: ignore[type-arg]
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
 
@@ -1223,7 +1223,7 @@ def get_local_ip() -> str:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.connect(("192.255.255.255", 1))
-        ip_address = sock.getsockname()[0]
+        ip_address: str = sock.getsockname()[0]
     except Exception:
         ip_address = "127.0.0.1"
     finally:
@@ -1231,7 +1231,7 @@ def get_local_ip() -> str:
     return ip_address
 
 
-def start_bot(bot_token: str, socks: str) -> Application:
+def start_bot(bot_token: str, socks: str) -> Application:  # type: ignore[type-arg]
     app_builder = Application.builder()
     (
         app_builder.base_url(config_wrap.bot_config.api_url)

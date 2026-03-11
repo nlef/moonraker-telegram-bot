@@ -148,9 +148,9 @@ class Klippy:
         self._refresh_token: str = ""
 
         # Todo: create sensors class!!
-        self._objects_list: list = []
-        self._sensors_dict: dict = {}
-        self._power_devices: dict = {}
+        self._objects_list: list[str] = []
+        self._sensors_dict: dict[str, Dict[str, Any]] = {}
+        self._power_devices: dict[str, Any] = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)

@@ -13,7 +13,7 @@ import pickle
 import subprocess
 import threading
 import time
-from typing import Any, Callable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, TypeVar, cast
 
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
 import ffmpegcv  # type: ignore[import-untyped]
@@ -159,7 +159,7 @@ class Camera:
                 logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
             # self._cv2_params: List = config.camera.cv2_params
-            self._cv2_params: List = []
+            self._cv2_params: List[Any] = []
             cv2.setNumThreads(self._threads)
             self.cam_cam = cv2.VideoCapture()
             self._set_cv2_params()
@@ -310,7 +310,7 @@ class Camera:
                     del img
                 else:
                     # image is None
-                    return numpy.empty(0)
+                    return cast("ndarray", numpy.empty(0))
             else:
                 if self._flip_vertically:
                     image = numpy.flipud(image)
@@ -323,7 +323,7 @@ class Camera:
             image = None
             del image, success
 
-        return ndaarr
+        return cast("ndarray", ndaarr)
 
     def take_photo(self, ndarr: Optional[ndarray] = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
@@ -490,7 +490,7 @@ class Camera:
             return self._target_fps
 
     def _get_frame(self, path: str) -> ndarray:
-        return numpy.load(path, allow_pickle=True)["raw"]
+        return cast("ndarray", numpy.load(path, allow_pickle=True)["raw"])
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> Tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
@@ -718,7 +718,7 @@ class MjpegCamera(Camera):
         res = numpy.array(img)
         img.close()
         del img
-        return res[:, :, [2, 1, 0]].copy()
+        return cast("ndarray", res[:, :, [2, 1, 0]].copy())
 
     # Todo: apply frames rotation during ffmpeg call!
     def _get_frame(self, path: str) -> ndarray:
