@@ -16,7 +16,7 @@ from klippy import Klippy
 logger = logging.getLogger(__name__)
 
 
-def logging_callback(future: "Future[Any]") -> None:
+def logging_callback(future: Future[Any]) -> None:
     exc = future.exception()
 
     if exc is None:
