@@ -84,7 +84,7 @@ class Notifier:
         return self._last_m117_status
 
     @m117_status.setter
-    def m117_status(self, new_value: str):
+    def m117_status(self, new_value: str) -> None:
         self._last_m117_status = new_value
         if self._klippy.printing and self._status_message_m117_update:
             self._schedule_notification()
@@ -94,7 +94,7 @@ class Notifier:
         return self._last_tgnotify_status
 
     @tgnotify_status.setter
-    def tgnotify_status(self, new_value: str):
+    def tgnotify_status(self, new_value: str) -> None:
         self._last_tgnotify_status = new_value
         if self._klippy.printing:
             self._schedule_notification()
@@ -104,7 +104,7 @@ class Notifier:
         return self._percent
 
     @percent.setter
-    def percent(self, new_value: int):
+    def percent(self, new_value: int) -> None:
         if new_value >= 0:
             self._percent = new_value
 
@@ -113,7 +113,7 @@ class Notifier:
         return self._height
 
     @height.setter
-    def height(self, new_value: float):
+    def height(self, new_value: float) -> None:
         if new_value >= 0:
             self._height = new_value
 
@@ -489,12 +489,12 @@ class Notifier:
         self._schedule_notification()
 
     @staticmethod
-    def _parse_message(ws_message) -> str:
+    def _parse_message(ws_message: str) -> str:
         message_match = re.search(r"message\s*=\s*\'(.[^\']*)\'", ws_message)
         return message_match.group(1) if message_match else ""
 
     @staticmethod
-    def _parse_path(ws_message) -> List[str]:
+    def _parse_path(ws_message: str) -> List[str]:
         path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
         path_list_math = re.search(r"path\s*=\s*\[(?:\,*\s*\'(.[^\']*)\'\,*\s*)+\]", ws_message)
 
@@ -663,8 +663,8 @@ class Notifier:
             await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Changed Notification params: {response}"')
             await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
-    async def send_custom_inline_keyboard(self, message: str):
-        def parse_button(mess: str):
+    async def send_custom_inline_keyboard(self, message: str) -> None:
+        def parse_button(mess: str) -> Optional[InlineKeyboardButton]:
             name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
             command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
             if name and command:
