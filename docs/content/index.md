@@ -3,12 +3,6 @@
 
 ![](img/overview.png)
 
-## Table of contents
-
-1. [Features](index.md#features)
-2. [Sample commands](index.md#sample-commands-available)
-3. [Installation](index.md#installation)
-
 ## Features
 
 - Printing progress notifications at custom intervals with pictures from a webstream/webcam

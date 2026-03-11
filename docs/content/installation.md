@@ -45,12 +45,12 @@ Try checking the logs in (default would be `~/printer_data/logs`) or do a clean 
 
 **After step 3 the bot should be running properly and respond to commands, as well as present you with buttons. You can restart the bot directly with /bot_restart after this for any config changes.**
 
-### Step 4: Add [respond] section to your klipper
+## Step 4: Add [respond] section to your klipper
 
 Most of the features like sending notifications, or generating keyboards require the [respond](https://github.com/Klipper3d/klipper/blob/master/docs/Config_Reference.md#respond) section to work.
 Simply add `[respond]` anywhere in your configuration.
 
-### Step 5: Add the bot to the moonraker update manager
+## Step 5: Add the bot to the moonraker update manager
 
 Mainsail and Fluidd both support checking for updates as well as updating installed klipper components. If you regularly update klipper and moonraker, you should keep the bot updated as well.
 
@@ -68,7 +68,7 @@ install_script: scripts/install.sh
 
 If you need more information on the process, you can check it out in detail on [moonraker update manager page](https://moonraker.readthedocs.io/en/latest/configuration/#update_manager).
 
-### Step 6 (optional): Include the macro to store lapse variables
+## Step 6 (optional): Include the macro to store lapse variables
 
 If you intend on using the timelapse module to make timelapse videos, you should add a macro to store finished lapse parameters.
 
@@ -85,7 +85,7 @@ gcode:
 
 You can then if you need later on access video parameters after its built and done with klipper macros. This might be useful for different automatisations.
 
-### Step 7: Additional features
+## Step 7: Additional features
 
 To enable the more advanced functions, you should check out the [sample config](sample-config.md) as well as [interacting with klipper](interacting-with-klipper.md) pages. It contains a description of all currently functions available in the latest version of the bot, and how to use them.
 

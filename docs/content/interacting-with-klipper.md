@@ -6,15 +6,6 @@ This document is a reference for available interactions between klipper and moon
 # Interacting with klipper
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
-### Table of contents
-- [G-Codes and Macros](interacting-with-klipper.md#running-macros-from-the-chat-window)
-- [Custom timelapsing](interacting-with-klipper.md#controlling-timelapse-parameters-via-gcode)
-- [Chat messages from klipper](interacting-with-klipper.md#send-custom-notifications-to-the-bot)
-- [Formatting telegram messages](interacting-with-klipper.md#formatting-messages)
-- [Runtime bot configuration](interacting-with-klipper.md#runtime-lapse-and-notification-setting)
-- [Sending arbitrary files](interacting-with-klipper.md#sending-arbitrary-files-by-gcode)
-
-
 ## Running macros from the chat window
 You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.
 

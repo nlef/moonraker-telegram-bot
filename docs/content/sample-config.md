@@ -4,16 +4,6 @@ This document is a reference for configuration options available in the moonrake
 The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up the bot and setting
 up an initial config file.
 
-## Table of contents
-
-- [Basic Parameters](sample-config.md#bot)
-- [Camera settings](sample-config.md#camera)
-- [Credentials/Secrets](sample-config.md#secrets)
-- [Print notifications](sample-config.md#progress_notification)
-- [Timelapse](sample-config.md#timelapse)
-- [Telegram UI](sample-config.md#telegram_ui)
-- [Status message contents](sample-config.md#status_message_content)
-
 ## [bot]
 
 Configuration of the main bot parameters

@@ -6,12 +6,6 @@ The macros in this document are formatted so that it is possible to cut-and-past
 The segments in this file are formatted corresponding to the place, where they will be used.
 Macros, bot commands, as well as executables.
 
-## Table of contents
-
-- [Highlighting](ideas-for-macros.md#highlighting)
-- [Automating resonance testing](ideas-for-macros.md#automating-resonance-testing)
-- [Head movements for timelapsing](ideas-for-macros.md#head-movements-for-timelapsing)
-
 ## Highlighting
 
 Let's imagine, that you regularly change filament.
