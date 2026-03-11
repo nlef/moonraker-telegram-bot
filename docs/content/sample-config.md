@@ -4,7 +4,7 @@ This document is a reference for configuration options available in the moonrake
 The descriptions in this document are formatted so that it is possible to cut-and-paste them into a printer config file. See the installation document for information on setting up the bot and setting
 up an initial config file.
 
-## [bot]
+## Basic Parameters
 
 Configuration of the main bot parameters
 
@@ -75,7 +75,7 @@ chat_id: xxxxxxxxx
 #   This value is not validated automatically.
 ```
 
-## [camera]
+## Camera Settings
 
 This section is responsible for the different webcam/webstream parameters.
 
@@ -138,7 +138,7 @@ host: http://localhost:8080/?action=stream
 #   Default is "high"
 ```
 
-## [secrets]
+## Secrets
 
 This section is responsible for the location of the file with credentials.
 May be useful if you want to autoupload your config somewhere and do not want to remove the credentials manually beforehand.
@@ -165,10 +165,10 @@ The secrets file can contain the following lines:
 They are documented in the [bot] section
 When the secrets section is enabled, "normal" config entries are ignored.
 
-## [progress_notification]
+## Progress Notifications
 
 This section is responsible for the notification on printing progress updates. This entire section is optional.
-You can override these parameters with [runtime settings by gcode](interacting-with-klipper.md#runtime-lapse-and-notification-setting).
+You can override these parameters with [runtime settings by gcode](interacting-with-klipper.md#runtime-configuration).
 
 ```text
 #[progress_notification]
@@ -205,10 +205,10 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 #   This value should be boolean.
 ```
 
-## [timelapse]
+## Timelapse
 
 This section is responsible for timelapse creation as well as file location for timelapse processing. This entire section is optional.
-You can override these parameters with [runtime settings by gcode](interacting-with-klipper.md#runtime-lapse-and-notification-setting).
+You can override these parameters with [runtime settings by gcode](interacting-with-klipper.md#runtime-configuration).
 
 ```text
 [timelapse]
@@ -279,7 +279,7 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 #   This value is not validated automatically.
 ```
 
-## [telegram_ui]
+## Telegram UI
 
 This section is responsible for different ui settings of the bot in telegram. More configuration options will be available in the future. This entire section is optional.
 
@@ -346,7 +346,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #   This value should be boolean.
 ```
 
-## [status_message_content]
+## Status Message Content
 
 This section is responsible for the contents of the status message. Here you can define, what gets displayed in the message, that you receive when using the "/status" command.
 This section is optional

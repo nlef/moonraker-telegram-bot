@@ -6,7 +6,7 @@ This document is a reference for available interactions between klipper and moon
 # Interacting with klipper
 The commands in this document are formatted so that it is possible to cut-and-paste them into the console or into your macros.
 
-## Running macros from the chat window
+## Running Macros
 You have the possibility to run klipper macros directly from the chat interface in addition to the macros button. Simply type your macro name with a "/" in front of it. Please note, that the macro must be saved in klipper config in upper-case lettering. Calling the macro in the bot can be lower or uppercase. Example usage would be typing `/MY_FAVOURITE_MACRO` or `/my_favourite_macro` into the chat.
 
 This allows you to have a "respond-type" message with pre-typed `/MY_FAVOURITE_MACRO`, allowing you to simply click on it in the chat to respond to a specific action.
@@ -14,13 +14,13 @@ This allows you to have a "respond-type" message with pre-typed `/MY_FAVOURITE_M
 While not directly useful on first sight, it opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](ideas-for-macros.md#highlighting) for more info.
 
 
-## Running gcode from the chat window
+## Running G-Code
 You have the possibility to run any gcode directly from the chat interface.
 Simply type `/gcode %your gcode here%` into the chat. Spaces are supported.
 Example usage would be typing `/gcode G28 X Y` into the chat.
 
 
-## Controlling timelapse parameters via gcode
+## Manual Timelapse
 If you have set manual_mode in [timelapse](sample-config.md#timelapse), you can use command to manage timelapse capturing by the bot.
 Following commands are available:
 - `RESPOND PREFIX=timelapse MSG=photo` Used to capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
@@ -32,7 +32,7 @@ Following commands are available:
 - `RESPOND PREFIX=timelapse MSG=create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
 
 
-## Send custom notifications to the bot.
+## Sending Messages from Klipper
 You can use RESPOND-type commands to send custom messages to the bot.
 You have three types of messages:
 
@@ -85,7 +85,7 @@ We suggest using those messages to automate pause, resume and service workflows.
 Examples will follow in the [Ideas for macros](ideas-for-macros.md) document.
 
 
-## Formatting messages
+## Message Formatting
 All configurable messages (status, command, keyboard etc.) support some of the html formatting.
 Valid formatting tags are:
 `<b></b>` for <b>bold</b>,
@@ -101,18 +101,18 @@ An example message using bold formatting looks the following way:
 
 
 
-## Runtime lapse and notification setting
+## Runtime Configuration
 
 If you want to run specific notifications and lapse settings based on criteria from the slicer, you can issue the following command to the bot:
 
 Parameters for the timelapse give you the option to control settings similarly to the [timelapse](sample-config.md#timelapse)config section:
 `RESPOND PREFIX=set_timelapse_params MSG="enabled=[1|0] manual_mode=[1|0] height=0.22 time=18 target_fps=20 min_lapse_duration=5 max_lapse_duration=15 last_frame_duration=10"`
 
-Parameters for the notifications give you the option to control settings similarly to the [progress_notification](sample-config.md#progress_notification) config section:
+Parameters for the notifications give you the option to control settings similarly to the [progress_notification](sample-config.md#progress-notifications) config section:
 `RESPOND PREFIX=set_notify_params MSG="percent=5 height=0.24 time=65"`
 This run-time setting behaves similarly to klipper - the requested parameters remain consistent until the next restart of the bot.
 
-## Sending arbitrary files by gcode
+## Sending Files
 
 If you want to cut and process videos yourself, and upload them later, or if you want to [automate resonance testing](ideas-for-macros.md#automating-resonance-testing), or if you have some other obscure usecase we are not aware of, you can use the following gcodes to send an image, video or file:
 **Don't forget, that there is a 50mb filesize limit and 10mb limit per image for bots in telegram.**

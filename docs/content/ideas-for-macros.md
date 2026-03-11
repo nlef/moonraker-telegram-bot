@@ -51,7 +51,7 @@ This method works for any macro/multiple macros you wish to run.
 
 If you use klippers built in accelerometer, and have ever used [resonance testing](https://github.com/Klipper3d/klipper/blob/master/docs/G-Codes.md#test_resonances), you probably wished for a possibility to receive the results directly to your device of choice, and not downloading them by hand from the printer.
 
-Using the [ability to send images](interacting-with-klipper.md#sending-arbitrary-files-by-gcode) this is now reality, and not a dream.
+Using the [ability to send images](interacting-with-klipper.md#sending-files) this is now reality, and not a dream.
 In addition to klipper and the bot, you will need the [G-Code Shell Command Extension](https://github.com/th33xitus/kiauh/blob/master/docs/gcode_shell_command.md). This permits executing shell commands, which is needed to execute the corresponding klipper python script for data processing.
 
 Following g-codes (feel free to adjust them to your needs) have to be present in klipper:
