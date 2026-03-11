@@ -54,7 +54,7 @@ from timelapse import Timelapse
 from websocket_helper import WebSocketHelper
 
 with contextlib.suppress(ImportError):
-    import uvloop  # type: ignore
+    import uvloop
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 

@@ -115,3 +115,4 @@ testpaths = [ "tests" ]
 python_version = "3.9"
 no_namespace_packages = true
 exclude = "tests"
+warn_unused_ignores = true

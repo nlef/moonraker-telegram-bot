@@ -15,22 +15,22 @@ import threading
 import time
 from typing import List, Optional, Tuple
 
-from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit  # type: ignore
-import ffmpegcv  # type: ignore
+from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
+import ffmpegcv  # type: ignore[import-untyped]
 from ffmpegcv import FFmpegReader
-from ffmpegcv.stream_info import get_info  # type: ignore
+from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 import httpx
 from httpx import HTTPError
 import numpy
 from numpy import ndarray
-from PIL import Image, _webp  # type: ignore
+from PIL import Image, _webp
 from telegram import Message
 
 from configuration import ConfigWrapper
 from klippy import Klippy, PowerDevice
 
 try:
-    import cv2  # type: ignore
+    import cv2
 except ImportError:
     cv2 = None  # type: ignore
 
@@ -77,7 +77,7 @@ def cam_light_toggle(func):
 
 def os_nice(value: int):
     with contextlib.suppress(Exception):
-        os.nice(value)  # type: ignore
+        os.nice(value)
 
 
 class Camera:
@@ -316,7 +316,7 @@ class Camera:
                     image = numpy.rot90(image, k=self._rotate_code, axes=(1, 0))
 
             ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()  # type: ignore
-            image = None  # type: ignore
+            image = None
             del image, success
 
         return ndaarr
@@ -371,7 +371,7 @@ class Camera:
                 # Todo: get picture from imgs?
 
             frame = process_video_frame(frame)
-            height, width, channels = frame.shape  # type: ignore
+            height, width, channels = frame.shape
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
@@ -565,7 +565,7 @@ class Camera:
             out = None
             del out
 
-        img = None  # type: ignore
+        img = None
         del raw_frames, img, layers, last_frame
 
         # Todo: some error handling?
