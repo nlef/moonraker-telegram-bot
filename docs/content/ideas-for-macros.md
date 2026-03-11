@@ -72,8 +72,6 @@ gcode:
 	RUN_SHELL_COMMAND CMD=shaper_calibrate
 	RESPOND PREFIX=tg_send_image MSG="path=['/home/trident/printer_data/logs/resonances/resonances_x.png', '/home/trident/printer_data/logs/resonances/resonances_y.png'], message='Shaper results'"
 
-
-
 [gcode_shell_command shaper_calibrate]
 command: bash /home/pi/printer_data/config/shaper_calibrate.sh
 timeout: 600.

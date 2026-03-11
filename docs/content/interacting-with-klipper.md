@@ -14,13 +14,11 @@ This allows you to have a "respond-type" message with pre-typed `/MY_FAVOURITE_M
 
 While not directly useful on first sight, it opens up some interesting possibilities on automating workflows like filament reloading. See [macro examples](ideas-for-macros.md#highlighting) for more info.
 
-
 ## Running G-Code
 
 You have the possibility to run any gcode directly from the chat interface.
 Simply type `/gcode %your gcode here%` into the chat. Spaces are supported.
 Example usage would be typing `/gcode G28 X Y` into the chat.
-
 
 ## Manual Timelapse
 
@@ -34,7 +32,6 @@ The following commands are available:
 - `RESPOND PREFIX=timelapse MSG=pause` — Pause the automatic capturing. Useful if you have to run service operations, like switching filament.
 - `RESPOND PREFIX=timelapse MSG=resume` — Resume the automated capturing, if it was paused.
 - `RESPOND PREFIX=timelapse MSG=create` — Start the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this while you are not printing, since video rendering is resource-intensive.
-
 
 ## Sending Messages from Klipper
 
@@ -68,7 +65,6 @@ These messages are ideal for low-importance notifications to the bot. You can co
 
 - `M117` — The default G-code for writing to displays in Klipper. The bot automatically adds M117-type G-code to the status messages.
 
-
 **2. Alarm-Messages**
 These messages are used for high-priority alerts to the bot. They always trigger an alert on your telegram clients.
 
@@ -81,7 +77,6 @@ These messages are used for high-priority alerts to the bot. They always trigger
 
 - `tgalarm_photo` — Captures a picture, sends a message with an alert. You get a "red" notification with sound or vibration.
   Works exactly the same as the simple alarm command, but also takes a photo from the camera. It respects all the settings from the `[camera]` config section.
-
 
 **3. Keyboards**
 You can send a message with buttons similar to how the confirmation dialogs look like.
@@ -113,7 +108,6 @@ You can also have a multiple-row message, by using a list for every row:
 We suggest using those messages to automate pause, resume and service workflows.
 Examples will follow in the [Ideas for macros](ideas-for-macros.md) document.
 
-
 ## Message Formatting
 
 All configurable messages (status, command, keyboard etc.) support some of the HTML formatting.
@@ -132,8 +126,6 @@ An example message using bold formatting:
 ```
 RESPOND PREFIX=tgnotify MSG=my_message with <b>bold text</b>
 ```
-
-
 
 ## Runtime Configuration
 
