@@ -15,7 +15,7 @@ server: localhost
 #   In most cases it will be 'localhost'. Alternatively, an ip:port, as in 192.168.0.19:7125 can be entered,
 #   if you are running multiple moonraker instances on the machine, or if the bot is located not on the printer itself.
 #   This value is not validated automatically.
-#   If you are running ssl, it should be yourcooldomain.xyz:ssl_poort, if certificate validation is enabled
+#   If you are running ssl, it should be yourcooldomain.xyz:ssl_port, if certificate validation is enabled
 bot_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #   This is the bot token. Please keep it safe and do not post it online.
 #   Only the chat with the correct chat_id can send/receive commands to/from the bot.
@@ -57,13 +57,13 @@ chat_id: xxxxxxxxx
 #   If you do not have lights/have no need to cycle them, skip this parameter.
 #   Default is to omit this.
 #   This can be a klipper output_pin or a macro as well. Refer to moonrakers "klipper_device" documentation.
-#   This parameter will be derpeciated in coming updates.
+#   This parameter will be deprecated in coming updates.
 #power_device: power
 #   This is the power device in moonraker, to which the power of the printer slave boards are connected to.
 #   A typical usage scenario is to shutdown power to the MCUs, but not to disable the host on which klipper is running.
 #   If you do not have such a setup, skip this.
 #   Default is to omit this.
-#   This parameter will be derpeciated in coming updates.
+#   This parameter will be deprecated in coming updates.
 #debug: false
 #   This enables extensive logging. Only use it for debugging/troubleshooting.
 #   Default is to omit this/false.
@@ -110,7 +110,7 @@ host: http://localhost:8080/?action=stream
 #   Allowed values: 90_cw, 90_ccw, 180. Default behaviour is not to rotate the image.
 #fourcc: h264
 #   This parameter configures, which codec is used to assemble the timelapse video.
-#   mpeg4 is usually less ressource-intensive, h264 often has hardware acceleration.
+#   mpeg4 is usually less resource-intensive, h264 often has hardware acceleration.
 #   Depending on your needs you can switch to one or the other.
 #   Default value is h264.
 #threads: 2
@@ -123,7 +123,7 @@ host: http://localhost:8080/?action=stream
 #video_buffer_size: 2
 #   On most single-board computers the renderer does not manage to capture and process frames fast enough for a video.
 #   If you are getting shorter videos than you requested in video_duration and have free RAM, you can increase this value.
-#   Be careful - 1 uncompressed captured image weights about 6mb when in fullHD.
+#   Be careful - 1 uncompressed captured image weighs about 6mb when in fullHD.
 #   OpenCV libraries have a limit of 2 GB, so please calculate your maximum available buffer from your fps and resolution.
 #   This value should be a positive integer >0.
 #light_control_timeout: 0
@@ -134,7 +134,7 @@ host: http://localhost:8080/?action=stream
 #picture_quality: high
 #   This parameter controls the picture quality the bot uses for status and timelapse purposes.
 #   Allowed values: low, high
-#   Low uses jpeg with quality set to 80, high uses losless webp.
+#   Low uses jpeg with quality set to 80, high uses lossless webp.
 #   Default is "high"
 ```
 
@@ -183,7 +183,7 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 #   When set to 5.0, notifications are sent at 5.0mm, 10.0mm, 15.0mm, etc, print height.
 #   When set to 0.25, notifications are sent at 0.25mm, 0.5mm, 0.75mm, etc, print height.
 #   The default is not to send notifications based on print height.
-#   This value should be an float >=0.0.
+#   This value should be a float >=0.0.
 #time: 0
 #   This is the recommended way to use progress notifications.
 #   This is an interval in seconds, when a notification with a picture is sent to the chat.
@@ -214,7 +214,7 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 [timelapse]
 #basedir: ~/moonraker-telegram-bot-timelapse
 #   This sets the folder, where to save timelapse pictures and the resulting video.
-#   Default is '~/moonraker-telegram-bot-timelapse', but you can set it to any catalog, which the bot
+#   Default is '~/moonraker-telegram-bot-timelapse', but you can set it to any directory, which the bot
 #   has rights to write to. Might be useful for saving the sd cards life by writing to external storage.
 #   This value is not validated automatically.
 #copy_finished_timelapse_dir: /home/pi/timelapse/finished
@@ -223,12 +223,12 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 #   but clean up the pictures, or if you want to upload the videos to some network location.
 #   This value is not validated automatically.
 #cleanup: true
-#   Should the bot clean the catalog with pictures and video after the successful sending to the telegram chat.
+#   Should the bot clean the directory with pictures and video after the successful sending to the telegram chat.
 #   Default is true. You might want to set it to false, if you intend on using the pictures later.
 #   This value should be boolean.
 #height: 0
 #   The bot can take timelapse pictures based on the z axis height (e.g. 0.2). The default is not to take pictures based on height.
-#   This value should be an float >=0.0.
+#   This value should be a float >=0.0.
 #time: 0
 #   The bot can take timelapse pictures based on time intervals in seconds.
 #   The default is not to take pictures based on time intervals.
@@ -242,7 +242,7 @@ You can override these parameters with [runtime settings by gcode](interacting-w
 #   The default is to omit this and not to drop any frames.
 #   This value should be boolean.
 #min_lapse_duration: 0
-#   On short prints, or with limited lapse pictures available, the lapse often gets to short to meaningfully display
+#   On short prints, or with limited lapse pictures available, the lapse often gets too short to meaningfully display
 #   the printing progress. You can specify the desired minimum duration of the created timelapse
 #   (not including last_frame_duration). This means, that the fps will get reduced, if the lapse is shorter than this time.
 #   The default is to omit this.
@@ -312,7 +312,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 #   Default is false.
 #   This value should be boolean.
 #silent_commands: false
-#   Sends all other messages (for example the emergency stop confirmation) without an alert.You still get a "red" notification,
+#   Sends all other messages (for example the emergency stop confirmation) without an alert. You still get a "red" notification,
 #   but it does not have sound or vibration.
 #   Sadly the bot API does not permit sending "grey" completely silent messages. There is no way to work around that.
 #   Default is false.
@@ -349,7 +349,7 @@ This section is responsible for different ui settings of the bot in telegram. Mo
 ## Status Message Content
 
 This section is responsible for the contents of the status message. Here you can define, what gets displayed in the message, that you receive when using the "/status" command.
-This section is optional
+This section is optional.
 This section will get expanded later.
 
 ```text
@@ -371,7 +371,7 @@ This section will get expanded later.
 #   Default is not to display any additional heaters.
 #   This value is not validated automatically.
 #fans: your_fan, your_fan2
-#   You can add any fans you have in the clipper config to be displayed in the status message.
+#   You can add any fans you have in the Klipper config to be displayed in the status message.
 #   Enter the names from your klipper config, separated by commas.
 #   Default is not to display any additional fans.
 #   This value is not validated automatically.

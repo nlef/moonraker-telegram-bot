@@ -1,7 +1,7 @@
 # Camera modes in v2.0
 
 With v2.0 the camera handling has received a significant rework.
-This document is a intended to help choose the right type of camera handling.
+This document is intended to help choose the right type of camera handling.
 Principally the development will move towards mjpeg-only, since this is what the majority is using, and supporting multiple variants is quite tiresome.
 For now, three types of cameras will exist:
 
@@ -16,10 +16,10 @@ If you have no idea what you are using, you are most likely using mjpeg, and the
 
 ## Type: opencv
 
-The old ressource-intensive camera type.
+The old resource-intensive camera type.
 If your camera is giving you back something other than a mjpeg, this is most likely the way to go.
-Here, the opencv library is used to fetch the image. The image is then stored as a numpy andarray to reduce load on the host.
-If you need real physical pictures saved to the disc for whatever reason, you can use the "save_lapse_photos_as_images flag.
+Here, the opencv library is used to fetch the image. The image is then stored as a numpy ndarray to reduce load on the host.
+If you need real physical pictures saved to disk for whatever reason, you can use the "save_lapse_photos_as_images flag.
 
 ## Type: ffmpeg
 

@@ -28,7 +28,7 @@ After cloning is done, run the install script:
 ./scripts/install.sh
 ```
 
-The script will ask for config file location. We recommend to place it in the same catalog, where the klipper config files are located for ease of access and backup.
+The script will ask for config file location. We recommend placing it in the same directory where the Klipper config files are located for ease of access and backup.
 The bot will create a base minimal config named `telegram.conf`.
 
 ## Step 3: Connect the telegram bot with your bot installation
@@ -83,11 +83,11 @@ gcode:
     M118 Setting bot lapse variables
 ```
 
-You can then if you need later on access video parameters after its built and done with klipper macros. This might be useful for different automatisations.
+You can then access video parameters after the timelapse is built using Klipper macros. This might be useful for different automations.
 
 ## Step 7: Additional features
 
-To enable the more advanced functions, you should check out the [sample config](sample-config.md) as well as [interacting with klipper](interacting-with-klipper.md) pages. It contains a description of all currently functions available in the latest version of the bot, and how to use them.
+To enable the more advanced functions, you should check out the [sample config](sample-config.md) as well as [interacting with klipper](interacting-with-klipper.md) pages. It contains a description of all functions currently available in the latest version of the bot, and how to use them.
 
 Another good place to get information is [ideas for macros](ideas-for-macros.md) page. We have a small collection of useful macros to use with the bot there.
 

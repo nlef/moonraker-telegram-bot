@@ -21,14 +21,14 @@ Example usage would be typing `/gcode G28 X Y` into the chat.
 
 
 ## Manual Timelapse
-If you have set manual_mode in [timelapse](sample-config.md#timelapse), you can use command to manage timelapse capturing by the bot.
-Following commands are available:
+If you have set manual_mode in [timelapse](sample-config.md#timelapse), you can use commands to manage timelapse capturing by the bot.
+The following commands are available:
 - `RESPOND PREFIX=timelapse MSG=photo` Used to capture a single timelapse frame. Can be used with automated mode as well, but might lead to undesired results.
 - `RESPOND PREFIX=timelapse MSG=photo_and_gcode` Used to capture a single timelapse frame. Runs the command specified in the config in the "after_photo_gcode" parameter in the `[timelapse]` section after the photo is taken.
-- `RESPOND PREFIX=timelapse MSG=start` Marks the beginning of the timelapse capture. Useful, if you want to skip some time before you start the recodring.
+- `RESPOND PREFIX=timelapse MSG=start` Marks the beginning of the timelapse capture. Useful, if you want to skip some time before you start the recording.
 - `RESPOND PREFIX=timelapse MSG=stop` Marks the end of the timelapse capture. You can only run "create" after this command. Useful if you want to skip something at the end of the print, like bed extension, or purge operations.
 - `RESPOND PREFIX=timelapse MSG=pause` Pauses the automatic capturing. Useful, if you have to run service operations, like switching filament, or if you do not want automated lapse features to run for a reason.
-- `RESPOND PREFIX=timelapse MSG=resume` Resumes the automated fcapturing, if it was paused.
+- `RESPOND PREFIX=timelapse MSG=resume` Resumes the automated capturing, if it was paused.
 - `RESPOND PREFIX=timelapse MSG=create` This starts the rendering of captured pictures to a video file. After the video is done, it is sent to the chat. You might want to run this, while you are not printing, since video-rendering is resource intensive.
 
 
@@ -73,6 +73,7 @@ RESPOND PREFIX=tgcustom_keyboard MSG="{bot_msg}"
 This command will generate the following message:
 
 ![](img/buttons.png)
+
 All buttons will be added from left to right, in one row. The buttons can have any name, and can execute commands, in this case macros. Commands like "ACCEPT", "ADJUST", obviously work as well. `command='delete'` deletes the message, and helps cleaning up multiple-message-workflows.
 You can also have a multiple-row message, by using a list for every row:
 ```
@@ -105,7 +106,7 @@ An example message using bold formatting looks the following way:
 
 If you want to run specific notifications and lapse settings based on criteria from the slicer, you can issue the following command to the bot:
 
-Parameters for the timelapse give you the option to control settings similarly to the [timelapse](sample-config.md#timelapse)config section:
+Parameters for the timelapse give you the option to control settings similarly to the [timelapse](sample-config.md#timelapse) config section:
 `RESPOND PREFIX=set_timelapse_params MSG="enabled=[1|0] manual_mode=[1|0] height=0.22 time=18 target_fps=20 min_lapse_duration=5 max_lapse_duration=15 last_frame_duration=10"`
 
 Parameters for the notifications give you the option to control settings similarly to the [progress_notification](sample-config.md#progress-notifications) config section:
@@ -117,23 +118,23 @@ This run-time setting behaves similarly to klipper - the requested parameters re
 If you want to cut and process videos yourself, and upload them later, or if you want to [automate resonance testing](ideas-for-macros.md#automating-resonance-testing), or if you have some other obscure usecase we are not aware of, you can use the following gcodes to send an image, video or file:
 **Don't forget, that there is a 50mb filesize limit and 10mb limit per image for bots in telegram.**
 You can use absolute or relative paths. Relative paths work from the location, where the bot is installed.
-In case us used KIAUH for installation, that will be `home/pi/moonraker-telegram-bot/bot`.
+In case you used KIAUH for installation, that will be `home/pi/moonraker-telegram-bot/bot`.
 
 Sending an image:
 `RESPOND PREFIX=tg_send_image MSG="path='/home/pi/hat.png', message='A man bought this hat and it fits him nicely' "`
 This tries to send the image written in `path=`, with the `message=`. Message is optional.
-Alternatively, you can send multiple images as an album, by using the following syntaxis:
+Alternatively, you can send multiple images as an album, by using the following syntax:
 `RESPOND PREFIX=tg_send_image MSG="path=['/home/pi/hat.png', '/home/pi/his_other_hat.png'], message='Album of hats' "`
 
 
 Sending a video:
 `RESPOND PREFIX=tg_send_video MSG="path='/home/pi/3M-54.mp4', message='Calibration complete!' "`
 This tries to send the video written in `path=`, with the `message=`. Message is optional.
-Alternatively, you can send multiple videos as an album, by using the following syntaxis:
+Alternatively, you can send multiple videos as an album, by using the following syntax:
 `RESPOND PREFIX=tg_send_video MSG="path=['/home/pi/3M-54.mp4', '/home/pi/3M-54.1.mp4'], message='Calibration album complete!' "`
 
 Sending a file:
 `RESPOND PREFIX=tg_send_file MSG="path='/home/pi/data.zip', message='Upload finished' "`
 This tries to send the file written in `path=`, with the `message=`. Message is optional.
-Alternatively, you can send multiple files as an album, by using the following syntaxis:
+Alternatively, you can send multiple files as an album, by using the following syntax:
 `RESPOND PREFIX=tg_send_file MSG="path=['/home/pi/data_1.zip', '/home/pi/data_2.zip'], message='Upload finished' "`

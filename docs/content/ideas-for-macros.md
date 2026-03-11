@@ -11,7 +11,7 @@ Macros, bot commands, as well as executables.
 Let's imagine, that you regularly change filament.
 You probably have macros to insert and extract filament.
 
-To insert filament, you usually preheat your extruder to some temperature, which is hot enough to push filament through, load the filament, and then extrude some amoount of plastic.
+To insert filament, you usually preheat your extruder to some temperature, which is hot enough to push filament through, load the filament, and then extrude some amount of plastic.
 
 We can somewhat improve the workflow and create a shortcut for the second part.
 
@@ -49,12 +49,12 @@ This method works for any macro/multiple macros you wish to run.
 
 ## Automating resonance testing
 
-If you use klippers built in accelerometer, and have ever used [resonance testing](https://github.com/Klipper3d/klipper/blob/master/docs/G-Codes.md#test_resonances), you probably wished for a possibility to receive the results directly to your device of choice, and not downloading them by hand from the printer.
+If you use Klipper's built-in accelerometer, and have ever used [resonance testing](https://github.com/Klipper3d/klipper/blob/master/docs/G-Codes.md#test_resonances), you probably wished for a possibility to receive the results directly to your device of choice, and not downloading them by hand from the printer.
 
 Using the [ability to send images](interacting-with-klipper.md#sending-files) this is now reality, and not a dream.
 In addition to klipper and the bot, you will need the [G-Code Shell Command Extension](https://github.com/th33xitus/kiauh/blob/master/docs/gcode_shell_command.md). This permits executing shell commands, which is needed to execute the corresponding klipper python script for data processing.
 
-Following g-codes (feel free to adjust them to your needs) have to be present in klipper:
+The following G-codes (feel free to adjust them to your needs) have to be present in Klipper:
 
 ```jinja2
 [gcode_macro measure_resonances]
@@ -80,8 +80,8 @@ timeout: 600.
 verbose: True
 ```
 
-The `{% set %}` blocks are there for user comfort in the web interface. If you use fluid, it recognizes such variables as input fields, so that you can run the shaper with different settings, similar how the stock built-in gcode would work.
-It also permits calling the macro with parameters from the bots keyboard, should you so desire.
+The `{% set %}` blocks are there for user comfort in the web interface. If you use Fluidd, it recognizes such variables as input fields, so that you can run the shaper with different settings, similarly to how the stock built-in G-code would work.
+It also permits calling the macro with parameters from the bot's keyboard, should you so desire.
 
 Shaper_calibrate.sh is located in the printer_data directory, and contains the following code:
 (Don't forget to `chmod +x` if you are creating it yourself. )
@@ -118,8 +118,8 @@ fi
 This contraption works in the following way:
 
 1. The macro is called with the desired parameters, homes the axes if needed, and proceeds with standard acceleration testing on both axes.
-2. The macro calls the execution of the shell script, which runs klippers python program for each csv file generated. It deletes the csvs afterwards to prevent confusion when running multiple tests one after the other. Output images are placed in a subfolder in the logs folder, so that you can access them easily via the webinterface, if that is needed.
-3. The macro finishes by sending both files to your telegram bot. In addition to being easily accessible, the bot can now act as your reasonance measurement archive, by searching for your message attached to the picture.
+2. The macro calls the execution of the shell script, which runs Klipper's Python program for each csv file generated. It deletes the csvs afterwards to prevent confusion when running multiple tests one after the other. Output images are placed in a subfolder in the logs folder, so that you can access them easily via the webinterface, if that is needed.
+3. The macro finishes by sending both files to your telegram bot. In addition to being easily accessible, the bot can now act as your resonance measurement archive, by searching for your message attached to the picture.
 4. (Optional) If you feel like extending that, you can also upload the .csv to telegram as well. Open an issue, if you have an implementation you would like to share.
 
 ![](img/resonances.png)
@@ -128,7 +128,7 @@ Have fun and let us know if you can invent some other nifty usages!
 ## Head movements for timelapsing
 
 The timelapse module does a great job at adding a timelapse to every print without any additional overhead.
-However, if you want to optimize your prints towars pretty timelapses, that is also an option.
+However, if you want to optimize your prints towards pretty timelapses, that is also an option.
 Our good friend [CODeRUS](https://github.com/CODeRUS) agreed for us to share his work here.
 
 The two macros are used to move the toolhead to the side before taking a picture, and return to the print after it is done. Here are his macros that you can use to replicate his ideas:
