@@ -54,13 +54,13 @@ class ConfigHelper:
         if max_value is not None and value > max_value:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
-    def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None):
+    def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
-    def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None):
+    def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         unallowed_params = [val for val in values if val not in allowed_values] if allowed_values is not None else []
@@ -218,7 +218,7 @@ class BotConfig(ConfigHelper):
             self._parsing_errors.append("Protocol must be specified in other configuration parameters")
 
     @property
-    def formatted_upload_path(self):
+    def formatted_upload_path(self) -> str:
         if not self.upload_path:
             return ""
         if not self.upload_path.endswith("/"):
@@ -349,7 +349,7 @@ class TimelapseConfig(ConfigHelper):
 
         self._init_paths()
 
-    def _init_paths(self):
+    def _init_paths(self) -> None:
         self.base_dir = os.path.expanduser(self.base_dir)
         if self.enabled:
             Path(self.base_dir).mkdir(parents=True, exist_ok=True)
@@ -496,7 +496,7 @@ class ConfigWrapper:
             + self.status_message_content.parsing_errors
         )
 
-    def dump_config_to_log(self):
+    def dump_config_to_log(self) -> None:
         with open(self.bot_config.log_file, "a", encoding="utf-8") as log_file:
             log_file.write("\n*******************************************************************\n")
             log_file.write("Current Moonraker telegram bot config\n")
