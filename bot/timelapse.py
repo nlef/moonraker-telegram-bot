@@ -312,7 +312,7 @@ class Timelapse:
 
         await asyncio.sleep(5)
         while self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
-            await asyncio.sleep(1)
+            await asyncio.sleep(1)  # pylint: disable=async-busy-wait
 
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
