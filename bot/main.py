@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import aiofiles
+import anyio
 from apscheduler.events import EVENT_JOB_ERROR  # type: ignore[import-untyped]
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 import emoji
@@ -450,7 +451,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     for log_file in prepare_log_files()[0]:
         try:
-            if Path(f"{config_wrap.bot_config.log_path}/{log_file}").exists():
+            if await anyio.Path(f"{config_wrap.bot_config.log_path}/{log_file}").exists():
                 async with aiofiles.open(f"{config_wrap.bot_config.log_path}/{log_file}", "rb") as fh:
                     logs_list.append(InputMediaDocument(await fh.read(), filename=log_file))
         except FileNotFoundError as err:
@@ -488,12 +489,12 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
         await resp_message.edit_text(f"Dmesg log file creation error {dmesg_error}")
         return
 
-    if Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").exists():
-        Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").unlink()
+    if await anyio.Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").exists():
+        await anyio.Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").unlink()
 
     with tarfile.open(f"{config_wrap.bot_config.log_path}/logs.tar.xz", "w:xz") as tar:
         for file in files_list:
-            if Path(f"{config_wrap.bot_config.log_path}/{file}").exists():
+            if await anyio.Path(f"{config_wrap.bot_config.log_path}/{file}").exists():
                 tar.add(Path(f"{config_wrap.bot_config.log_path}/{file}"), arcname=file)
 
     await resp_message.edit_text("Uploading logs to parser")

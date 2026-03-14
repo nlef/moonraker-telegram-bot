@@ -3,11 +3,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from io import BytesIO
 import logging
-from pathlib import Path
 import re
 from typing import Dict, List, Optional, Tuple, Union
 
 import aiofiles
+import anyio
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import ChatAction, ParseMode
@@ -510,8 +510,8 @@ class Notifier:
         try:
             photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
-                path_obj = Path(path)
-                if not path_obj.is_file():
+                path_obj = anyio.Path(path)
+                if not await path_obj.is_file():
                     await self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
                     return
 
@@ -554,8 +554,8 @@ class Notifier:
         try:
             photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
-                path_obj = Path(path)
-                if not path_obj.is_file():
+                path_obj = anyio.Path(path)
+                if not await path_obj.is_file():
                     await self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
                     return
 
@@ -599,8 +599,8 @@ class Notifier:
         try:
             photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
-                path_obj = Path(path)
-                if not path_obj.is_file():
+                path_obj = anyio.Path(path)
+                if not await path_obj.is_file():
                     await self._bot.send_message(self._chat_id, text="Provided path is not a file", disable_notification=self._silent_commands)
                     return
 

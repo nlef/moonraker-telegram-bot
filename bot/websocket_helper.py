@@ -3,8 +3,10 @@ import logging
 import os
 import random
 import ssl
-import time
 from typing import Any, Callable, Dict, List, Optional, TypeVar
+
+import aiofiles
+import anyio
 
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")  # pylint: disable=C0413
 os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")  # pylint: disable=C0413
@@ -416,15 +418,15 @@ class WebSocketHelper:
         await self._send_jsonrpc("printer.gcode.script", {"script": gcode})
 
     async def parselog(self) -> None:
-        with open("../telegram.log", encoding="utf-8") as file:
-            lines = file.readlines()
+        async with aiofiles.open("../telegram.log", encoding="utf-8") as file:
+            lines = await file.readlines()
 
         wslines = list(filter(lambda it: " - b'{" in it, lines))
         messages = [el.split(" - b'")[-1].replace("'\n", "").encode() for el in wslines]
 
         for mes in messages:
             await self.websocket_to_message(mes)
-            time.sleep(0.01)
+            await anyio.sleep(0.01)
 
     async def run_forever_async(self) -> None:
         # Todo: use headers instead of inline token
