@@ -1,4 +1,5 @@
 import configparser
+import copy
 import os
 import pathlib
 from pathlib import Path
@@ -497,15 +498,17 @@ class ConfigWrapper:
         )
 
     def dump_config_to_log(self) -> None:
+        config_copy = copy.deepcopy(self._config)
+        for option in ("bot_token", "chat_id", "password", "api_token"):
+            if config_copy.has_option("bot", option):
+                config_copy.set("bot", option, "<redacted>")
+        for sec in config_copy.sections():
+            if sec.startswith("include"):
+                config_copy.remove_section(sec)
         with open(self.bot_config.log_file, "a", encoding="utf-8") as log_file:
             log_file.write("\n*******************************************************************\n")
             log_file.write("Current Moonraker telegram bot config\n")
-            self._config.remove_option("bot", "bot_token")
-            self._config.remove_option("bot", "chat_id")
-            for sec in self._config.sections():
-                if sec.startswith("include"):
-                    self._config.remove_section(sec)
-            self._config.write(log_file)
+            config_copy.write(log_file)
             log_file.write("\n*******************************************************************\n")
 
     @property
