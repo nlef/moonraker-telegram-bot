@@ -76,7 +76,9 @@ select = [
     "PLE",   # pylint error
     "PLW",   # pylint warning
     "RUF",   # ruff-specific
+    "SLF",
     "SIM",   # flake8-simplify
+    "SLF",   # flake8-self
     "T20",   # flake8-print
     "TCH",   # flake8-type-checking
     "TID",   # flake8-tidy-imports
@@ -100,6 +102,8 @@ known-first-party = [
     "websocket_helper",
     "telegram_helper",
 ]
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [ "SLF001" ]
 
 [tool.codespell]
 skip = "uv.lock"
