@@ -307,7 +307,7 @@ class Timelapse:
             disable_notification=self._silent_progress,
         )
 
-        if self._executors_pool._work_queue.qsize() > 0:  # pylint: disable=protected-access
+        if self._executors_pool._work_queue.qsize() > 0:
             await info_mess.edit_text(text="Waiting for the completion of tasks for photographing")
 
         await asyncio.sleep(5)

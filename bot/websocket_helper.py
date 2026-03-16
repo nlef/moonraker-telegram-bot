@@ -8,8 +8,8 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar
 import aiofiles
 import anyio
 
-os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")  # pylint: disable=C0413
-os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")  # pylint: disable=C0413
+os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")
+os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")
 
 from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 import orjson
