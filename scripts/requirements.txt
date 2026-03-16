@@ -5,12 +5,16 @@ aiofiles==25.1.0
 aiolimiter==1.2.1
     # via python-telegram-bot
 anyio==4.12.1
-    # via httpx
+    # via
+    #   httpx
+    #   moonraker-telegram-bot
 apscheduler==3.11.2
     # via
     #   moonraker-telegram-bot
     #   python-telegram-bot
-cachetools==6.2.6
+cachetools==6.2.6 ; python_full_version < '3.10'
+    # via python-telegram-bot
+cachetools==7.0.5 ; python_full_version >= '3.10'
     # via python-telegram-bot
 certifi==2026.2.25
     # via
@@ -25,12 +29,15 @@ ffmpegcv==0.3.18
 h11==0.16.0
     # via httpcore
 h2==4.3.0
-    # via httpx
+    # via
+    #   httpx
+    #   moonraker-telegram-bot
 hpack==4.1.0
     # via h2
 httpcore==1.0.9
     # via
     #   httpx
+    #   moonraker-telegram-bot
     #   python-telegram-bot
 httpx==0.28.1
     # via
@@ -58,7 +65,7 @@ pillow==12.1.1 ; python_full_version >= '3.10'
     # via moonraker-telegram-bot
 python-telegram-bot==22.5 ; python_full_version < '3.10'
     # via moonraker-telegram-bot
-python-telegram-bot==22.6 ; python_full_version >= '3.10'
+python-telegram-bot==22.7 ; python_full_version >= '3.10'
     # via moonraker-telegram-bot
 socksio==1.0.0
     # via httpx
@@ -69,7 +76,9 @@ typing-extensions==4.15.0 ; python_full_version < '3.13'
 tzdata==2025.3 ; sys_platform == 'win32'
     # via tzlocal
 tzlocal==5.3.1
-    # via apscheduler
+    # via
+    #   apscheduler
+    #   moonraker-telegram-bot
 uvloop==0.22.1 ; sys_platform != 'win32'
     # via moonraker-telegram-bot
 websockets==15.0.1 ; python_full_version < '3.10'
