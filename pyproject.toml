@@ -60,6 +60,7 @@ line-length = 200
 [tool.ruff.lint]
 select = [
     "A",     # flake8-builtins
+    "ASYNC", # flake8-async
     "B",     # flake8-bugbear
     "C4",    # flake8-comprehensions
     "E",     # pycodestyle errors
@@ -80,7 +81,6 @@ select = [
     "TCH",   # flake8-type-checking
     "TID",   # flake8-tidy-imports
     "W",     # pycodestyle warnings
-    "ASYNC"
 ]
 ignore = [
     "E501",    # line length handled by formatter
