@@ -73,7 +73,7 @@ select = [
     "FURB",  # refurb
     "G",     # flake8-logging-format
     "I",     # isort
-    "ICN",
+    "ICN",   # flake8-import-conventions
     "LOG",   # flake8-logging
     "PERF",  # perflint
     "PIE",   # flake8-pie
@@ -86,16 +86,16 @@ select = [
     "T20",   # flake8-print
     "TCH",   # flake8-type-checking
     "TID",   # flake8-tidy-imports
-    "TRY",
+    "TRY",   # tryceratops
     "W",     # pycodestyle warnings
 ]
 ignore = [
+    "D",       # pydocstyle
     "E501",    # line length handled by formatter
     "PERF203", # try-except in loop — intentional error handling
     "RUF006",  # fire-and-forget asyncio task — existing pattern
     "SIM108",  # ternary — would produce very long lines
-    "D",
-    "TD"
+    "TD",      # flake8-todos
 ]
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
