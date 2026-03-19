@@ -806,7 +806,7 @@ class RawStreamCamera(MjpegCamera):
             cmd = ["ffmpeg", "-y"]
             if host.startswith("rtsp://"):
                 cmd.extend(["-rtsp_transport", "tcp"])
-            cmd.extend(["-i", host, "-t", str(self._video_duration), "-c:v", "copy", "-an", "-avoid_negative_ts", "make_zero", filepath])
+            cmd.extend(["-i", host, "-t", str(self._video_duration), "-c:v", "copy", "-an", "-avoid_negative_ts", "make_zero", filepath.as_posix()])
 
             logger.debug("RawStreamCamera ffmpeg cmd: %s", " ".join(cmd))
 
