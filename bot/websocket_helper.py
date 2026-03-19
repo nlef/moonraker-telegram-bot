@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from functools import wraps
 import logging
 import os
 import random
 import ssl
-from typing import Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import aiofiles
 import anyio
@@ -11,15 +13,18 @@ import anyio
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")
 os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")
 
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 import orjson
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
 
-from configuration import ConfigWrapper
 from klippy import Klippy, PrintState
-from notifications import Notifier
-from timelapse import Timelapse
+
+if TYPE_CHECKING:
+    from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
+
+    from configuration import ConfigWrapper
+    from notifications import Notifier
+    from timelapse import Timelapse
 
 JSONRPC_METHOD_NOT_FOUND = -32601
 
@@ -85,7 +90,7 @@ class WebSocketHelper:
     def _next_request_id(self) -> int:
         return random.randint(0, 300000)
 
-    async def _send_jsonrpc(self, method: str, params: Optional[dict[str, Any]] = None) -> None:
+    async def _send_jsonrpc(self, method: str, params: dict[str, Any] | None = None) -> None:
         request_id = self._next_request_id
         self._pending_requests[request_id] = method
         msg = {"jsonrpc": "2.0", "method": method, "id": request_id}

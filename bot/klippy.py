@@ -1,13 +1,14 @@
 # Todo: class for printer states!
+from __future__ import annotations
+
 import asyncio
-from collections.abc import Coroutine
 from datetime import datetime, timedelta
 from enum import Enum
 from io import BytesIO
 import logging
 import re
 import time
-from typing import Any, Final, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Final, TypeVar
 import urllib
 
 import emoji
@@ -16,7 +17,10 @@ from httpx import AsyncClient
 import orjson
 from PIL import Image
 
-from configuration import ConfigWrapper
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
+    from configuration import ConfigWrapper
 
 T = TypeVar("T")
 
@@ -41,7 +45,7 @@ class PrintState(Enum):
 
 
 class PowerDevice:
-    def __init__(self, name: str, klippy_: "Klippy") -> None:
+    def __init__(self, name: str, klippy_: Klippy) -> None:
         self.name: str = name
         self._state_lock_async = asyncio.Lock()
         self._device_on: bool = False
@@ -100,8 +104,8 @@ class Klippy:
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
         self._message_parts: list[str] = config.status_message_content.content
         self._eta_source: str = config.telegram_ui.eta_source
-        self._light_device: Optional[PowerDevice]
-        self._psu_device: Optional[PowerDevice]
+        self._light_device: PowerDevice | None
+        self._psu_device: PowerDevice | None
         self._sensors_list: list[str] = config.status_message_content.sensors
         self._heaters_list: list[str] = config.status_message_content.heaters
         self._fans_list: list[str] = config.status_message_content.fans
@@ -147,7 +151,7 @@ class Klippy:
             logger.setLevel(logging.DEBUG)
 
         self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def async_init(self) -> None:
         self._loop = asyncio.get_running_loop()
@@ -178,19 +182,19 @@ class Klippy:
         return self.filament_weight * (self.filament_used / self.filament_total)
 
     @property
-    def psu_device(self) -> Optional[PowerDevice]:
+    def psu_device(self) -> PowerDevice | None:
         return self._psu_device
 
     @psu_device.setter
-    def psu_device(self, psu_device: Optional[PowerDevice]) -> None:
+    def psu_device(self, psu_device: PowerDevice | None) -> None:
         self._psu_device = psu_device
 
     @property
-    def light_device(self) -> Optional[PowerDevice]:
+    def light_device(self) -> PowerDevice | None:
         return self._light_device
 
     @light_device.setter
-    def light_device(self, light_device: Optional[PowerDevice]) -> None:
+    def light_device(self, light_device: PowerDevice | None) -> None:
         self._light_device = light_device
 
     @property

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import functools
@@ -11,7 +13,7 @@ import pickle
 import subprocess
 import threading
 import time
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
 import ffmpegcv  # type: ignore[import-untyped]
@@ -20,12 +22,14 @@ from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 import httpx
 from httpx import HTTPError
 import numpy as np
-from numpy.typing import NDArray
 from PIL import Image, _webp
-from telegram import Message
 
-from configuration import ConfigWrapper
-from klippy import Klippy, PowerDevice
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from telegram import Message
+
+    from configuration import ConfigWrapper
+    from klippy import Klippy, PowerDevice
 
 try:
     import cv2
@@ -96,7 +100,7 @@ class Camera:
 
         # Todo: refactor into timelapse class
         self._base_dir: Path = config.timelapse.base_dir
-        self._ready_dir: Optional[Path] = config.timelapse.ready_dir
+        self._ready_dir: Path | None = config.timelapse.ready_dir
         self._cleanup: bool = config.timelapse.cleanup
 
         self._target_fps: int = 15
@@ -109,7 +113,7 @@ class Camera:
         self._light_need_off_lock: threading.Lock = threading.Lock()
 
         self.light_timeout: int = config.camera.light_timeout
-        self.light_device: Optional[PowerDevice] = self._klippy.light_device
+        self.light_device: PowerDevice | None = self._klippy.light_device
         self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event: threading.Event = threading.Event()
@@ -325,7 +329,7 @@ class Camera:
 
         return cast("NDArray[Any]", ndaarr)
 
-    def take_photo(self, ndarr: Optional[NDArray[Any]] = None) -> BytesIO:
+    def take_photo(self, ndarr: NDArray[Any] | None = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
         os_nice(15)
@@ -659,7 +663,7 @@ class MjpegCamera(Camera):
         return img
 
     @cam_light_toggle
-    def take_photo(self, ndarr: Optional[NDArray[Any]] = None, force_rotate: bool = True) -> BytesIO:
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:
         bio = BytesIO()
         os_nice(15)
         try:

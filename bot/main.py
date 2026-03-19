@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import argparse
 import asyncio
-from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import faulthandler
@@ -17,7 +18,7 @@ import socket
 import subprocess
 import sys
 import tarfile
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 from zipfile import ZipFile
 
 import aiofiles
@@ -53,6 +54,9 @@ from notifications import Notifier
 from telegram_helper import TelegramMessageRepr
 from timelapse import Timelapse
 from websocket_helper import WebSocketHelper
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 with contextlib.suppress(ImportError):
     import uvloop
@@ -133,8 +137,8 @@ camera_wrap: Camera
 timelapse: Timelapse
 notifier: Notifier
 klippy: Klippy
-light_power_device: Optional[PowerDevice]
-psu_power_device: Optional[PowerDevice]
+light_power_device: PowerDevice | None
+psu_power_device: PowerDevice | None
 ws_helper: WebSocketHelper
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2, thread_name_prefix="bot_pool")
 
@@ -387,7 +391,7 @@ async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(update=update, command="bot_restart", confirm_text="Restart bot?", exec_text="Restarting bot", callback_mess="bot_restart", exec_func=restart_bot())
 
 
-def prepare_log_files() -> tuple[list[str], bool, Optional[str]]:
+def prepare_log_files() -> tuple[list[str], bool, str | None]:
     dmesg_success = True
     dmesg_error = None
     log_dir = config_wrap.bot_config.log_path
@@ -452,7 +456,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
     )
 
     log_dir = config_wrap.bot_config.log_path
-    logs_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+    logs_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
     for log_file in prepare_log_files()[0]:
         try:
             log_file_path = log_dir / log_file
@@ -1179,7 +1183,7 @@ async def help_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         await help_command_no_confirm(update.effective_message)
 
 
-def prepare_command(marco: str) -> Optional[BotCommand]:
+def prepare_command(marco: str) -> BotCommand | None:
     if re.match("^[a-zA-Z0-9_]{1,32}$", marco):
         try:
             return BotCommand(marco.lower(), marco)

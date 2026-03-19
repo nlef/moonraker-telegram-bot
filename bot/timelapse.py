@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import asyncio
 from concurrent.futures import Future, ThreadPoolExecutor
 import gc
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
-from telegram import Bot, Message
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
 
-from camera import Camera
-from configuration import ConfigWrapper
-from klippy import Klippy
+if TYPE_CHECKING:
+    from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
+    from telegram import Bot, Message
+
+    from camera import Camera
+    from configuration import ConfigWrapper
+    from klippy import Klippy
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +243,7 @@ class Timelapse:
                 replace_existing=True,
             )
 
-    async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: Optional[str] = None) -> None:
+    async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: str | None = None) -> None:
         try:
             (
                 video_bytes,

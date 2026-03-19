@@ -1,22 +1,27 @@
+from __future__ import annotations
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from io import BytesIO
 import logging
 import re
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 import aiofiles
 import anyio
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
-from camera import Camera
-from configuration import ConfigWrapper
 from klippy import Klippy, PrintState
 from telegram_helper import TelegramMessageRepr
+
+if TYPE_CHECKING:
+    from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
+
+    from camera import Camera
+    from configuration import ConfigWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +48,7 @@ class Notifier:
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
-        self._notify_groups: list[tuple[int, Optional[int]]] = config.notifications.notify_groups
+        self._notify_groups: list[tuple[int, int | None]] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
         self._max_upload_file_size: int = config.bot_config.max_upload_file_size
 
@@ -62,7 +67,7 @@ class Notifier:
         self._last_m117_status: str = ""
         self._last_tgnotify_status: str = ""
 
-        self._status_message: Optional[Message] = None
+        self._status_message: Message | None = None
         self._bzz_mess_id: int = 0
         self._groups_status_messages: dict[int, Message] = {}
 
@@ -130,7 +135,7 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
-    def get_status_keyboard(self, state: PrintState) -> Optional[InlineKeyboardMarkup]:
+    def get_status_keyboard(self, state: PrintState) -> InlineKeyboardMarkup | None:
         inline_keyboard = None
         if self._use_status_update_button and not state.is_finished:
             inline_keyboard = InlineKeyboardMarkup(
@@ -218,7 +223,7 @@ class Notifier:
                 await self.reset_notifications()
 
     # manual notification methods
-    def send_error(self, message: str, logs_upload: bool = False, preformat_text: Optional[str] = None) -> None:
+    def send_error(self, message: str, logs_upload: bool = False, preformat_text: str | None = None) -> None:
         if preformat_text:
             message += f"\n<pre>{preformat_text}</pre>"
         if logs_upload:
@@ -508,7 +513,7 @@ class Notifier:
 
     async def _send_image(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -552,7 +557,7 @@ class Notifier:
 
     async def _send_video(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -597,7 +602,7 @@ class Notifier:
 
     async def _send_document(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -664,7 +669,7 @@ class Notifier:
             await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
     async def send_custom_inline_keyboard(self, message: str) -> None:
-        def parse_button(mess: str) -> Optional[InlineKeyboardButton]:
+        def parse_button(mess: str) -> InlineKeyboardButton | None:
             name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
             command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
             if name and command:

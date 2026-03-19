@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import configparser
 import copy
 from pathlib import Path
 import re
-from typing import Any, Callable, ClassVar, Final, Optional, Union
+from typing import Any, Callable, ClassVar, Final
 
 
 class ConfigHelper:
@@ -36,11 +38,11 @@ class ConfigHelper:
     def _check_numerical_value(
         self,
         option: str,
-        value: Union[int, float],
-        above: Optional[Union[int, float]] = None,
-        below: Optional[Union[int, float]] = None,
-        min_value: Optional[Union[int, float]] = None,
-        max_value: Optional[Union[int, float]] = None,
+        value: int | float,
+        above: int | float | None = None,
+        below: int | float | None = None,
+        min_value: int | float | None = None,
+        max_value: int | float | None = None,
     ) -> None:
         if not self._config.has_option(self._section, option):
             return
@@ -53,20 +55,20 @@ class ConfigHelper:
         if max_value is not None and value > max_value:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
-    def _check_string_values(self, option: str, value: str, allowed_values: Optional[list[str]] = None) -> None:
+    def _check_string_values(self, option: str, value: str, allowed_values: list[str] | None = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
-    def _check_list_values(self, option: str, values: list[Any], allowed_values: Optional[list[Any]] = None) -> None:
+    def _check_list_values(self, option: str, values: list[Any], allowed_values: list[Any] | None = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         unallowed_params = [val for val in values if val not in allowed_values] if allowed_values is not None else []
         if unallowed_params:
             self._parsing_errors.append(f"Option '{option}: {values}': values [" + ",".join(unallowed_params) + "] are not allowed")
 
-    def _get_option_value(self, func: Callable[..., Any], option: str, default: Optional[Any] = None) -> Any:
+    def _get_option_value(self, func: Callable[..., Any], option: str, default: Any | None = None) -> Any:
         try:
             val = func(self._section, option, fallback=default) if default is not None else func(self._section, option)
         except Exception as ex:
@@ -80,11 +82,11 @@ class ConfigHelper:
     def _get_int(
         self,
         option: str,
-        default: Optional[int] = None,
-        above: Optional[Union[int, float]] = None,
-        below: Optional[Union[int, float]] = None,
-        min_value: Optional[Union[int, float]] = None,
-        max_value: Optional[Union[int, float]] = None,
+        default: int | None = None,
+        above: int | float | None = None,
+        below: int | float | None = None,
+        min_value: int | float | None = None,
+        max_value: int | float | None = None,
     ) -> int:
         val: int = self._get_option_value(self._config.getint, option, default)
         self._check_numerical_value(option, val, above, below, min_value, max_value)
@@ -93,26 +95,26 @@ class ConfigHelper:
     def _get_float(
         self,
         option: str,
-        default: Optional[float] = None,
-        above: Optional[Union[int, float]] = None,
-        below: Optional[Union[int, float]] = None,
-        min_value: Optional[Union[int, float]] = None,
-        max_value: Optional[Union[int, float]] = None,
+        default: float | None = None,
+        above: int | float | None = None,
+        below: int | float | None = None,
+        min_value: int | float | None = None,
+        max_value: int | float | None = None,
     ) -> float:
         val: float = self._get_option_value(self._config.getfloat, option, default)
         self._check_numerical_value(option, val, above, below, min_value, max_value)
         return val
 
-    def _get_str(self, option: str, default: Optional[str] = None, allowed_values: Optional[list[Any]] = None) -> str:
+    def _get_str(self, option: str, default: str | None = None, allowed_values: list[Any] | None = None) -> str:
         val: str = self._get_option_value(self._config.get, option, default)
         self._check_string_values(option, val, allowed_values)
         return val
 
-    def _get_boolean(self, option: str, default: Optional[bool] = None) -> bool:
+    def _get_boolean(self, option: str, default: bool | None = None) -> bool:
         val: bool = self._get_option_value(self._config.getboolean, option, default)
         return val
 
-    def _get_list(self, option: str, default: Optional[list[Any]] = None, el_type: Any = str, allowed_values: Optional[list[Any]] = None) -> list[Any]:
+    def _get_list(self, option: str, default: list[Any] | None = None, el_type: Any = str, allowed_values: list[Any] | None = None) -> list[Any]:
         if self._config.has_option(self._section, option):
             try:
                 val = [el_type(el.strip()) for el in self._get_str(option).split(",")]
@@ -284,14 +286,14 @@ class NotifierConfig(ConfigHelper):
         self.percent: int = self._get_int("percent", default=0, min_value=0)
         self.height: float = self._get_float("height", default=0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
-        self.notify_groups: list[tuple[int, Optional[int]]] = self._get_groups_list()
+        self.notify_groups: list[tuple[int, int | None]] = self._get_groups_list()
         self.group_only: bool = self._get_boolean("group_only", default=False)
 
-    def _get_groups_list(self) -> list[tuple[int, Optional[int]]]:
+    def _get_groups_list(self) -> list[tuple[int, int | None]]:
         els = [self._get_group_with_thread_id(el) for el in self._get_list("groups", default=[], el_type=str)]
         return [ell for ell in els if ell is not None]
 
-    def _get_group_with_thread_id(self, group_id: str) -> Optional[tuple[int, Optional[int]]]:
+    def _get_group_with_thread_id(self, group_id: str) -> tuple[int, int | None] | None:
         try:
             parts = group_id.split(":")
             if len(parts) == 2:
@@ -332,7 +334,7 @@ class TimelapseConfig(ConfigHelper):
         self.enabled: bool = config.has_section(self._section)
         self.base_dir: Path = Path(self._get_str("basedir", default="~/moonraker-telegram-bot-timelapse"))
         _ready_dir = self._get_str("copy_finished_timelapse_dir", default="")
-        self.ready_dir: Optional[Path] = Path(_ready_dir) if _ready_dir else None
+        self.ready_dir: Path | None = Path(_ready_dir) if _ready_dir else None
         self.cleanup: bool = self._get_boolean("cleanup", default=True)
         self.height: float = self._get_float("height", default=0.0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
