@@ -61,7 +61,7 @@ def config_with_auth(tmp_path):
 def _read_dumped_config(wrapper) -> configparser.ConfigParser:
     """Dump config to log and parse the written INI back."""
     wrapper.dump_config_to_log()
-    with open(wrapper.bot_config.log_file, encoding="utf-8") as f:
+    with pathlib.Path(wrapper.bot_config.log_file).open(encoding="utf-8") as f:
         lines = [line for line in f if not line.startswith("*") and not line.startswith("Current")]
     dumped = configparser.ConfigParser()
     dumped.read_string("".join(lines))

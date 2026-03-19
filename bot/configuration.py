@@ -146,8 +146,8 @@ class SecretsConfig(ConfigHelper):
     ]
 
     def __init__(self, config: configparser.ConfigParser):
-        secrets_path = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="")))
-        secrets_path_default_name = Path(os.path.expanduser(config.get("secrets", "secrets_path", fallback="") + "/secrets.conf"))
+        secrets_path = Path(config.get("secrets", "secrets_path", fallback="")).expanduser()
+        secrets_path_default_name = Path(config.get("secrets", "secrets_path", fallback="") + "/secrets.conf").expanduser()
         conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         if secrets_path and secrets_path.is_file():
             conf.read(secrets_path.as_posix())
@@ -351,11 +351,11 @@ class TimelapseConfig(ConfigHelper):
         self._init_paths()
 
     def _init_paths(self) -> None:
-        self.base_dir = os.path.expanduser(self.base_dir)
+        self.base_dir = Path(self.base_dir).expanduser().as_posix()
         if self.enabled:
             Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
-            self.ready_dir = os.path.expanduser(self.ready_dir)
+            self.ready_dir = Path(self.ready_dir).expanduser().as_posix()
 
 
 class TelegramUIConfig(ConfigHelper):
@@ -505,7 +505,7 @@ class ConfigWrapper:
         for sec in config_copy.sections():
             if sec.startswith("include"):
                 config_copy.remove_section(sec)
-        with open(self.bot_config.log_file, "a", encoding="utf-8") as log_file:
+        with Path(self.bot_config.log_file).open("a", encoding="utf-8") as log_file:
             log_file.write("\n*******************************************************************\n")
             log_file.write("Current Moonraker telegram bot config\n")
             config_copy.write(log_file)

@@ -424,12 +424,12 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
         )
 
     files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
-    with open(config_wrap.bot_config.log_path + "/debug.txt", mode="a", encoding="utf-8") as debug_file:
+    with Path(config_wrap.bot_config.log_path + "/debug.txt").open("a", encoding="utf-8") as debug_file:
         for file in files:
             try:
                 if Path(file).exists():
                     debug_file.write(f"\n{file}\n")
-                    with open(file, mode="r", encoding="utf-8") as file_obj:
+                    with Path(file).open("r", encoding="utf-8") as file_obj:
                         debug_file.writelines(file_obj.readlines())
             except Exception as err:
                 logger.warning(err)

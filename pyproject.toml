@@ -80,6 +80,7 @@ select = [
     "PLC",   # pylint convention
     "PLE",   # pylint error
     "PLW",   # pylint warning
+    "PTH",
     "RUF",   # ruff-specific
     "SIM",   # flake8-simplify
     "SLF",   # flake8-self
