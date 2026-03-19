@@ -69,6 +69,7 @@ select = [
     "C4",    # flake8-comprehensions
     "E",     # pycodestyle errors
     "F",     # pyflakes
+    "FA",    # flake8-future-annotations
     "FLY",   # flynt
     "FURB",  # refurb
     "G",     # flake8-logging-format
@@ -88,6 +89,7 @@ select = [
     "TCH",   # flake8-type-checking
     "TID",   # flake8-tidy-imports
     "TRY",   # tryceratops
+    "UP",    # pyupgrade
     "W",     # pycodestyle warnings
 ]
 ignore = [
