@@ -1,5 +1,6 @@
 # Todo: class for printer states!
 import asyncio
+from collections.abc import Coroutine
 from datetime import datetime, timedelta
 from enum import Enum
 from io import BytesIO
@@ -7,7 +8,7 @@ import logging
 import re
 import threading
 import time
-from typing import Any, Dict, Final, List, Optional, Tuple
+from typing import Any, Dict, Final, List, Optional, Tuple, TypeVar
 import urllib
 
 import emoji
@@ -17,6 +18,8 @@ import orjson
 from PIL import Image
 
 from configuration import ConfigWrapper
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +162,15 @@ class Klippy:
 
         self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
         self._client_sync: Client = Client(verify=self._ssl_verify)
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._auth_moonraker()
+
+    async def async_init(self) -> None:
+        self._loop = asyncio.get_running_loop()
+
+    def call_async(self, coro: Coroutine[Any, Any, T]) -> T:
+        assert self._loop is not None, "Event loop not set. Call async_init() first."
+        return asyncio.run_coroutine_threadsafe(coro, self._loop).result()
 
     def prepare_sens_dict_subscribe(self) -> Dict[str, Any]:
         self._sensors_dict = {}
