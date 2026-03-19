@@ -2,16 +2,16 @@ import configparser
 import copy
 from pathlib import Path
 import re
-from typing import Any, Callable, ClassVar, Final, List, Optional, Tuple, Union
+from typing import Any, Callable, ClassVar, Final, Optional, Union
 
 
 class ConfigHelper:
     _section: str
-    _KNOWN_ITEMS: ClassVar[List[str]]
+    _KNOWN_ITEMS: ClassVar[list[str]]
 
     def __init__(self, config: configparser.ConfigParser):
         self._config = config
-        self._parsing_errors: List[str] = []
+        self._parsing_errors: list[str] = []
 
     @property
     def unknown_fields(self) -> str:
@@ -53,13 +53,13 @@ class ConfigHelper:
         if max_value is not None and value > max_value:
             self._parsing_errors.append(f"Option '{option}: {value}': value is above maximum value {max_value}")
 
-    def _check_string_values(self, option: str, value: str, allowed_values: Optional[List[str]] = None) -> None:
+    def _check_string_values(self, option: str, value: str, allowed_values: Optional[list[str]] = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         if allowed_values is not None and value not in allowed_values:
             self._parsing_errors.append(f"Option '{option}: {value}': value '{value}' is not allowed")
 
-    def _check_list_values(self, option: str, values: List[Any], allowed_values: Optional[List[Any]] = None) -> None:
+    def _check_list_values(self, option: str, values: list[Any], allowed_values: Optional[list[Any]] = None) -> None:
         if not self._config.has_option(self._section, option):
             return
         unallowed_params = [val for val in values if val not in allowed_values] if allowed_values is not None else []
@@ -103,7 +103,7 @@ class ConfigHelper:
         self._check_numerical_value(option, val, above, below, min_value, max_value)
         return val
 
-    def _get_str(self, option: str, default: Optional[str] = None, allowed_values: Optional[List[Any]] = None) -> str:
+    def _get_str(self, option: str, default: Optional[str] = None, allowed_values: Optional[list[Any]] = None) -> str:
         val: str = self._get_option_value(self._config.get, option, default)
         self._check_string_values(option, val, allowed_values)
         return val
@@ -112,7 +112,7 @@ class ConfigHelper:
         val: bool = self._get_option_value(self._config.getboolean, option, default)
         return val
 
-    def _get_list(self, option: str, default: Optional[List[Any]] = None, el_type: Any = str, allowed_values: Optional[List[Any]] = None) -> List[Any]:
+    def _get_list(self, option: str, default: Optional[list[Any]] = None, el_type: Any = str, allowed_values: Optional[list[Any]] = None) -> list[Any]:
         if self._config.has_option(self._section, option):
             try:
                 val = [el_type(el.strip()) for el in self._get_str(option).split(",")]
@@ -135,7 +135,7 @@ class ConfigHelper:
 
 class SecretsConfig(ConfigHelper):
     _section = "secrets"
-    _KNOWN_ITEMS: ClassVar[List[str]] = [
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
         "bot_token",
         "chat_id",
         "user",
@@ -169,7 +169,7 @@ class SecretsConfig(ConfigHelper):
 
 class BotConfig(ConfigHelper):
     _section = "bot"
-    _KNOWN_ITEMS: ClassVar[List[str]] = [
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
         "bot_token",
         "chat_id",
         "user",
@@ -206,7 +206,7 @@ class BotConfig(ConfigHelper):
         self.log_path: Path = Path(self._get_str("log_path", default="/tmp"))
         self.log_file: Path = Path(self._get_str("log_path", default="/tmp"))
         self.upload_path: str = self._get_str("upload_path", default="")
-        self.services: List[str] = self._get_list("services", default=["klipper", "moonraker"])
+        self.services: list[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
 
         host_parts = self.host.split(":")
@@ -237,7 +237,7 @@ class BotConfig(ConfigHelper):
 
 class CameraConfig(ConfigHelper):
     _section = "camera"
-    _KNOWN_ITEMS: ClassVar[List[str]] = [
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
         "host",
         "host_snapshot",
         "threads",
@@ -276,7 +276,7 @@ class CameraConfig(ConfigHelper):
 
 class NotifierConfig(ConfigHelper):
     _section = "progress_notification"
-    _KNOWN_ITEMS: ClassVar[List[str]] = ["percent", "height", "time", "groups", "group_only"]
+    _KNOWN_ITEMS: ClassVar[list[str]] = ["percent", "height", "time", "groups", "group_only"]
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
@@ -284,14 +284,14 @@ class NotifierConfig(ConfigHelper):
         self.percent: int = self._get_int("percent", default=0, min_value=0)
         self.height: float = self._get_float("height", default=0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
-        self.notify_groups: List[Tuple[int, Optional[int]]] = self._get_groups_list()
+        self.notify_groups: list[tuple[int, Optional[int]]] = self._get_groups_list()
         self.group_only: bool = self._get_boolean("group_only", default=False)
 
-    def _get_groups_list(self) -> List[Tuple[int, Optional[int]]]:
+    def _get_groups_list(self) -> list[tuple[int, Optional[int]]]:
         els = [self._get_group_with_thread_id(el) for el in self._get_list("groups", default=[], el_type=str)]
         return [ell for ell in els if ell is not None]
 
-    def _get_group_with_thread_id(self, group_id: str) -> Optional[Tuple[int, Optional[int]]]:
+    def _get_group_with_thread_id(self, group_id: str) -> Optional[tuple[int, Optional[int]]]:
         try:
             parts = group_id.split(":")
             if len(parts) == 2:
@@ -308,7 +308,7 @@ class NotifierConfig(ConfigHelper):
 
 class TimelapseConfig(ConfigHelper):
     _section = "timelapse"
-    _KNOWN_ITEMS: ClassVar[List[str]] = [
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
         "basedir",
         "copy_finished_timelapse_dir",
         "cleanup",
@@ -359,7 +359,7 @@ class TimelapseConfig(ConfigHelper):
 
 class TelegramUIConfig(ConfigHelper):
     _section = "telegram_ui"
-    _KNOWN_ITEMS: ClassVar[List[str]] = [
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
         "silent_progress",
         "silent_commands",
         "silent_status",
@@ -394,7 +394,7 @@ class TelegramUIConfig(ConfigHelper):
         super().__init__(config)
         self.eta_source: str = self._get_str("eta_source", default="slicer", allowed_values=["slicer", "file"])
         self.buttons_default: bool = bool(not config.has_option(self._section, "buttons"))
-        self.buttons: List[List[str]] = list(  # noqa: C417
+        self.buttons: list[list[str]] = list(  # noqa: C417
             map(
                 lambda el: list(  # noqa: C417
                     map(
@@ -411,14 +411,14 @@ class TelegramUIConfig(ConfigHelper):
         self.silent_commands: bool = self._get_boolean("silent_commands", default=False)
         self.silent_status: bool = self._get_boolean("silent_status", default=False)
         self.include_macros_in_command_list: bool = self._get_boolean("include_macros_in_command_list", default=True)
-        self.hidden_macros: List[str] = [el.upper() for el in self._get_list("hidden_macros", default=[])]
-        self.hidden_bot_commands: List[str] = self._get_list("hidden_bot_commands", default=[])
+        self.hidden_macros: list[str] = [el.upper() for el in self._get_list("hidden_macros", default=[])]
+        self.hidden_bot_commands: list[str] = self._get_list("hidden_bot_commands", default=[])
         self.show_private_macros: bool = self._get_boolean("show_private_macros", default=False)
         self.pin_status_single_message: bool = self._get_boolean("pin_status_single_message", default=True)
         self.status_message_m117_update: bool = self._get_boolean("status_message_m117_update", default=False)
         self.send_greeting_message: bool = self._get_boolean("send_greeting_message", default=True)
         self.status_update_button: bool = self._get_boolean("status_update_button", default=True)
-        self.require_confirmation: List[str] = self._get_list(
+        self.require_confirmation: list[str] = self._get_list(
             "require_confirmation", default=["logs", "logs_upload", "shutdown", "restart", "cancel", "fw_restart", "emergency", "reboot", "power", "bot_restart"]
         )
 
@@ -437,7 +437,7 @@ class TelegramUIConfig(ConfigHelper):
 
 class StatusMessageContentConfig(ConfigHelper):
     _section = "status_message_content"
-    _KNOWN_ITEMS: ClassVar[List[str]] = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
+    _KNOWN_ITEMS: ClassVar[list[str]] = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
     _MESSAGE_CONTENT: Final = [
         "progress",
         "height",
@@ -453,11 +453,11 @@ class StatusMessageContentConfig(ConfigHelper):
 
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
-        self.content: List[str] = self._get_list("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
-        self.sensors: List[str] = self._get_list("sensors", default=[])
-        self.heaters: List[str] = self._get_list("heaters", default=[])
-        self.fans: List[str] = self._get_list("fans", default=[])
-        self.moonraker_devices: List[str] = self._get_list("moonraker_devices", default=[])
+        self.content: list[str] = self._get_list("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
+        self.sensors: list[str] = self._get_list("sensors", default=[])
+        self.heaters: list[str] = self._get_list("heaters", default=[])
+        self.fans: list[str] = self._get_list("fans", default=[])
+        self.moonraker_devices: list[str] = self._get_list("moonraker_devices", default=[])
 
 
 class ConfigWrapper:

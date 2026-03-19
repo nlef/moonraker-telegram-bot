@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore[import-untyped]
 from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
@@ -16,8 +16,8 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
         stream_url: str,
         codec: Optional[str],
         pix_fmt: str,
-        crop_xywh: Optional[Tuple[int, int, int, int]],
-        resize: Optional[Tuple[int, int]],
+        crop_xywh: Optional[tuple[int, int, int, int]],
+        resize: Optional[tuple[int, int]],
         resize_keepratio: bool,
         resize_keepratioalign: str,
         timeout: Optional[int],
@@ -56,8 +56,8 @@ def FFmpegReaderStreamRTCustomInit(
     stream_url: str,
     codec: Optional[str] = None,
     pix_fmt: str = "bgr24",
-    crop_xywh: Optional[Tuple[int, int, int, int]] = None,
-    resize: Optional[Tuple[int, int]] = None,
+    crop_xywh: Optional[tuple[int, int, int, int]] = None,
+    resize: Optional[tuple[int, int]] = None,
     resize_keepratio: bool = True,
     resize_keepratioalign: str = "center",
     timeout: Optional[int] = None,

@@ -4,7 +4,7 @@ from datetime import datetime
 from io import BytesIO
 import logging
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import aiofiles
 import anyio
@@ -43,7 +43,7 @@ class Notifier:
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
-        self._notify_groups: List[Tuple[int, Optional[int]]] = config.notifications.notify_groups
+        self._notify_groups: list[tuple[int, Optional[int]]] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
         self._max_upload_file_size: int = config.bot_config.max_upload_file_size
 
@@ -54,7 +54,7 @@ class Notifier:
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message
         self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
         self._use_status_update_button: bool = config.telegram_ui.status_update_button
-        self._message_parts: List[str] = config.status_message_content.content
+        self._message_parts: list[str] = config.status_message_content.content
 
         self._last_height: float = 0
         self._below_threshold: bool = False
@@ -64,7 +64,7 @@ class Notifier:
 
         self._status_message: Optional[Message] = None
         self._bzz_mess_id: int = 0
-        self._groups_status_messages: Dict[int, Message] = {}
+        self._groups_status_messages: dict[int, Message] = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -494,7 +494,7 @@ class Notifier:
         return message_match.group(1) if message_match else ""
 
     @staticmethod
-    def _parse_path(ws_message: str) -> List[str]:
+    def _parse_path(ws_message: str) -> list[str]:
         path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
         path_list_math = re.search(r"path\s*=\s*\[(?:\,*\s*\'(.[^\']*)\'\,*\s*)+\]", ws_message)
 
@@ -506,9 +506,9 @@ class Notifier:
             path = [""]
         return path
 
-    async def _send_image(self, paths: List[str], message: str) -> None:
+    async def _send_image(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -550,9 +550,9 @@ class Notifier:
             replace_existing=False,
         )
 
-    async def _send_video(self, paths: List[str], message: str) -> None:
+    async def _send_video(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -595,9 +595,9 @@ class Notifier:
             replace_existing=False,
         )
 
-    async def _send_document(self, paths: List[str], message: str) -> None:
+    async def _send_document(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -674,7 +674,7 @@ class Notifier:
                 logger.warning("Bad command!")
                 return None
 
-        keyboard: List[List[InlineKeyboardButton]] = list(  # noqa: C417
+        keyboard: list[list[InlineKeyboardButton]] = list(  # noqa: C417
             map(
                 lambda el: list(
                     filter(

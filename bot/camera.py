@@ -11,7 +11,7 @@ import pickle
 import subprocess
 import threading
 import time
-from typing import Any, Callable, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
 import ffmpegcv  # type: ignore[import-untyped]
@@ -158,7 +158,7 @@ class Camera:
 
             # Todo: write this back or remove useless code
             # self._cv2_params: List = config.camera.cv2_params
-            self._cv2_params: List[Any] = []
+            self._cv2_params: list[Any] = []
             cv2.setNumThreads(self._threads)
             self.cam_cam = cv2.VideoCapture()
             self._set_cv2_params()
@@ -353,7 +353,7 @@ class Camera:
         return bio
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
         def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
             if self._flip_vertically:
                 frame_local = np.flipud(frame_local)
@@ -465,7 +465,7 @@ class Camera:
 
         del raw_frame_rgb
 
-    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[bytes, bytes, int, int, str, str]:
+    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> tuple[bytes, bytes, int, int, str, str]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(self._create_timelapse, printing_filename, gcode_name, info_mess, loop))
 
@@ -491,7 +491,7 @@ class Camera:
     def _get_frame(self, path: Path) -> NDArray[Any]:
         return cast("NDArray[Any]", np.load(path, allow_pickle=True)["raw"])
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> Tuple[bytes, bytes, int, int, str, str]:
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")  # noqa: TRY003
 
@@ -609,7 +609,7 @@ class Camera:
     # Todo: check if lapse was in subfolder ( alike gcode folders)
     # Todo: refactor into timelapse class
     # Todo: check for 64 symbols length in lapse names
-    def detect_unfinished_lapses(self) -> List[str]:
+    def detect_unfinished_lapses(self) -> list[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
         return [el.parent.name for el in self._base_dir.rglob("*.lock")]
 
@@ -722,7 +722,7 @@ class MjpegCamera(Camera):
             return res
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
             os_nice(15)
@@ -789,7 +789,7 @@ class RawStreamCamera(MjpegCamera):
             logger.warning("raw_stream camera: flip/rotate not supported for video (stream copy). Use type=ffmpeg if you need video transforms.")
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
         with self._camera_lock:
             os_nice(15)
 
