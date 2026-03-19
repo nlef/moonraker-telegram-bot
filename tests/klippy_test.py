@@ -1,9 +1,10 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
-from bot.klippy import Klippy, PrintState  # type: ignore
+from bot.klippy import Klippy, PowerDevice, PrintState  # type: ignore
 
 test_sensors = {
     "heater": {"temperature": 155.345325234, "target": 255.343434, "power": 0.60},
@@ -39,8 +40,7 @@ def mock_klippy():
     config.secrets.passwd = ""
     config.secrets.api_token = ""
 
-    klippy = Klippy(config, None)
-    return klippy
+    return Klippy(config, None)
 
 
 @pytest.mark.asyncio
@@ -197,3 +197,50 @@ def test_progress_no_trailing_zero(mock_klippy):
     msg = mock_klippy._get_printing_file_info()
     assert "Progress 80%" in msg
     assert "80.0%" not in msg
+
+
+@pytest.mark.asyncio
+async def test_switch_device_sync_delegates_to_async(mock_klippy):
+    mock_klippy._loop = asyncio.get_running_loop()
+    ok_response = httpx.Response(status_code=200, text='{"result":"ok"}', request=httpx.Request("POST", "http://localhost:7125/machine/device_power/device"))
+    mock_klippy.make_request = AsyncMock(return_value=ok_response)
+
+    device = PowerDevice("test_light", mock_klippy)
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, device.switch_device_sync, True)
+
+    assert result is True
+    assert device.device_state is True
+    mock_klippy.make_request.assert_called_once_with("POST", "/machine/device_power/device?device=test_light&action=on")
+
+
+@pytest.mark.asyncio
+async def test_execute_gcode_script_sync_delegates_to_async(mock_klippy):
+    mock_klippy._loop = asyncio.get_running_loop()
+    ok_response = httpx.Response(status_code=200, text='{"result":"ok"}', request=httpx.Request("GET", "http://localhost:7125/printer/gcode/script"))
+    mock_klippy.make_request = AsyncMock(return_value=ok_response)
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, mock_klippy.execute_gcode_script_sync, "G28")
+
+    mock_klippy.make_request.assert_called_once_with("GET", "/printer/gcode/script?script=G28")
+
+
+@pytest.mark.asyncio
+async def test_switch_device_sync_reports_error(mock_klippy):
+    mock_klippy._loop = asyncio.get_running_loop()
+    err_response = httpx.Response(
+        status_code=400,
+        text='{"error":{"message":"device busy"}}',
+        request=httpx.Request("POST", "http://localhost:7125/machine/device_power/device"),
+    )
+    mock_klippy.make_request = AsyncMock(return_value=err_response)
+
+    device = PowerDevice("test_light", mock_klippy)
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, device.switch_device_sync, True)
+
+    assert result is False
+    assert device.device_error == "device busy"

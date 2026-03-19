@@ -1294,6 +1294,7 @@ def start_bot(bot_token: str, socks: str) -> Application:  # type: ignore[type-a
 
 
 async def start_scheduler(context: ContextTypes.DEFAULT_TYPE) -> None:
+    await klippy.async_init()
     a_scheduler.start()
     a_scheduler.add_job(
         greeting_message,
