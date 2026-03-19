@@ -130,9 +130,15 @@ table_format = "long"
 [tool.mypy]
 python_version = "3.9"
 no_namespace_packages = true
-exclude = "tests"
 strict = true
 enable_error_code = [ "ignore-without-code" ]
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+[[tool.mypy.overrides]]
+module = "_pytest.*"
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 python_files = "*_test.py"

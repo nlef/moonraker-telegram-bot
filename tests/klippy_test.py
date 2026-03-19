@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from bot.klippy import Klippy, PowerDevice, PrintState  # type: ignore
+from bot.klippy import Klippy, PowerDevice, PrintState  # type: ignore[import-not-found]
 
 test_sensors = {
     "heater": {"temperature": 155.345325234, "target": 255.343434, "power": 0.60},

@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from bot.notifications import Notifier  # type: ignore
+from bot.notifications import Notifier  # type: ignore[import-not-found]
 
 
 def make_notifier(height=5.0, percent=0):

@@ -3,7 +3,7 @@ import pathlib
 
 import pytest
 
-from bot.configuration import ConfigWrapper  # type: ignore
+from bot.configuration import ConfigWrapper  # type: ignore[import-not-found]
 
 CONFIG_PATH = "tests/resources/telegram.conf"
 CONFIG_MINIMAL_PATH = "tests/resources/telegram_minimal.conf"
@@ -60,7 +60,7 @@ def config_with_auth(tmp_path):
     return wrapper
 
 
-def _read_dumped_config(wrapper) -> configparser.ConfigParser:
+def _read_dumped_config(wrapper: ConfigWrapper) -> configparser.ConfigParser:
     """Dump config to log and parse the written INI back."""
     wrapper.dump_config_to_log()
     with wrapper.bot_config.log_file.open(encoding="utf-8") as f:
