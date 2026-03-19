@@ -33,7 +33,8 @@ def test_config_with_secrets_has_no_errors(config_secrets_helper):
 
 
 def test_config_with_secrets_is_valid(config_secrets_helper):
-    assert config_secrets_helper.secrets.chat_id == 1661233333 and config_secrets_helper.secrets.token == "23423423334:sdfgsdfg-doroasd"
+    assert config_secrets_helper.secrets.chat_id == 1661233333
+    assert config_secrets_helper.secrets.token == "23423423334:sdfgsdfg-doroasd"
 
 
 @pytest.fixture
@@ -47,7 +48,8 @@ def test_config_has_no_errors(config_helper):
 
 
 def test_config_bot_is_valid(config_helper):
-    assert config_helper.secrets.chat_id == 16612341234 and config_helper.secrets.token == "23423423334:sdfgsdfg-dfgdfgsdfg"
+    assert config_helper.secrets.chat_id == 16612341234
+    assert config_helper.secrets.token == "23423423334:sdfgsdfg-dfgdfgsdfg"
 
 
 @pytest.fixture

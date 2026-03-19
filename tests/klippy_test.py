@@ -17,7 +17,9 @@ def test_sensor_message():
     heater_message = Klippy._sensor_message("heater", test_sensors["heater"])
     temp_sensor_message = Klippy._sensor_message("temp", test_sensors["temp"])
     fan_message = Klippy._sensor_message("fan", test_sensors["fan"])
-    assert heater_message == "♨️ Heater: 155 °C ➡️ 255 °C 🔥" and fan_message == "🌪️ Fan: 155 °C ➡️ 255 °C 75% 2550 RPM" and temp_sensor_message == "🌡️ Temp: 155 °C"
+    assert heater_message == "♨️ Heater: 155 °C ➡️ 255 °C 🔥"
+    assert fan_message == "🌪️ Fan: 155 °C ➡️ 255 °C 75% 2550 RPM"
+    assert temp_sensor_message == "🌡️ Temp: 155 °C"
 
 
 @pytest.fixture
@@ -187,7 +189,8 @@ def test_title_bold(mock_klippy):
     mock_klippy._message_parts = ["progress"]
     mock_klippy._printing_filename = "test.gcode"
     msg = mock_klippy._get_printing_file_info()
-    assert "<b>" in msg and "</b>" in msg
+    assert "<b>" in msg
+    assert "</b>" in msg
 
 
 def test_progress_no_trailing_zero(mock_klippy):
