@@ -6,14 +6,13 @@ from enum import Enum
 from io import BytesIO
 import logging
 import re
-import threading
 import time
 from typing import Any, Dict, Final, List, Optional, Tuple, TypeVar
 import urllib
 
 import emoji
 import httpx
-from httpx import AsyncClient, Client
+from httpx import AsyncClient
 import orjson
 from PIL import Image
 
@@ -44,8 +43,6 @@ class PrintState(Enum):
 class PowerDevice:
     def __init__(self, name: str, klippy_: "Klippy") -> None:
         self.name: str = name
-        # Todo: refactor! check lighting lock in camera
-        self._state_lock = threading.Lock()
         self._state_lock_async = asyncio.Lock()
         self._device_on: bool = False
         self._device_error: str = ""
@@ -80,19 +77,8 @@ class PowerDevice:
                 logger.error("Power device switch failed: %s", res)
             return self._device_on
 
-    # Todo: return exception?
     def switch_device_sync(self, state: bool) -> bool:
-        with self._state_lock:
-            res = self._klippy.make_request_sync("POST", f"/machine/device_power/device?device={self.name}&action={'on' if state else 'off'}")
-            if res.is_success:
-                self._device_on = state
-                self._device_error = ""
-            else:
-                resp_json = orjson.loads(res.text)
-                if "error" in resp_json and "message" in resp_json["error"]:
-                    self._device_error = resp_json["error"]["message"]
-                logger.error("Power device switch failed: %s", res)
-            return self._device_on
+        return self._klippy.call_async(self.switch_device(state))
 
 
 class Klippy:
@@ -161,7 +147,6 @@ class Klippy:
             logger.setLevel(logging.DEBUG)
 
         self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
-        self._client_sync: Client = Client(verify=self._ssl_verify)
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def async_init(self) -> None:
@@ -364,20 +349,6 @@ class Klippy:
         except httpx.HTTPError:
             logger.exception("Failed to refresh token")
 
-    def _refresh_moonraker_token_sync(self) -> None:
-        if not self._refresh_token:
-            return
-        res = self._client_sync.post(f"{self._host}/access/refresh_jwt", content=orjson.dumps({"refresh_token": self._refresh_token}), timeout=15)
-
-        try:
-            res.raise_for_status()
-            logger.debug("JWT token successfully refreshed")
-            self._jwt_token = orjson.loads(res.text)["result"]["token"]
-        except httpx.HTTPError:
-            logger.exception(
-                "Failed to refresh token",
-            )
-
     async def make_request(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30) -> httpx.Response:
         res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
         if res.status_code == 401:  # Unauthorized
@@ -389,20 +360,6 @@ class Klippy:
             res.raise_for_status()
         except httpx.HTTPError:
             logger.exception("Failed to make request asynchronously")
-
-        return res
-
-    def make_request_sync(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30) -> httpx.Response:
-        res = self._client_sync.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
-        if res.status_code == 401:  # Unauthorized
-            logger.debug("JWT token expired, refreshing...")
-            self._refresh_moonraker_token_sync()
-            res = self._client_sync.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
-
-        try:
-            res.raise_for_status()
-        except httpx.HTTPError:
-            logger.exception("Failed to make request synchronously")
 
         return res
 
@@ -501,7 +458,7 @@ class Klippy:
         await self.make_request("GET", f"/printer/gcode/script?script={gcode}")
 
     def execute_gcode_script_sync(self, gcode: str) -> None:
-        self.make_request_sync("GET", f"/printer/gcode/script?script={gcode}")
+        self.call_async(self.execute_gcode_script(gcode))
 
     def _get_eta(self) -> timedelta:
         if self._eta_source == "slicer":
