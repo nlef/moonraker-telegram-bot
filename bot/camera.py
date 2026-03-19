@@ -405,7 +405,7 @@ class Camera:
             logger.debug("res fps - %s", res_fps)
 
             out = ffmpegcv.VideoWriter(
-                filepath,
+                filepath.as_posix(),
                 codec=self._fourcc,
                 fps=res_fps,
             )

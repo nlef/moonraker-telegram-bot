@@ -1,6 +1,5 @@
 import configparser
 import copy
-import pathlib
 from pathlib import Path
 import re
 from typing import Any, Callable, ClassVar, Final, List, Optional, Tuple, Union
@@ -229,11 +228,11 @@ class BotConfig(ConfigHelper):
     def log_path_update(self, logfile: str) -> None:
         if logfile:
             self.log_file = logfile
-        if not pathlib.PurePath(self.log_file).suffix:
+        if not Path(self.log_file).suffix:
             self.log_file += "/telegram.log"
-        if self.log_file != "/tmp" or str(pathlib.PurePath(self.log_file).parent) != "/tmp":
-            Path(pathlib.PurePath(self.log_file).parent).mkdir(parents=True, exist_ok=True)
-        self.log_path = pathlib.PurePath(self.log_file).parent.as_posix()
+        if self.log_file != "/tmp" or str(Path(self.log_file).parent) != "/tmp":
+            Path(self.log_file).parent.mkdir(parents=True, exist_ok=True)
+        self.log_path = Path(self.log_file).parent.as_posix()
 
 
 class CameraConfig(ConfigHelper):
@@ -468,7 +467,7 @@ class ConfigWrapper:
         for sec in config.sections():
             if sec.startswith("include"):
                 addit_conf = sec.replace("include", "").strip()
-                config.read(pathlib.PurePath(path).parent.joinpath(addit_conf))
+                config.read(Path(path).parent.joinpath(addit_conf))
 
         self._config = config
         self.secrets = SecretsConfig(config)
