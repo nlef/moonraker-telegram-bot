@@ -163,10 +163,10 @@ class Klippy:
         self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
         self._client_sync: Client = Client(verify=self._ssl_verify)
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._auth_moonraker()
 
     async def async_init(self) -> None:
         self._loop = asyncio.get_running_loop()
+        await self._auth_moonraker()
 
     def call_async(self, coro: Coroutine[Any, Any, T]) -> T:
         assert self._loop is not None, "Event loop not set. Call async_init() first."
@@ -338,11 +338,11 @@ class Klippy:
     def _get_marco_list(self) -> List[str]:
         return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
 
-    def _auth_moonraker(self) -> None:
+    async def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
             return
 
-        res = httpx.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15, verify=self._ssl_verify)
+        res = await self._client.post(f"{self._host}/access/login", json={"username": self._user, "password": self._passwd}, timeout=15)
 
         try:
             res.raise_for_status()
