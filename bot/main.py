@@ -390,7 +390,7 @@ async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
     dmesg_success = True
     dmesg_error = None
-    log_dir = Path(config_wrap.bot_config.log_path)
+    log_dir = config_wrap.bot_config.log_path
 
     dmesg_file = log_dir / "dmesg.txt"
     if dmesg_file.exists():
@@ -451,7 +451,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         do_quote=True,
     )
 
-    log_dir = Path(config_wrap.bot_config.log_path)
+    log_dir = config_wrap.bot_config.log_path
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     for log_file in prepare_log_files()[0]:
         try:
@@ -494,7 +494,7 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
         await resp_message.edit_text(f"Dmesg log file creation error {dmesg_error}")
         return
 
-    log_dir = Path(config_wrap.bot_config.log_path)
+    log_dir = config_wrap.bot_config.log_path
     archive_path = log_dir / "logs.tar.xz"
 
     if await anyio.Path(archive_path).exists():
@@ -509,7 +509,7 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
     await resp_message.edit_text("Uploading logs to parser")
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
 
-    async with aiofiles.open(f"{config_wrap.bot_config.log_path}/logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
+    async with aiofiles.open(config_wrap.bot_config.log_path / "logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
         resp = await client_loc.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": await log_archive_ojb.read()}, follow_redirects=False, timeout=25)
         if resp.status_code < 400:
             logs_path = resp.headers["location"]

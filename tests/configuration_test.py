@@ -54,14 +54,14 @@ def test_config_bot_is_valid(config_helper):
 def config_with_auth(tmp_path):
     config_path = pathlib.Path(CONFIG_WITH_AUTH_PATH).absolute().as_posix()
     wrapper = ConfigWrapper(config_path)
-    wrapper.bot_config.log_file = str(tmp_path / "bot.log")
+    wrapper.bot_config.log_file = tmp_path / "bot.log"
     return wrapper
 
 
 def _read_dumped_config(wrapper) -> configparser.ConfigParser:
     """Dump config to log and parse the written INI back."""
     wrapper.dump_config_to_log()
-    with pathlib.Path(wrapper.bot_config.log_file).open(encoding="utf-8") as f:
+    with wrapper.bot_config.log_file.open(encoding="utf-8") as f:
         lines = [line for line in f if not line.startswith("*") and not line.startswith("Current")]
     dumped = configparser.ConfigParser()
     dumped.read_string("".join(lines))
@@ -96,7 +96,7 @@ def test_dump_does_not_mutate_live_config(config_with_auth):
 
 def test_dump_does_not_add_redacted_for_unset_options(config_helper, tmp_path):
     """Options not present in config should not appear as <redacted>."""
-    config_helper.bot_config.log_file = str(tmp_path / "bot.log")
+    config_helper.bot_config.log_file = tmp_path / "bot.log"
     dumped = _read_dumped_config(config_helper)
     assert not dumped.has_option("bot", "password")
     assert not dumped.has_option("bot", "api_token")
