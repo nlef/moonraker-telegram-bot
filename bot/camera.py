@@ -424,9 +424,9 @@ class Camera:
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
-        with Path(filepath).open("rb") as video_file:
+        with filepath.open("rb") as video_file:
             video_bio.write(video_file.read())
-        Path(filepath).unlink()
+        filepath.unlink()
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
@@ -776,9 +776,9 @@ class MjpegCamera(Camera):
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
-        with Path(filepath).open("rb") as video_file:
+        with filepath.open("rb") as video_file:
             video_bio.write(video_file.read())
-        Path(filepath).unlink()
+        filepath.unlink()
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
@@ -821,9 +821,9 @@ class RawStreamCamera(MjpegCamera):
 
         video_bio = BytesIO()
         video_bio.name = "video.mp4"
-        if Path(filepath).is_file():
-            with Path(filepath).open("rb") as video_file:
+        if filepath.is_file():
+            with filepath.open("rb") as video_file:
                 video_bio.write(video_file.read())
-            Path(filepath).unlink()
+            filepath.unlink()
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
