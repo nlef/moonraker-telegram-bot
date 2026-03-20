@@ -390,18 +390,21 @@ async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
     dmesg_success = True
     dmesg_error = None
+    log_dir = Path(config_wrap.bot_config.log_path)
 
-    if Path(f"{config_wrap.bot_config.log_path}/dmesg.txt").exists():
-        Path(f"{config_wrap.bot_config.log_path}/dmesg.txt").unlink()
+    dmesg_file = log_dir / "dmesg.txt"
+    if dmesg_file.exists():
+        dmesg_file.unlink()
 
-    dmesg_res = subprocess.run(f"dmesg -T > {config_wrap.bot_config.log_path}/dmesg.txt", shell=True, executable="/bin/bash", check=False, capture_output=True)
+    dmesg_res = subprocess.run(f"dmesg -T > {dmesg_file}", shell=True, executable="/bin/bash", check=False, capture_output=True)
     if dmesg_res.returncode != 0:
         logger.warning("dmesg file creation error: %s %s", dmesg_res.stdout.decode("utf-8"), dmesg_res.stderr.decode("utf-8"))
         dmesg_error = dmesg_res.stderr.decode("utf-8")
         dmesg_success = False
 
-    if Path(f"{config_wrap.bot_config.log_path}/debug.txt").exists():
-        Path(f"{config_wrap.bot_config.log_path}/debug.txt").unlink()
+    debug_file_path = log_dir / "debug.txt"
+    if debug_file_path.exists():
+        debug_file_path.unlink()
 
     commands = [
         "lsb_release -a",
@@ -417,19 +420,19 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
     ]
     for command in commands:
         subprocess.run(
-            f'echo >> {config_wrap.bot_config.log_path}/debug.txt;echo "{command}" >> {config_wrap.bot_config.log_path}/debug.txt;{command} >> {config_wrap.bot_config.log_path}/debug.txt',
+            f'echo >> {debug_file_path};echo "{command}" >> {debug_file_path};{command} >> {debug_file_path}',
             shell=True,
             executable="/bin/bash",
             check=False,
         )
 
     files = ["/boot/config.txt", "/boot/cmdline.txt", "/boot/armbianEnv.txt", "/boot/orangepiEnv.txt", "/boot/BoardEnv.txt", "/boot/env.txt"]
-    with Path(config_wrap.bot_config.log_path + "/debug.txt").open("a", encoding="utf-8") as debug_file:
+    with debug_file_path.open("a", encoding="utf-8") as debug_file:
         for file in files:
             try:
                 if Path(file).exists():
                     debug_file.write(f"\n{file}\n")
-                    with Path(file).open("r", encoding="utf-8") as file_obj:
+                    with Path(file).open(encoding="utf-8") as file_obj:
                         debug_file.writelines(file_obj.readlines())
             except Exception as err:
                 logger.warning(err)
@@ -448,11 +451,13 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         do_quote=True,
     )
 
+    log_dir = Path(config_wrap.bot_config.log_path)
     logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
     for log_file in prepare_log_files()[0]:
         try:
-            if await anyio.Path(f"{config_wrap.bot_config.log_path}/{log_file}").exists():
-                async with aiofiles.open(f"{config_wrap.bot_config.log_path}/{log_file}", "rb") as fh:
+            log_file_path = log_dir / log_file
+            if await anyio.Path(log_file_path).exists():
+                async with aiofiles.open(log_file_path, "rb") as fh:
                     logs_list.append(InputMediaDocument(await fh.read(), filename=log_file))
         except FileNotFoundError as err:
             logger.warning(err)
@@ -489,13 +494,17 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
         await resp_message.edit_text(f"Dmesg log file creation error {dmesg_error}")
         return
 
-    if await anyio.Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").exists():
-        await anyio.Path(f"{config_wrap.bot_config.log_path}/logs.tar.xz").unlink()
+    log_dir = Path(config_wrap.bot_config.log_path)
+    archive_path = log_dir / "logs.tar.xz"
 
-    with tarfile.open(f"{config_wrap.bot_config.log_path}/logs.tar.xz", "w:xz") as tar:
+    if await anyio.Path(archive_path).exists():
+        await anyio.Path(archive_path).unlink()
+
+    with tarfile.open(archive_path, "w:xz") as tar:
         for file in files_list:
-            if await anyio.Path(f"{config_wrap.bot_config.log_path}/{file}").exists():
-                tar.add(Path(f"{config_wrap.bot_config.log_path}/{file}"), arcname=file)
+            file_path = log_dir / file
+            if await anyio.Path(file_path).exists():
+                tar.add(file_path, arcname=file)
 
     await resp_message.edit_text("Uploading logs to parser")
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
