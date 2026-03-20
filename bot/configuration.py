@@ -203,8 +203,8 @@ class BotConfig(ConfigHelper):
         self.light_device_name: str = self._get_str("light_device", default="")
         self.poweroff_device_name: str = self._get_str("power_device", default="")
         self.debug: bool = self._get_boolean("debug", default=False)
-        self.log_path: str = self._get_str("log_path", default="/tmp")
-        self.log_file: str = self._get_str("log_path", default="/tmp")
+        self.log_path: Path = Path(self._get_str("log_path", default="/tmp"))
+        self.log_file: Path = Path(self._get_str("log_path", default="/tmp"))
         self.upload_path: str = self._get_str("upload_path", default="")
         self.services: List[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
@@ -227,12 +227,12 @@ class BotConfig(ConfigHelper):
 
     def log_path_update(self, logfile: str) -> None:
         if logfile:
-            self.log_file = logfile
-        if not Path(self.log_file).suffix:
-            self.log_file += "/telegram.log"
-        if self.log_file != "/tmp" or str(Path(self.log_file).parent) != "/tmp":
-            Path(self.log_file).parent.mkdir(parents=True, exist_ok=True)
-        self.log_path = Path(self.log_file).parent.as_posix()
+            self.log_file = Path(logfile)
+        if not self.log_file.suffix:
+            self.log_file = self.log_file / "telegram.log"
+        if str(self.log_file) != "/tmp" or str(self.log_file.parent) != "/tmp":
+            self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        self.log_path = self.log_file.parent
 
 
 class CameraConfig(ConfigHelper):
@@ -503,7 +503,7 @@ class ConfigWrapper:
         for sec in config_copy.sections():
             if sec.startswith("include"):
                 config_copy.remove_section(sec)
-        with Path(self.bot_config.log_file).open("a", encoding="utf-8") as log_file:
+        with self.bot_config.log_file.open("a", encoding="utf-8") as log_file:
             log_file.write("\n*******************************************************************\n")
             log_file.write("Current Moonraker telegram bot config\n")
             config_copy.write(log_file)
