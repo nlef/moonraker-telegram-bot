@@ -613,7 +613,7 @@ class Camera:
     # Todo: check for 64 symbols length in lapse names
     def detect_unfinished_lapses(self) -> List[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
-        return [el.parent.as_posix() for el in Path(f"{self._base_dir}").rglob("*.lock")]
+        return [el.parent.name for el in Path(self._base_dir).rglob("*.lock")]
 
     def cleanup_unfinished_lapses(self) -> None:
         for lapse_name in self.detect_unfinished_lapses():
