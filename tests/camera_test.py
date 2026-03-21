@@ -39,24 +39,23 @@ def make_camera(test_dir: Path) -> Camera:
 LAPSES_NAMES = ["lapse1", "lapse2", "lapse3", "lapse4"]
 
 
-def create_test_lapses(test_dir: Path):
+def _create_test_lapses(test_dir: Path) -> None:
     for lap in LAPSES_NAMES:
         lap_path = test_dir / lap
         lap_path.mkdir(parents=True, exist_ok=True)
         (lap_path / "lapse.lock").touch()
 
 
-def test_detect_unfinished_lapses():
-    test_dir = Path("/tmp/timelapse")
-    create_test_lapses(test_dir)
-    cam = make_camera(test_dir)
+def test_detect_unfinished_lapses(tmp_path: Path) -> None:
+    _create_test_lapses(tmp_path)
+    cam = make_camera(tmp_path)
     lapses_list = cam.detect_unfinished_lapses()
     lapses_list.sort()
     assert lapses_list == LAPSES_NAMES
 
 
-def test_cleanup_unfinished_lapses():
-    test_dir = Path("/tmp/timelapse")
-    cam = make_camera(test_dir)
+def test_cleanup_unfinished_lapses(tmp_path: Path) -> None:
+    _create_test_lapses(tmp_path)
+    cam = make_camera(tmp_path)
     cam.cleanup_unfinished_lapses()
-    assert not any(test_dir.iterdir())
+    assert not any(tmp_path.iterdir())
