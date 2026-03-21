@@ -51,6 +51,7 @@ def test_detect_unfinished_lapses():
     create_test_lapses(test_dir)
     cam = make_camera(test_dir)
     lapses_list = cam.detect_unfinished_lapses()
+    lapses_list.sort()
     assert lapses_list == LAPSES_NAMES
 
 
