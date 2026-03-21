@@ -95,8 +95,8 @@ class Camera:
         self._klippy: Klippy = klippy
 
         # Todo: refactor into timelapse class
-        self._base_dir: Path = Path(config.timelapse.base_dir)
-        self._ready_dir: Optional[Path] = Path(config.timelapse.ready_dir) if config.timelapse.ready_dir else None
+        self._base_dir: Path = config.timelapse.base_dir
+        self._ready_dir: Optional[Path] = config.timelapse.ready_dir
         self._cleanup: bool = config.timelapse.cleanup
 
         self._target_fps: int = 15
