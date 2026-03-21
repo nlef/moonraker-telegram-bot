@@ -330,8 +330,9 @@ class TimelapseConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser):
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
-        self.base_dir: str = self._get_str("basedir", default="~/moonraker-telegram-bot-timelapse")
-        self.ready_dir: str = self._get_str("copy_finished_timelapse_dir", default="")
+        self.base_dir: Path = Path(self._get_str("basedir", default="~/moonraker-telegram-bot-timelapse"))
+        _ready_dir = self._get_str("copy_finished_timelapse_dir", default="")
+        self.ready_dir: Optional[Path] = Path(_ready_dir) if _ready_dir else None
         self.cleanup: bool = self._get_boolean("cleanup", default=True)
         self.height: float = self._get_float("height", default=0.0, min_value=0.0)
         self.interval: int = self._get_int("time", default=0, min_value=0)
@@ -349,11 +350,11 @@ class TimelapseConfig(ConfigHelper):
         self._init_paths()
 
     def _init_paths(self) -> None:
-        self.base_dir = Path(self.base_dir).expanduser().as_posix()
+        self.base_dir = self.base_dir.expanduser()
         if self.enabled:
-            Path(self.base_dir).mkdir(parents=True, exist_ok=True)
+            self.base_dir.mkdir(parents=True, exist_ok=True)
         if self.ready_dir:
-            self.ready_dir = Path(self.ready_dir).expanduser().as_posix()
+            self.ready_dir = self.ready_dir.expanduser()
 
 
 class TelegramUIConfig(ConfigHelper):
