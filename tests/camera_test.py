@@ -35,13 +35,15 @@ def make_camera(test_dir: Path) -> Camera:
 
     return Camera(config, klippy, None)
 
+
 LAPSES_NAMES = ["lapse1", "lapse2", "lapse3", "lapse4"]
+
 
 def create_test_lapses(test_dir: Path):
     for lap in LAPSES_NAMES:
-        lap_path =test_dir / lap
+        lap_path = test_dir / lap
         lap_path.mkdir(parents=True, exist_ok=True)
-        (lap_path/"lapse.lock").touch()
+        (lap_path / "lapse.lock").touch()
 
 
 def test_detect_unfinished_lapses():
@@ -51,9 +53,9 @@ def test_detect_unfinished_lapses():
     lapses_list = cam.detect_unfinished_lapses()
     assert lapses_list == LAPSES_NAMES
 
+
 def test_cleanup_unfinished_lapses():
     test_dir = Path("/tmp/timelapse")
     cam = make_camera(test_dir)
     cam.cleanup_unfinished_lapses()
     assert not any(test_dir.iterdir())
-
