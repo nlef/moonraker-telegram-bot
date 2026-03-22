@@ -129,7 +129,7 @@ table_format = "long"
 
 [tool.mypy]
 python_version = "3.9"
-no_namespace_packages = true
+mypy_path = "bot"
 strict = true
 enable_error_code = [ "ignore-without-code" ]
 [[tool.mypy.overrides]]
@@ -143,3 +143,4 @@ follow_imports = "skip"
 [tool.pytest.ini_options]
 python_files = "*_test.py"
 testpaths = [ "tests" ]
+pythonpath = [ "bot" ]

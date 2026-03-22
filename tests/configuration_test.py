@@ -3,7 +3,7 @@ import pathlib
 
 import pytest
 
-from bot.configuration import ConfigWrapper  # type: ignore[import-not-found]
+from configuration import ConfigWrapper
 
 CONFIG_PATH = "tests/resources/telegram.conf"
 CONFIG_MINIMAL_PATH = "tests/resources/telegram_minimal.conf"

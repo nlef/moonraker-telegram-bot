@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from bot.camera import Camera
+from camera import Camera
 
 
 def make_camera(test_dir: Path) -> Camera:
