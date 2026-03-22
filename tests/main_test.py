@@ -1,7 +1,7 @@
 from main import prepare_command
 
 
-def test_bot_commands_preparation():
+def test_bot_commands_preparation() -> None:
     valid_command = prepare_command("SuperCommand")
     long_command = prepare_command("InvalidCommandToooooooooooooooooLong")
     invalid_symblos_command = prepare_command("InvalidSymblosCommand&^)))")
