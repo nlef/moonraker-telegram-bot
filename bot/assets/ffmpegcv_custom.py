@@ -14,7 +14,7 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
         super().__init__()
 
     @staticmethod
-    def VideoReader(
+    def VideoReader(  # noqa: N802
         stream_url: str,
         codec: str | None,
         pix_fmt: str,
@@ -54,7 +54,7 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
         return vid
 
 
-def FFmpegReaderStreamRTCustomInit(
+def FFmpegReaderStreamRTCustomInit(  # noqa: N802
     stream_url: str,
     codec: str | None = None,
     pix_fmt: str = "bgr24",

@@ -23,8 +23,7 @@ class ConfigHelper:
     def parsing_errors(self) -> str:
         if self._parsing_errors:
             return f"Config errors in section [{self._section}]:\n  " + "\n  ".join(self._parsing_errors) + "\n"
-        else:
-            return ""
+        return ""
 
     def _check_config(self) -> str:
         if not self._config.has_section(self._section):
@@ -32,8 +31,7 @@ class ConfigHelper:
         unknown = [f"  {fil[0]}: {fil[1]}\n" for fil in self._config.items(self._section) if fil[0] not in self._KNOWN_ITEMS]
         if unknown:
             return f"Unknown/bad items in section [{self._section}]:\n{''.join(unknown)}\n"
-        else:
-            return ""
+        return ""
 
     def _check_numerical_value(
         self,
@@ -224,8 +222,7 @@ class BotConfig(ConfigHelper):
             return ""
         if not self.upload_path.endswith("/"):
             return self.upload_path + "/"
-        else:
-            return self.upload_path
+        return self.upload_path
 
     def log_path_update(self, logfile: str) -> None:
         if logfile:
@@ -298,11 +295,10 @@ class NotifierConfig(ConfigHelper):
             parts = group_id.split(":")
             if len(parts) == 2:
                 return int(parts[0]), int(parts[1])
-            elif len(parts) == 1:
+            if len(parts) == 1:
                 return int(parts[0]), None
-            else:
-                self._parsing_errors.append(f"Malformed group_id `{group_id}`")
-                return None
+            self._parsing_errors.append(f"Malformed group_id `{group_id}`")
+            return None  # noqa: TRY300
         except Exception as ex:
             self._parsing_errors.append(f"Error parsing group_id `{group_id}` \n {ex}")
             return None

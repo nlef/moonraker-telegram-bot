@@ -61,15 +61,14 @@ class TelegramMessageRepr:
                 disable_notification=self._silent,
                 message_thread_id=message_thread_id,
             )
-        else:
-            return await bot.send_message(
-                chat_id,
-                text=self._text,
-                parse_mode=self._parse_mode,
-                reply_markup=self._reply_markup,
-                disable_notification=self._silent,
-                message_thread_id=message_thread_id,
-            )
+        return await bot.send_message(
+            chat_id,
+            text=self._text,
+            parse_mode=self._parse_mode,
+            reply_markup=self._reply_markup,
+            disable_notification=self._silent,
+            message_thread_id=message_thread_id,
+        )
 
     async def update_existing(self, other_message: Message, photo: BytesIO | bytes | None = None) -> None:
         if photo:

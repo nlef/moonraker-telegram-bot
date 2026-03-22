@@ -483,14 +483,13 @@ class Camera:
             or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
         ):
             return self._target_fps
-        elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
+        if actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
             return max(fps, 1)
-        elif actual_duration > self._max_lapse_duration > 0:
+        if actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
-        else:
-            logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
-            return self._target_fps
+        logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
+        return self._target_fps
 
     def _get_frame(self, path: Path) -> NDArray[Any]:
         return cast("NDArray[Any]", np.load(path, allow_pickle=True)["raw"])
@@ -663,7 +662,7 @@ class MjpegCamera(Camera):
         return img
 
     @cam_light_toggle
-    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:  # noqa: ARG002
         bio = BytesIO()
         os_nice(15)
         try:

@@ -43,8 +43,7 @@ def websocket_alive(func: F) -> F:
         if self.websocket is None:
             logger.warning("Websocket call `%s` on non initialized ws", func.__name__)
             return None
-        else:
-            return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
 
     return wrapper  # type: ignore[return-value]
 

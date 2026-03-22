@@ -321,8 +321,7 @@ class Klippy:
 
     def _get_full_marco_list(self) -> list[str]:
         macro_lines = list(filter(lambda it: "gcode_macro" in it, self._objects_list))
-        loaded_macros = [el.split(" ")[1].upper() for el in macro_lines]
-        return loaded_macros
+        return [el.split(" ")[1].upper() for el in macro_lines]
 
     def _get_marco_list(self) -> list[str]:
         return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
@@ -378,9 +377,8 @@ class Klippy:
 
                 if connected:
                     return ""
-                else:
-                    # Todo: get reason from error handler
-                    last_reason = f"{response.status_code}"
+                # Todo: get reason from error handler
+                last_reason = f"{response.status_code}"
             except Exception:
                 logger.exception("Failed to check connection")
 
@@ -616,8 +614,7 @@ class Klippy:
 
     async def get_gcode_files(self) -> list[dict[str, Any]]:
         response = await self.make_request("GET", "/server/files/list?root=gcodes")
-        files = sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
-        return files
+        return sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
 
     async def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
         return (await self.make_request("POST", "/server/files/upload", files={"file": file, "root": "gcodes", "path": upload_path})).is_success
@@ -660,10 +657,9 @@ class Klippy:
         res = await self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.is_success:
             return orjson.loads(res.text)["result"]["value"]
-        else:
-            logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
-            # Fixme: return default value? check for 404!
-            return None
+        logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
+        # Fixme: return default value? check for 404!
+        return None
 
     async def save_param_to_db(self, param_name: str, value: Any) -> None:
         data = {"namespace": self._dbname, "key": param_name, "value": value}

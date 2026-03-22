@@ -675,9 +675,8 @@ class Notifier:
             if name and command:
                 gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
                 return InlineKeyboardButton(name.group(1), callback_data=gcode)
-            else:
-                logger.warning("Bad command!")
-                return None
+            logger.warning("Bad command!")
+            return None
 
         keyboard: list[list[InlineKeyboardButton]] = list(  # noqa: C417
             map(

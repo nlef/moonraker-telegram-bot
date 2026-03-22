@@ -193,16 +193,16 @@ class Timelapse:
         if not self._enabled:
             logger.debug("lapse is disabled")
             return
-        elif not self._klippy.printing_filename:
+        if not self._klippy.printing_filename:
             logger.debug("lapse is inactive for file undefined")
             return
-        elif not self._running:
+        if not self._running:
             logger.debug("lapse is not running at the moment")
             return
-        elif self._paused and not manually:
+        if self._paused and not manually:
             logger.debug("lapse is paused at the moment")
             return
-        elif not self._mode_manual and self._klippy.printing_duration <= 0.0:
+        if not self._mode_manual and self._klippy.printing_duration <= 0.0:
             logger.debug("lapse must not run with auto mode and zero print duration")
             return
 
