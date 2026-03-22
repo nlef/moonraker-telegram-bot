@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -42,7 +43,7 @@ def mock_klippy():
     config.secrets.passwd = ""
     config.secrets.api_token = ""
 
-    return Klippy(config, None)
+    return Klippy(config, logging.NullHandler())
 
 
 @pytest.mark.asyncio

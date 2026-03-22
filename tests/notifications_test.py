@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock
 
 from notifications import Notifier
@@ -27,7 +28,7 @@ def make_notifier(height=5.0, percent=0):
     klippy.printing = True
     klippy.printing_duration = 100.0
 
-    return Notifier(config, MagicMock(), klippy, MagicMock(), MagicMock(), None)
+    return Notifier(config, MagicMock(), klippy, MagicMock(), MagicMock(), logging.NullHandler())
 
 
 def test_height_notification_triggers_at_threshold():
