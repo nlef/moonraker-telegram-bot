@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import functools
@@ -11,7 +13,7 @@ import pickle
 import subprocess
 import threading
 import time
-from typing import Any, Callable, List, Optional, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from assets.ffmpegcv_custom import FFmpegReaderStreamRTCustomInit
 import ffmpegcv  # type: ignore[import-untyped]
@@ -20,12 +22,14 @@ from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 import httpx
 from httpx import HTTPError
 import numpy as np
-from numpy.typing import NDArray
 from PIL import Image, _webp
-from telegram import Message
 
-from configuration import ConfigWrapper
-from klippy import Klippy, PowerDevice
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from telegram import Message
+
+    from configuration import ConfigWrapper
+    from klippy import Klippy, PowerDevice
 
 try:
     import cv2
@@ -96,7 +100,7 @@ class Camera:
 
         # Todo: refactor into timelapse class
         self._base_dir: Path = config.timelapse.base_dir
-        self._ready_dir: Optional[Path] = config.timelapse.ready_dir
+        self._ready_dir: Path | None = config.timelapse.ready_dir
         self._cleanup: bool = config.timelapse.cleanup
 
         self._target_fps: int = 15
@@ -109,7 +113,7 @@ class Camera:
         self._light_need_off_lock: threading.Lock = threading.Lock()
 
         self.light_timeout: int = config.camera.light_timeout
-        self.light_device: Optional[PowerDevice] = self._klippy.light_device
+        self.light_device: PowerDevice | None = self._klippy.light_device
         self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event: threading.Event = threading.Event()
@@ -158,7 +162,7 @@ class Camera:
 
             # Todo: write this back or remove useless code
             # self._cv2_params: List = config.camera.cv2_params
-            self._cv2_params: List[Any] = []
+            self._cv2_params: list[Any] = []
             cv2.setNumThreads(self._threads)
             self.cam_cam = cv2.VideoCapture()
             self._set_cv2_params()
@@ -325,7 +329,7 @@ class Camera:
 
         return cast("NDArray[Any]", ndaarr)
 
-    def take_photo(self, ndarr: Optional[NDArray[Any]] = None) -> BytesIO:
+    def take_photo(self, ndarr: NDArray[Any] | None = None) -> BytesIO:
         img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
 
         os_nice(15)
@@ -353,7 +357,7 @@ class Camera:
         return bio
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
         def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
             if self._flip_vertically:
                 frame_local = np.flipud(frame_local)
@@ -465,7 +469,7 @@ class Camera:
 
         del raw_frame_rgb
 
-    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> Tuple[bytes, bytes, int, int, str, str]:
+    async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> tuple[bytes, bytes, int, int, str, str]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(self._create_timelapse, printing_filename, gcode_name, info_mess, loop))
 
@@ -479,19 +483,18 @@ class Camera:
             or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
         ):
             return self._target_fps
-        elif actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
+        if actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
             fps = math.ceil(frames_count / self._min_lapse_duration)
             return max(fps, 1)
-        elif actual_duration > self._max_lapse_duration > 0:
+        if actual_duration > self._max_lapse_duration > 0:
             return math.ceil(frames_count / self._max_lapse_duration)
-        else:
-            logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
-            return self._target_fps
+        logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
+        return self._target_fps
 
     def _get_frame(self, path: Path) -> NDArray[Any]:
         return cast("NDArray[Any]", np.load(path, allow_pickle=True)["raw"])
 
-    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> Tuple[bytes, bytes, int, int, str, str]:
+    def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
             raise ValueError("Gcode file name is empty")  # noqa: TRY003
 
@@ -609,7 +612,7 @@ class Camera:
     # Todo: check if lapse was in subfolder ( alike gcode folders)
     # Todo: refactor into timelapse class
     # Todo: check for 64 symbols length in lapse names
-    def detect_unfinished_lapses(self) -> List[str]:
+    def detect_unfinished_lapses(self) -> list[str]:
         # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
         return [el.parent.name for el in self._base_dir.rglob("*.lock")]
 
@@ -659,7 +662,7 @@ class MjpegCamera(Camera):
         return img
 
     @cam_light_toggle
-    def take_photo(self, ndarr: Optional[NDArray[Any]] = None, force_rotate: bool = True) -> BytesIO:
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:  # noqa: ARG002
         bio = BytesIO()
         os_nice(15)
         try:
@@ -722,7 +725,7 @@ class MjpegCamera(Camera):
             return res
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
 
         with self._camera_lock:
             os_nice(15)
@@ -789,7 +792,7 @@ class RawStreamCamera(MjpegCamera):
             logger.warning("raw_stream camera: flip/rotate not supported for video (stream copy). Use type=ffmpeg if you need video transforms.")
 
     @cam_light_toggle
-    def take_video(self) -> Tuple[BytesIO, BytesIO, int, int]:
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
         with self._camera_lock:
             os_nice(15)
 

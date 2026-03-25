@@ -1,13 +1,14 @@
 # Todo: class for printer states!
+from __future__ import annotations
+
 import asyncio
-from collections.abc import Coroutine
 from datetime import datetime, timedelta
 from enum import Enum
 from io import BytesIO
 import logging
 import re
 import time
-from typing import Any, Dict, Final, List, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Final, TypeVar
 import urllib
 
 import emoji
@@ -16,7 +17,10 @@ from httpx import AsyncClient
 import orjson
 from PIL import Image
 
-from configuration import ConfigWrapper
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
+    from configuration import ConfigWrapper
 
 T = TypeVar("T")
 
@@ -41,7 +45,7 @@ class PrintState(Enum):
 
 
 class PowerDevice:
-    def __init__(self, name: str, klippy_: "Klippy") -> None:
+    def __init__(self, name: str, klippy_: Klippy) -> None:
         self.name: str = name
         self._state_lock_async = asyncio.Lock()
         self._device_on: bool = False
@@ -96,17 +100,17 @@ class Klippy:
         self._protocol: str = "https" if config.bot_config.ssl else "http"
         self._host: str = f"{self._protocol}://{config.bot_config.host}:{config.bot_config.port}"
         self._ssl_verify: bool = config.bot_config.ssl_verify
-        self._hidden_macros: List[str] = [*config.telegram_ui.hidden_macros, self._DATA_MACRO]
+        self._hidden_macros: list[str] = [*config.telegram_ui.hidden_macros, self._DATA_MACRO]
         self._show_private_macros: bool = config.telegram_ui.show_private_macros
-        self._message_parts: List[str] = config.status_message_content.content
+        self._message_parts: list[str] = config.status_message_content.content
         self._eta_source: str = config.telegram_ui.eta_source
-        self._light_device: Optional[PowerDevice]
-        self._psu_device: Optional[PowerDevice]
-        self._sensors_list: List[str] = config.status_message_content.sensors
-        self._heaters_list: List[str] = config.status_message_content.heaters
-        self._fans_list: List[str] = config.status_message_content.fans
+        self._light_device: PowerDevice | None
+        self._psu_device: PowerDevice | None
+        self._sensors_list: list[str] = config.status_message_content.sensors
+        self._heaters_list: list[str] = config.status_message_content.heaters
+        self._fans_list: list[str] = config.status_message_content.fans
 
-        self._devices_list: List[str] = config.status_message_content.moonraker_devices
+        self._devices_list: list[str] = config.status_message_content.moonraker_devices
         self._user: str = config.secrets.user
         self._passwd: str = config.secrets.passwd
         self._api_token: str = config.secrets.api_token
@@ -138,7 +142,7 @@ class Klippy:
 
         # Todo: create sensors class!!
         self._objects_list: list[str] = []
-        self._sensors_dict: dict[str, Dict[str, Any]] = {}
+        self._sensors_dict: dict[str, dict[str, Any]] = {}
         self._power_devices: dict[str, Any] = {}
 
         if logging_handler:
@@ -147,7 +151,7 @@ class Klippy:
             logger.setLevel(logging.DEBUG)
 
         self._client: AsyncClient = AsyncClient(verify=self._ssl_verify)
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def async_init(self) -> None:
         self._loop = asyncio.get_running_loop()
@@ -157,9 +161,9 @@ class Klippy:
         assert self._loop is not None, "Event loop not set. Call async_init() first."
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result()
 
-    def prepare_sens_dict_subscribe(self) -> Dict[str, Any]:
+    def prepare_sens_dict_subscribe(self) -> dict[str, Any]:
         self._sensors_dict = {}
-        sens_dict: Dict[str, Any] = {}
+        sens_dict: dict[str, Any] = {}
 
         for elem in self._objects_list:
             for heat in self._heaters_list:
@@ -178,19 +182,19 @@ class Klippy:
         return self.filament_weight * (self.filament_used / self.filament_total)
 
     @property
-    def psu_device(self) -> Optional[PowerDevice]:
+    def psu_device(self) -> PowerDevice | None:
         return self._psu_device
 
     @psu_device.setter
-    def psu_device(self, psu_device: Optional[PowerDevice]) -> None:
+    def psu_device(self, psu_device: PowerDevice | None) -> None:
         self._psu_device = psu_device
 
     @property
-    def light_device(self) -> Optional[PowerDevice]:
+    def light_device(self) -> PowerDevice | None:
         return self._light_device
 
     @light_device.setter
-    def light_device(self, light_device: Optional[PowerDevice]) -> None:
+    def light_device(self, light_device: PowerDevice | None) -> None:
         self._light_device = light_device
 
     @property
@@ -209,10 +213,10 @@ class Klippy:
 
     # Todo: save macros list until klippy restart
     @property
-    def macros(self) -> List[str]:
+    def macros(self) -> list[str]:
         return self._get_marco_list()
 
-    async def get_macros_force(self) -> List[str]:
+    async def get_macros_force(self) -> list[str]:
         try:
             await self._update_printer_objects()
         except Exception:
@@ -220,7 +224,7 @@ class Klippy:
         return self._get_marco_list()
 
     @property
-    def macros_all(self) -> List[str]:
+    def macros_all(self) -> list[str]:
         return self._get_full_marco_list()
 
     @property
@@ -228,7 +232,7 @@ class Klippy:
         return self._host
 
     @property
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         heads = {}
         if self._jwt_token:
             heads = {"Authorization": f"Bearer {self._jwt_token}"}
@@ -315,12 +319,11 @@ class Klippy:
     def printing_filename_with_time(self) -> str:
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
-    def _get_full_marco_list(self) -> List[str]:
+    def _get_full_marco_list(self) -> list[str]:
         macro_lines = list(filter(lambda it: "gcode_macro" in it, self._objects_list))
-        loaded_macros = [el.split(" ")[1].upper() for el in macro_lines]
-        return loaded_macros
+        return [el.split(" ")[1].upper() for el in macro_lines]
 
-    def _get_marco_list(self) -> List[str]:
+    def _get_marco_list(self) -> list[str]:
         return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
 
     async def _auth_moonraker(self) -> None:
@@ -374,9 +377,8 @@ class Klippy:
 
                 if connected:
                     return ""
-                else:
-                    # Todo: get reason from error handler
-                    last_reason = f"{response.status_code}"
+                # Todo: get reason from error handler
+                last_reason = f"{response.status_code}"
             except Exception:
                 logger.exception("Failed to check connection")
 
@@ -384,7 +386,7 @@ class Klippy:
             await asyncio.sleep(1)
         return f"Connection failed. {last_reason}"
 
-    def update_sensor(self, name: str, value: Dict[str, Any]) -> None:
+    def update_sensor(self, name: str, value: dict[str, Any]) -> None:
         if name not in self._sensors_dict:
             self._sensors_dict[name] = {}
         for key, val in self._SENSOR_PARAMS.items():
@@ -392,7 +394,7 @@ class Klippy:
                 self._sensors_dict[name][key] = value[val]
 
     @staticmethod
-    def _sensor_message(name: str, value: Dict[str, Any]) -> str:
+    def _sensor_message(name: str, value: dict[str, Any]) -> str:
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         message = ""
 
@@ -418,7 +420,7 @@ class Klippy:
 
         return message
 
-    def update_power_device(self, name: str, value: Dict[str, Any]) -> None:
+    def update_power_device(self, name: str, value: dict[str, Any]) -> None:
         if name not in self._power_devices:
             self._power_devices[name] = {}
         for key, val in self._POWER_DEVICE_PARAMS.items():
@@ -426,7 +428,7 @@ class Klippy:
                 self._power_devices[name][key] = value[val]
 
     @staticmethod
-    def _device_message(name: str, value: Dict[str, Any], emoji_symbol: str = ":vertical_traffic_light:") -> str:
+    def _device_message(name: str, value: dict[str, Any], emoji_symbol: str = ":vertical_traffic_light:") -> str:
         message = emoji.emojize(f" {emoji_symbol} ", language="alias") + f"{name}: "
         if "status" in value:
             message += f" {value['status']} "
@@ -470,7 +472,7 @@ class Klippy:
         eta = max(eta, 0)
         return timedelta(seconds=eta)
 
-    async def _populate_with_thumb(self, thumb_path: str, message: str) -> Tuple[str, BytesIO]:
+    async def _populate_with_thumb(self, thumb_path: str, message: str) -> tuple[str, BytesIO]:
         if not thumb_path:
             img = Image.open("../imgs/nopreview.png").convert("RGB")
             logger.warning("Empty thumbnail_path")
@@ -490,7 +492,7 @@ class Klippy:
         img.close()
         return message, bio
 
-    async def get_file_info(self, state: PrintState = PrintState.PRINTING) -> Tuple[str, BytesIO]:
+    async def get_file_info(self, state: PrintState = PrintState.PRINTING) -> tuple[str, BytesIO]:
         message = self.get_print_stats(state=state)
         return await self._populate_with_thumb(self._thumbnail_path, message)
 
@@ -587,7 +589,7 @@ class Klippy:
 
         return message
 
-    async def get_file_info_by_name(self, filename: str, message: str) -> Tuple[str, BytesIO]:
+    async def get_file_info_by_name(self, filename: str, message: str) -> tuple[str, BytesIO]:
         resp = orjson.loads((await self.make_request("GET", f"/server/files/metadata?filename={urllib.parse.quote(filename)}")).text)["result"]
         message += "\n"
         if "filament_total" in resp and resp["filament_total"] > 0.0:
@@ -610,10 +612,9 @@ class Klippy:
 
         return await self._populate_with_thumb(thumb_path, message)
 
-    async def get_gcode_files(self) -> List[Dict[str, Any]]:
+    async def get_gcode_files(self) -> list[dict[str, Any]]:
         response = await self.make_request("GET", "/server/files/list?root=gcodes")
-        files = sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
-        return files
+        return sorted(orjson.loads(response.text)["result"], key=lambda item: item["modified"], reverse=True)
 
     async def upload_gcode_file(self, file: BytesIO, upload_path: str) -> bool:
         return (await self.make_request("POST", "/server/files/upload", files={"file": file, "root": "gcodes", "path": upload_path})).is_success
@@ -656,10 +657,9 @@ class Klippy:
         res = await self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
         if res.is_success:
             return orjson.loads(res.text)["result"]["value"]
-        else:
-            logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
-            # Fixme: return default value? check for 404!
-            return None
+        logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
+        # Fixme: return default value? check for 404!
+        return None
 
     async def save_param_to_db(self, param_name: str, value: Any) -> None:
         data = {"namespace": self._dbname, "key": param_name, "value": value}

@@ -1,10 +1,12 @@
 import asyncio
+import logging
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
-from bot.klippy import Klippy, PowerDevice, PrintState  # type: ignore
+from klippy import Klippy, PowerDevice, PrintState
 
 test_sensors = {
     "heater": {"temperature": 155.345325234, "target": 255.343434, "power": 0.60},
@@ -13,15 +15,17 @@ test_sensors = {
 }
 
 
-def test_sensor_message():
+def test_sensor_message() -> None:
     heater_message = Klippy._sensor_message("heater", test_sensors["heater"])
     temp_sensor_message = Klippy._sensor_message("temp", test_sensors["temp"])
     fan_message = Klippy._sensor_message("fan", test_sensors["fan"])
-    assert heater_message == "♨️ Heater: 155 °C ➡️ 255 °C 🔥" and fan_message == "🌪️ Fan: 155 °C ➡️ 255 °C 75% 2550 RPM" and temp_sensor_message == "🌡️ Temp: 155 °C"
+    assert heater_message == "♨️ Heater: 155 °C ➡️ 255 °C 🔥"
+    assert fan_message == "🌪️ Fan: 155 °C ➡️ 255 °C 75% 2550 RPM"
+    assert temp_sensor_message == "🌡️ Temp: 155 °C"
 
 
 @pytest.fixture
-def mock_klippy():
+def mock_klippy() -> Klippy:
     config = MagicMock()
     config.bot_config.ssl = False
     config.bot_config.host = "localhost"
@@ -40,22 +44,22 @@ def mock_klippy():
     config.secrets.passwd = ""
     config.secrets.api_token = ""
 
-    return Klippy(config, None)
+    return Klippy(config, logging.NullHandler())
 
 
 @pytest.mark.asyncio
-async def test_jwt_refresh_updates_headers_on_retry(mock_klippy):
+async def test_jwt_refresh_updates_headers_on_retry(mock_klippy: Klippy) -> None:
     mock_klippy._jwt_token = "expired_token"
     mock_klippy._refresh_token = "valid_refresh"
 
     retry_headers = {}
 
-    async def fake_refresh():
+    async def fake_refresh() -> None:
         mock_klippy._jwt_token = "new_token"
 
     call_count = 0
 
-    async def fake_request(method, url, **kwargs):
+    async def fake_request(method: str, url: str, **kwargs: Any) -> httpx.Response:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -72,7 +76,7 @@ async def test_jwt_refresh_updates_headers_on_retry(mock_klippy):
 
 
 @pytest.mark.asyncio
-async def test_set_printing_filename_handles_bad_response(mock_klippy):
+async def test_set_printing_filename_handles_bad_response(mock_klippy: Klippy) -> None:
     error_response = httpx.Response(
         status_code=404,
         text='{"error": {"message": "File not found"}}',
@@ -84,7 +88,7 @@ async def test_set_printing_filename_handles_bad_response(mock_klippy):
     assert mock_klippy.printing_filename == "nonexistent_file.gcode"
 
 
-def test_progress_shows_current_and_object_height(mock_klippy):
+def test_progress_shows_current_and_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "height"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 5.2
@@ -93,7 +97,7 @@ def test_progress_shows_current_and_object_height(mock_klippy):
     assert "height: 5.2 / 19.6mm" in msg
 
 
-def test_start_shows_only_object_height(mock_klippy):
+def test_start_shows_only_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "height"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 15.3
@@ -103,7 +107,7 @@ def test_start_shows_only_object_height(mock_klippy):
     assert "15.3" not in msg
 
 
-def test_finish_shows_only_object_height(mock_klippy):
+def test_finish_shows_only_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "height"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 2.0
@@ -113,7 +117,7 @@ def test_finish_shows_only_object_height(mock_klippy):
     assert "2.0" not in msg
 
 
-def test_height_fallback_without_object_height(mock_klippy):
+def test_height_fallback_without_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "height"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 5.2
@@ -122,7 +126,7 @@ def test_height_fallback_without_object_height(mock_klippy):
     assert "height: 5.2mm" in msg
 
 
-def test_no_height_when_both_zero(mock_klippy):
+def test_no_height_when_both_zero(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "height"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 0.0
@@ -131,7 +135,7 @@ def test_no_height_when_both_zero(mock_klippy):
     assert "height" not in msg
 
 
-def test_start_shows_only_total_filament(mock_klippy):
+def test_start_shows_only_total_filament(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "filament_length", "filament_weight"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.filament_total = 5000.0
@@ -144,7 +148,7 @@ def test_start_shows_only_total_filament(mock_klippy):
     assert "/" not in msg.split("Filament:")[1]
 
 
-def test_finish_shows_only_used_filament(mock_klippy):
+def test_finish_shows_only_used_filament(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "filament_length", "filament_weight"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.filament_total = 5000.0
@@ -156,7 +160,7 @@ def test_finish_shows_only_used_filament(mock_klippy):
     assert "/" not in msg.split("Filament")[1]
 
 
-def test_finish_shows_printed_for(mock_klippy):
+def test_finish_shows_printed_for(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "print_duration"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_duration = 1800.0
@@ -165,7 +169,7 @@ def test_finish_shows_printed_for(mock_klippy):
     assert "Printing for" not in msg
 
 
-def test_finish_hides_eta(mock_klippy):
+def test_finish_hides_eta(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "eta", "finish_time"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.file_estimated_time = 3600.0
@@ -175,7 +179,7 @@ def test_finish_hides_eta(mock_klippy):
     assert "Finish at" not in msg
 
 
-def test_start_hides_duration(mock_klippy):
+def test_start_hides_duration(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "print_duration"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_duration = 1800.0
@@ -183,14 +187,15 @@ def test_start_hides_duration(mock_klippy):
     assert "Printing for" not in msg
 
 
-def test_title_bold(mock_klippy):
+def test_title_bold(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress"]
     mock_klippy._printing_filename = "test.gcode"
     msg = mock_klippy._get_printing_file_info()
-    assert "<b>" in msg and "</b>" in msg
+    assert "<b>" in msg
+    assert "</b>" in msg
 
 
-def test_progress_no_trailing_zero(mock_klippy):
+def test_progress_no_trailing_zero(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_progress = 0.8
@@ -200,7 +205,7 @@ def test_progress_no_trailing_zero(mock_klippy):
 
 
 @pytest.mark.asyncio
-async def test_switch_device_sync_delegates_to_async(mock_klippy):
+async def test_switch_device_sync_delegates_to_async(mock_klippy: Klippy) -> None:
     mock_klippy._loop = asyncio.get_running_loop()
     ok_response = httpx.Response(status_code=200, text='{"result":"ok"}', request=httpx.Request("POST", "http://localhost:7125/machine/device_power/device"))
     mock_klippy.make_request = AsyncMock(return_value=ok_response)
@@ -216,7 +221,7 @@ async def test_switch_device_sync_delegates_to_async(mock_klippy):
 
 
 @pytest.mark.asyncio
-async def test_execute_gcode_script_sync_delegates_to_async(mock_klippy):
+async def test_execute_gcode_script_sync_delegates_to_async(mock_klippy: Klippy) -> None:
     mock_klippy._loop = asyncio.get_running_loop()
     ok_response = httpx.Response(status_code=200, text='{"result":"ok"}', request=httpx.Request("GET", "http://localhost:7125/printer/gcode/script"))
     mock_klippy.make_request = AsyncMock(return_value=ok_response)
@@ -228,7 +233,7 @@ async def test_execute_gcode_script_sync_delegates_to_async(mock_klippy):
 
 
 @pytest.mark.asyncio
-async def test_switch_device_sync_reports_error(mock_klippy):
+async def test_switch_device_sync_reports_error(mock_klippy: Klippy) -> None:
     mock_klippy._loop = asyncio.get_running_loop()
     err_response = httpx.Response(
         status_code=400,

@@ -1,22 +1,27 @@
+from __future__ import annotations
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from io import BytesIO
 import logging
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
 import aiofiles
 import anyio
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
-from camera import Camera
-from configuration import ConfigWrapper
 from klippy import Klippy, PrintState
 from telegram_helper import TelegramMessageRepr
+
+if TYPE_CHECKING:
+    from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
+
+    from camera import Camera
+    from configuration import ConfigWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +48,7 @@ class Notifier:
         self._percent: int = config.notifications.percent
         self._height: float = config.notifications.height
         self._interval: int = config.notifications.interval
-        self._notify_groups: List[Tuple[int, Optional[int]]] = config.notifications.notify_groups
+        self._notify_groups: list[tuple[int, int | None]] = config.notifications.notify_groups
         self._group_only: bool = config.notifications.group_only
         self._max_upload_file_size: int = config.bot_config.max_upload_file_size
 
@@ -54,7 +59,7 @@ class Notifier:
         self._pin_status_single_message: bool = config.telegram_ui.pin_status_single_message
         self._status_message_m117_update: bool = config.telegram_ui.status_message_m117_update
         self._use_status_update_button: bool = config.telegram_ui.status_update_button
-        self._message_parts: List[str] = config.status_message_content.content
+        self._message_parts: list[str] = config.status_message_content.content
 
         self._last_height: float = 0
         self._below_threshold: bool = False
@@ -62,9 +67,9 @@ class Notifier:
         self._last_m117_status: str = ""
         self._last_tgnotify_status: str = ""
 
-        self._status_message: Optional[Message] = None
+        self._status_message: Message | None = None
         self._bzz_mess_id: int = 0
-        self._groups_status_messages: Dict[int, Message] = {}
+        self._groups_status_messages: dict[int, Message] = {}
 
         if logging_handler:
             logger.addHandler(logging_handler)
@@ -130,7 +135,7 @@ class Notifier:
             self._interval = new_value
             self._reschedule_notifier_timer()
 
-    def get_status_keyboard(self, state: PrintState) -> Optional[InlineKeyboardMarkup]:
+    def get_status_keyboard(self, state: PrintState) -> InlineKeyboardMarkup | None:
         inline_keyboard = None
         if self._use_status_update_button and not state.is_finished:
             inline_keyboard = InlineKeyboardMarkup(
@@ -218,7 +223,7 @@ class Notifier:
                 await self.reset_notifications()
 
     # manual notification methods
-    def send_error(self, message: str, logs_upload: bool = False, preformat_text: Optional[str] = None) -> None:
+    def send_error(self, message: str, logs_upload: bool = False, preformat_text: str | None = None) -> None:
         if preformat_text:
             message += f"\n<pre>{preformat_text}</pre>"
         if logs_upload:
@@ -494,7 +499,7 @@ class Notifier:
         return message_match.group(1) if message_match else ""
 
     @staticmethod
-    def _parse_path(ws_message: str) -> List[str]:
+    def _parse_path(ws_message: str) -> list[str]:
         path_match = re.search(r"path\s*=\s*\'(.[^\']*)\'", ws_message)
         path_list_math = re.search(r"path\s*=\s*\[(?:\,*\s*\'(.[^\']*)\'\,*\s*)+\]", ws_message)
 
@@ -506,9 +511,9 @@ class Notifier:
             path = [""]
         return path
 
-    async def _send_image(self, paths: List[str], message: str) -> None:
+    async def _send_image(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -550,9 +555,9 @@ class Notifier:
             replace_existing=False,
         )
 
-    async def _send_video(self, paths: List[str], message: str) -> None:
+    async def _send_video(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -595,9 +600,9 @@ class Notifier:
             replace_existing=False,
         )
 
-    async def _send_document(self, paths: List[str], message: str) -> None:
+    async def _send_document(self, paths: list[str], message: str) -> None:
         try:
-            photos_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+            photos_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
             for path in paths:
                 path_obj = anyio.Path(path)
                 if not await path_obj.is_file():
@@ -664,17 +669,16 @@ class Notifier:
             await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params" MSG="Full Notification config: {full_conf}"')
 
     async def send_custom_inline_keyboard(self, message: str) -> None:
-        def parse_button(mess: str) -> Optional[InlineKeyboardButton]:
+        def parse_button(mess: str) -> InlineKeyboardButton | None:
             name = re.search(r"name\s*=\s*\'(.[^\']*)\'", mess)
             command = re.search(r"command\s*=\s*\'(.[^\']*)\'", mess)
             if name and command:
                 gcode = "do_nothing" if command.group(1) == "delete" else f"gcode:{command.group(1)}"
                 return InlineKeyboardButton(name.group(1), callback_data=gcode)
-            else:
-                logger.warning("Bad command!")
-                return None
+            logger.warning("Bad command!")
+            return None
 
-        keyboard: List[List[InlineKeyboardButton]] = list(  # noqa: C417
+        keyboard: list[list[InlineKeyboardButton]] = list(  # noqa: C417
             map(
                 lambda el: list(
                     filter(

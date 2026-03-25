@@ -64,23 +64,30 @@ line-length = 200
 [tool.ruff.lint]
 select = [
     "A",     # flake8-builtins
+    "ARG",   # flake8-unused-arguments
     "ASYNC", # flake8-async
     "B",     # flake8-bugbear
     "C4",    # flake8-comprehensions
     "E",     # pycodestyle errors
     "F",     # pyflakes
+    "FA",    # flake8-future-annotations
     "FLY",   # flynt
     "FURB",  # refurb
     "G",     # flake8-logging-format
     "I",     # isort
     "ICN",   # flake8-import-conventions
+    "ISC",   # flake8-implicit-str-concat
     "LOG",   # flake8-logging
+    "N",     # pep8-naming
     "PERF",  # perflint
     "PIE",   # flake8-pie
+    "PT",    # flake8-pytest-style
     "PLC",   # pylint convention
     "PLE",   # pylint error
     "PLW",   # pylint warning
     "PTH",   # flake8-use-pathlib
+    "RET",   # flake8-return
+    "RSE",   # flake8-raise
     "RUF",   # ruff-specific
     "SIM",   # flake8-simplify
     "SLF",   # flake8-self
@@ -88,6 +95,7 @@ select = [
     "TCH",   # flake8-type-checking
     "TID",   # flake8-tidy-imports
     "TRY",   # tryceratops
+    "UP",    # pyupgrade
     "W",     # pycodestyle warnings
 ]
 ignore = [
@@ -111,7 +119,7 @@ known-first-party = [
     "telegram_helper",
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [ "SLF001" ]
+"tests/**/*.py" = [ "S101", "S105", "SLF001" ]
 
 [tool.codespell]
 skip = "uv.lock"
@@ -124,11 +132,18 @@ table_format = "long"
 
 [tool.mypy]
 python_version = "3.9"
-no_namespace_packages = true
-exclude = "tests"
+mypy_path = "bot"
 strict = true
 enable_error_code = [ "ignore-without-code" ]
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_decorators = false
+disable_error_code = [ "method-assign" ]
+[[tool.mypy.overrides]]
+module = "_pytest.*"
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 python_files = "*_test.py"
 testpaths = [ "tests" ]
+pythonpath = [ "bot" ]

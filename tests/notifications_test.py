@@ -1,9 +1,10 @@
+import logging
 from unittest.mock import MagicMock
 
-from bot.notifications import Notifier  # type: ignore
+from notifications import Notifier
 
 
-def make_notifier(height=5.0, percent=0):
+def make_notifier(height: float = 5.0, percent: int = 0) -> Notifier:
     config = MagicMock()
     config.secrets.chat_id = 123
     config.notifications.enabled = True
@@ -27,10 +28,10 @@ def make_notifier(height=5.0, percent=0):
     klippy.printing = True
     klippy.printing_duration = 100.0
 
-    return Notifier(config, MagicMock(), klippy, MagicMock(), MagicMock(), None)
+    return Notifier(config, MagicMock(), klippy, MagicMock(), MagicMock(), logging.NullHandler())
 
 
-def test_height_notification_triggers_at_threshold():
+def test_height_notification_triggers_at_threshold() -> None:
     n = make_notifier(height=2.5)
     n._schedule_notification = MagicMock()
 
@@ -56,7 +57,7 @@ def test_height_notification_triggers_at_threshold():
     assert n._schedule_notification.call_count == 3
 
 
-def test_height_notification_with_real_layers():
+def test_height_notification_with_real_layers() -> None:
     """With 0.2mm layers Z never lands exactly on 2.5 — must still trigger."""
     n = make_notifier(height=2.5)
     n._schedule_notification = MagicMock()
@@ -85,7 +86,7 @@ def test_height_notification_with_real_layers():
     assert n._schedule_notification.call_count == 2
 
 
-def test_height_notification_rejects_wild_z_jumps():
+def test_height_notification_rejects_wild_z_jumps() -> None:
     """Z far above threshold (start gcode, travel moves) should not fire."""
     n = make_notifier(height=2.5)
     n._schedule_notification = MagicMock()
@@ -111,7 +112,7 @@ def test_height_notification_rejects_wild_z_jumps():
     assert n._schedule_notification.call_count == 2
 
 
-def test_height_notification_sequential_objects():
+def test_height_notification_sequential_objects() -> None:
     """Z drops back to first layer between objects — should restart notifications."""
     n = make_notifier(height=2.5)
     n._schedule_notification = MagicMock()
@@ -141,7 +142,7 @@ def test_height_notification_sequential_objects():
     assert n._schedule_notification.call_count == 5
 
 
-def test_height_notification_guards():
+def test_height_notification_guards() -> None:
     n = make_notifier(height=5)
     n._schedule_notification = MagicMock()
 

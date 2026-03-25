@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from functools import wraps
 import logging
 import os
 import random
 import ssl
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import aiofiles
 import anyio
@@ -11,15 +13,18 @@ import anyio
 os.environ.setdefault("WEBSOCKETS_MAX_LOG_SIZE", "1048576")
 os.environ.setdefault("WEBSOCKETS_BACKOFF_MAX_DELAY", "15.0")
 
-from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 import orjson
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.protocol import State
 
-from configuration import ConfigWrapper
 from klippy import Klippy, PrintState
-from notifications import Notifier
-from timelapse import Timelapse
+
+if TYPE_CHECKING:
+    from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
+
+    from configuration import ConfigWrapper
+    from notifications import Notifier
+    from timelapse import Timelapse
 
 JSONRPC_METHOD_NOT_FOUND = -32601
 
@@ -38,8 +43,7 @@ def websocket_alive(func: F) -> F:
         if self.websocket is None:
             logger.warning("Websocket call `%s` on non initialized ws", func.__name__)
             return None
-        else:
-            return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
 
     return wrapper  # type: ignore[return-value]
 
@@ -85,7 +89,7 @@ class WebSocketHelper:
     def _next_request_id(self) -> int:
         return random.randint(0, 300000)
 
-    async def _send_jsonrpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    async def _send_jsonrpc(self, method: str, params: dict[str, Any] | None = None) -> None:
         request_id = self._next_request_id
         self._pending_requests[request_id] = method
         msg = {"jsonrpc": "2.0", "method": method, "id": request_id}
@@ -121,7 +125,7 @@ class WebSocketHelper:
         await self._notifier.stop_all()
         self._timelapse.stop_all()
 
-    async def status_response(self, status_resp: Dict[str, Any]) -> None:
+    async def status_response(self, status_resp: dict[str, Any]) -> None:
         if "print_stats" in status_resp:
             print_stats = status_resp["print_stats"]
             if print_stats["state"] in ["printing", "paused"]:
@@ -152,7 +156,7 @@ class WebSocketHelper:
 
         self.parse_sensors(status_resp)
 
-    async def notify_gcode_response(self, message_params: List[str]) -> None:
+    async def notify_gcode_response(self, message_params: list[str]) -> None:
         if self._timelapse.manual_mode:
             if "timelapse start" in message_params:
                 if not self._klippy.printing_filename:
@@ -199,7 +203,7 @@ class WebSocketHelper:
         if message_params_loc.startswith("tg_send_document"):
             self._notifier.send_document(message_params_loc)
 
-    async def notify_status_update(self, message_params: List[Dict[str, Any]]) -> None:
+    async def notify_status_update(self, message_params: list[dict[str, Any]]) -> None:
         message_params_loc = message_params[0]
         if "display_status" in message_params_loc:
             if "message" in message_params_loc["display_status"]:
@@ -224,7 +228,7 @@ class WebSocketHelper:
 
         self.parse_sensors(message_params_loc)
 
-    def parse_sensors(self, message_parts_loc: Dict[str, Any]) -> None:
+    def parse_sensors(self, message_parts_loc: dict[str, Any]) -> None:
         for sens in [key for key in message_parts_loc if key.startswith("temperature_sensor")]:
             self._klippy.update_sensor(sens.replace("temperature_sensor ", ""), message_parts_loc[sens])
 
@@ -240,7 +244,7 @@ class WebSocketHelper:
                 message_parts_loc[heater],
             )
 
-    async def parse_print_stats(self, message_params: List[Dict[str, Any]]) -> None:
+    async def parse_print_stats(self, message_params: list[dict[str, Any]]) -> None:
         state = ""
         print_stats_loc = message_params[0]["print_stats"]
         # Fixme:  maybe do not parse without state? history data may not be available
@@ -311,7 +315,7 @@ class WebSocketHelper:
         elif state:
             logger.error("Unknown state: %s", state)
 
-    def power_device_state(self, device: Dict[str, Any]) -> None:
+    def power_device_state(self, device: dict[str, Any]) -> None:
         device_name = device["device"]
         device_state = bool(device["status"] == "on")
         self._klippy.update_power_device(device_name, device)

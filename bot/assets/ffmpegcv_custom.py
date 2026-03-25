@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from ffmpegcv.ffmpeg_reader import FFmpegReader, get_outnumpyshape, get_videofilter_cpu  # type: ignore[import-untyped]
 from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
@@ -12,17 +14,17 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
         super().__init__()
 
     @staticmethod
-    def VideoReader(
+    def VideoReader(  # noqa: N802
         stream_url: str,
-        codec: Optional[str],
+        codec: str | None,
         pix_fmt: str,
-        crop_xywh: Optional[Tuple[int, int, int, int]],
-        resize: Optional[Tuple[int, int]],
+        crop_xywh: tuple[int, int, int, int] | None,
+        resize: tuple[int, int] | None,
         resize_keepratio: bool,
         resize_keepratioalign: str,
-        timeout: Optional[int],
+        timeout: int | None,
         videoinfo: Any,
-    ) -> "FFmpegReaderStreamRTCustom":
+    ) -> FFmpegReaderStreamRTCustom:
         vid = FFmpegReaderStreamRTCustom()
         videoinfo = videoinfo or get_info(stream_url, timeout)
         vid.origin_width = videoinfo.width
@@ -52,15 +54,15 @@ class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
         return vid
 
 
-def FFmpegReaderStreamRTCustomInit(
+def FFmpegReaderStreamRTCustomInit(  # noqa: N802
     stream_url: str,
-    codec: Optional[str] = None,
+    codec: str | None = None,
     pix_fmt: str = "bgr24",
-    crop_xywh: Optional[Tuple[int, int, int, int]] = None,
-    resize: Optional[Tuple[int, int]] = None,
+    crop_xywh: tuple[int, int, int, int] | None = None,
+    resize: tuple[int, int] | None = None,
     resize_keepratio: bool = True,
     resize_keepratioalign: str = "center",
-    timeout: Optional[int] = None,
+    timeout: int | None = None,
     videoinfo: Any = None,
 ) -> FFmpegReaderStreamRTCustom:
     return FFmpegReaderStreamRTCustom.VideoReader(stream_url, codec, pix_fmt, crop_xywh, resize, resize_keepratio, resize_keepratioalign, timeout=timeout, videoinfo=videoinfo)

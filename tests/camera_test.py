@@ -1,7 +1,8 @@
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from bot.camera import Camera
+from camera import Camera
 
 
 def make_camera(test_dir: Path) -> Camera:
@@ -33,7 +34,7 @@ def make_camera(test_dir: Path) -> Camera:
     klippy.printing = True
     klippy.printing_duration = 100.0
 
-    return Camera(config, klippy, None)
+    return Camera(config, klippy, logging.NullHandler())
 
 
 LAPSES_NAMES = ["lapse1", "lapse2", "lapse3", "lapse4"]

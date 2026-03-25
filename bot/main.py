@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import argparse
 import asyncio
-from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import faulthandler
@@ -17,7 +18,7 @@ import socket
 import subprocess
 import sys
 import tarfile
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 from zipfile import ZipFile
 
 import aiofiles
@@ -53,6 +54,9 @@ from notifications import Notifier
 from telegram_helper import TelegramMessageRepr
 from timelapse import Timelapse
 from websocket_helper import WebSocketHelper
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 with contextlib.suppress(ImportError):
     import uvloop
@@ -133,8 +137,8 @@ camera_wrap: Camera
 timelapse: Timelapse
 notifier: Notifier
 klippy: Klippy
-light_power_device: Optional[PowerDevice]
-psu_power_device: Optional[PowerDevice]
+light_power_device: PowerDevice | None
+psu_power_device: PowerDevice | None
 ws_helper: WebSocketHelper
 executors_pool: ThreadPoolExecutor = ThreadPoolExecutor(2, thread_name_prefix="bot_pool")
 
@@ -200,7 +204,7 @@ async def check_unfinished_lapses(bot: telegram.Bot) -> None:
     if not files:
         return
     await bot.send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.TYPING)
-    files_keys: List[List[InlineKeyboardButton]] = [[InlineKeyboardButton(text=el, callback_data=f"lapse:{hashlib.md5(el.encode()).hexdigest()}")] for el in files]
+    files_keys: list[list[InlineKeyboardButton]] = [[InlineKeyboardButton(text=el, callback_data=f"lapse:{hashlib.md5(el.encode()).hexdigest()}")] for el in files]
     files_keys.append(
         [
             InlineKeyboardButton(
@@ -387,7 +391,7 @@ async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(update=update, command="bot_restart", confirm_text="Restart bot?", exec_text="Restarting bot", callback_mess="bot_restart", exec_func=restart_bot())
 
 
-def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
+def prepare_log_files() -> tuple[list[str], bool, str | None]:
     dmesg_success = True
     dmesg_error = None
     log_dir = config_wrap.bot_config.log_path
@@ -452,7 +456,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
     )
 
     log_dir = config_wrap.bot_config.log_path
-    logs_list: List[Union[InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo]] = []
+    logs_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
     for log_file in prepare_log_files()[0]:
         try:
             log_file_path = log_dir / log_file
@@ -843,7 +847,7 @@ async def get_gcode_files(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
-    def create_file_button(element: Dict[str, Any]) -> List[InlineKeyboardButton]:
+    def create_file_button(element: dict[str, Any]) -> list[InlineKeyboardButton]:
         filename = element["path"] if "path" in element else element["filename"]
         return [
             InlineKeyboardButton(
@@ -853,7 +857,7 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
         ]
 
     gcodes = await klippy.get_gcode_files()
-    files_keys: List[List[InlineKeyboardButton]] = list(map(create_file_button, gcodes[offset : offset + 10]))
+    files_keys: list[list[InlineKeyboardButton]] = list(map(create_file_button, gcodes[offset : offset + 10]))
     if len(gcodes) > 10:
         arrows = []
         if offset >= 10:
@@ -883,7 +887,7 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
 
 
 async def services_keyboard_no_confirm(effective_message: Message) -> None:
-    def create_service_button(element: str) -> List[InlineKeyboardButton]:
+    def create_service_button(element: str) -> list[InlineKeyboardButton]:
         return [
             InlineKeyboardButton(
                 element,
@@ -892,7 +896,7 @@ async def services_keyboard_no_confirm(effective_message: Message) -> None:
         ]
 
     services = config_wrap.bot_config.services
-    service_keys: List[List[InlineKeyboardButton]] = list(map(create_service_button, services))
+    service_keys: list[list[InlineKeyboardButton]] = list(map(create_service_button, services))
 
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.TYPING)
     await effective_message.reply_text(
@@ -932,7 +936,7 @@ async def exec_gcode(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def get_macros_no_confirm(effective_message: Message) -> None:
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.TYPING)
-    files_keys: List[List[InlineKeyboardButton]] = [
+    files_keys: list[list[InlineKeyboardButton]] = [
         [
             InlineKeyboardButton(
                 el,
@@ -1110,7 +1114,7 @@ def bot_error_handler(_: object, context: CallbackContext) -> None:  # type: ign
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
 
-def create_keyboard() -> List[List[str]]:
+def create_keyboard() -> list[list[str]]:
     if not config_wrap.telegram_ui.buttons_default:
         return config_wrap.telegram_ui.buttons
 
@@ -1128,7 +1132,7 @@ def create_keyboard() -> List[List[str]]:
     return keyboard
 
 
-def bot_commands() -> Dict[str, str]:
+def bot_commands() -> dict[str, str]:
     commands = {
         "help": "list bot commands",
         "status": "send klipper status",
@@ -1179,7 +1183,7 @@ async def help_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         await help_command_no_confirm(update.effective_message)
 
 
-def prepare_command(marco: str) -> Optional[BotCommand]:
+def prepare_command(marco: str) -> BotCommand | None:
     if re.match("^[a-zA-Z0-9_]{1,32}$", marco):
         try:
             return BotCommand(marco.lower(), marco)
@@ -1191,7 +1195,7 @@ def prepare_command(marco: str) -> Optional[BotCommand]:
         return None
 
 
-def prepare_commands_list(macros: List[str], add_macros: bool) -> List[Any]:
+def prepare_commands_list(macros: list[str], add_macros: bool) -> list[Any]:
     commands = list(bot_commands().items())
     if add_macros:
         commands += list(filter(lambda el: el, map(prepare_command, macros)))  # type: ignore[arg-type]
@@ -1241,7 +1245,7 @@ def get_local_ip() -> str:
     return ip_address
 
 
-def start_bot(config: ConfigWrapper) -> Application:
+def start_bot(config: ConfigWrapper) -> Application:  # type: ignore[type-arg]
     app_builder = Application.builder()
     (
         app_builder.base_url(config_wrap.bot_config.api_url)
