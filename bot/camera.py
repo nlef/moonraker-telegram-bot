@@ -597,7 +597,7 @@ class Camera:
 
         return video_bytes, res_thumb_bytes, width, height, str(video_filepath), gcode_name
 
-    def cleanup(self, lapse_filename: str, force: bool = False) -> None:
+    def cleanup(self, lapse_filename: str, *, force: bool = False) -> None:
         lapse_dir = self._base_dir / lapse_filename
         if self._cleanup or force:
             for filename in lapse_dir.iterdir():
