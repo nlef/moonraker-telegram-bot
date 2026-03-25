@@ -215,7 +215,7 @@ class BotConfig(ConfigHelper):
             self._parsing_errors.append("Protocol must be specified in other configuration parameters")
 
         if self.http_proxy and self.socks_proxy:
-            self._parsing_errors.append("Proxy and Socks proxy are mutually exclusive. Only one type can be specified.")
+            self._parsing_errors.append("Http and Socks proxies are mutually exclusive. Only one type can be specified.")
             self.socks_proxy = ""
             self.http_proxy = ""
 
