@@ -742,7 +742,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Restarting bot", exec_func=restart_bot())
     elif query.data == "power_off_printer":
         assert psu_power_device is not None
-        await psu_power_device.switch_device(False)
+        await psu_power_device.turn_off()
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle off\nError: {psu_power_device.device_error}"
         else:
@@ -754,7 +754,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     elif query.data == "power_on_printer":
         assert psu_power_device is not None
-        await psu_power_device.switch_device(True)
+        await psu_power_device.turn_on()
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle on\nError: {psu_power_device.device_error}"
         else:

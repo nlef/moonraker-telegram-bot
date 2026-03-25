@@ -52,7 +52,7 @@ def cam_light_toggle(func: F) -> F:
             self.light_timer_event.clear()
             self.light_lock.acquire()
             self.light_need_off = True
-            self.light_device.switch_device_sync(True)
+            self.light_device.turn_on_sync()
             time.sleep(self.light_timeout)
             self.light_timer_event.set()
 
@@ -68,7 +68,7 @@ def cam_light_toggle(func: F) -> F:
                 if self.light_lock.locked():
                     self.light_lock.release()
                 self.light_need_off = False
-                self.light_device.switch_device_sync(False)
+                self.light_device.turn_off_sync()
             else:
                 logger.debug("light requests count: %s", self.light_requests)
 
