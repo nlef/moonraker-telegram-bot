@@ -162,7 +162,7 @@ class SecretsConfig(ConfigHelper):
         self.proxy_login: str = self._get_str("proxy_login", default="")
         self.proxy_password: str = self._get_str("proxy_password", default="")
 
-        if not (self.proxy_login and self.proxy_password):
+        if (self.proxy_login or self.proxy_password) and not (self.proxy_login and self.proxy_password):
             self._parsing_errors.append("Both proxy_login and proxy_password must be set, ignoring proxy credentials")
             self.proxy_login = ""
             self.proxy_password = ""
