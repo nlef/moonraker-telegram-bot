@@ -135,7 +135,15 @@ class ConfigHelper:
 
 class SecretsConfig(ConfigHelper):
     _section = "secrets"
-    _KNOWN_ITEMS: ClassVar[list[str]] = ["bot_token", "chat_id", "user", "password", "api_token", "proxy_login", "proxy_password"]
+    _KNOWN_ITEMS: ClassVar[list[str]] = [
+        "bot_token",
+        "chat_id",
+        "user",
+        "password",
+        "api_token",
+        "proxy_login",
+        "proxy_password",
+    ]
 
     def __init__(self, config: configparser.ConfigParser):
         secrets_path = Path(config.get("secrets", "secrets_path", fallback="")).expanduser()
