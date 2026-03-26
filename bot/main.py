@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 from typing import TYPE_CHECKING, Any
+import urllib.parse
 from zipfile import ZipFile
 
 import aiofiles
@@ -1248,7 +1249,7 @@ def get_local_ip() -> str:
 def start_bot(config: ConfigWrapper) -> Application:  # type: ignore[type-arg]
     app_builder = Application.builder()
     (
-        app_builder.base_url(config_wrap.bot_config.api_url)
+        app_builder.base_url(config.bot_config.api_url)
         .connection_pool_size(265)
         .pool_timeout(1)
         .connect_timeout(10)
@@ -1264,16 +1265,10 @@ def start_bot(config: ConfigWrapper) -> Application:  # type: ignore[type-arg]
         .token(config.secrets.token)
     )
 
-import urllib.parse
-
-  if config.secrets.proxy_login or config.secrets.proxy_password:
-      if not (config.secrets.proxy_login and config.secrets.proxy_password):
-          logger.warning("Both proxy_login and proxy_password must be set, ignoring proxy credentials")
-          proxy_creds = ""
-      else:
-          proxy_creds = f"{urllib.parse.quote(config.secrets.proxy_login, safe='')}:{urllib.parse.quote(config.secrets.proxy_password, safe='')}@"
-  else:
-      proxy_creds = ""
+    if config.secrets.proxy_login and config.secrets.proxy_password:
+        proxy_creds = f"{urllib.parse.quote(config.secrets.proxy_login, safe='')}:{urllib.parse.quote(config.secrets.proxy_password, safe='')}@"
+    else:
+        proxy_creds = ""
 
     proxy_uri = ""
 
@@ -1288,7 +1283,7 @@ import urllib.parse
 
     application = app_builder.build()
 
-    application.add_handler(MessageHandler(~filters.Chat(config_wrap.secrets.chat_id), unknown_chat))
+    application.add_handler(MessageHandler(~filters.Chat(config.secrets.chat_id), unknown_chat))
 
     application.add_handler(CallbackQueryHandler(button_lapse_handler, pattern="lapse:"))
     application.add_handler(CallbackQueryHandler(print_file_dialog_handler, pattern=re.compile("^\\S[^\\:]+\\.gcode$")))
