@@ -218,14 +218,14 @@ class Klippy:
     def connected(self) -> bool:
         return self._connected
 
-    async def connect(self) -> None:
+    async def on_connected(self) -> None:
         self._connected = True
         self.printing = False
         self.paused = False
         self._reset_file_info()
         await self._update_printer_objects()
 
-    async def disconnect(self) -> None:
+    async def on_disconnected(self) -> None:
         self._connected = False
         self.printing = False
         self.paused = False

@@ -349,7 +349,7 @@ class WebSocketHelper:
                     self._klippy.state = klippy_state
                     if klippy_state == "ready":
                         if self._ws.state is State.OPEN:
-                            await self._klippy.connect()
+                            await self._klippy.on_connected()
                             if self._klippy.state_message:
                                 self._notifier.send_error(f"Klippy changed state to {self._klippy.state}")
                                 self._klippy.state_message = ""
@@ -357,7 +357,7 @@ class WebSocketHelper:
                             if self._scheduler.get_job("ws_reschedule"):
                                 self._scheduler.remove_job("ws_reschedule")
                     elif klippy_state in ["error", "shutdown", "startup"]:
-                        await self._klippy.disconnect()
+                        await self._klippy.on_disconnected()
                         self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                         state_message = message_result["state_message"]
                         if self._klippy.state_message != state_message and klippy_state != "startup":
@@ -365,7 +365,7 @@ class WebSocketHelper:
                             self._notifier.send_error(f"Klippy changed state to {self._klippy.state}", logs_upload=True, preformat_text=self._klippy.state_message)
                     else:
                         logger.error("Unknown klippy state: %s", klippy_state)
-                        await self._klippy.disconnect()
+                        await self._klippy.on_disconnected()
                         self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
                     return
 
@@ -386,7 +386,7 @@ class WebSocketHelper:
             if message_method in ["notify_klippy_shutdown", "notify_klippy_disconnected"]:
                 logger.warning("klippy disconnect detected with message: %s", json_message["method"])
                 await self.stop_all()
-                await self._klippy.disconnect()
+                await self._klippy.on_disconnected()
                 self._scheduler.add_job(self.reschedule, "interval", seconds=2, id="ws_reschedule", replace_existing=True, coalesce=True, misfire_grace_time=10)
 
             if "params" not in json_message:
@@ -462,6 +462,6 @@ class WebSocketHelper:
             except Exception:
                 # Todo: add some TG notification?
                 logger.exception("Failed to reschedule or process websocket")
-                await self._klippy.disconnect()
+                await self._klippy.on_disconnected()
                 if self._scheduler.get_job("ws_reschedule"):
                     self._scheduler.remove_job("ws_reschedule")
