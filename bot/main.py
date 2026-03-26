@@ -1264,9 +1264,16 @@ def start_bot(config: ConfigWrapper) -> Application:  # type: ignore[type-arg]
         .token(config.secrets.token)
     )
 
-    proxy_creds = ""
-    if config.secrets.proxy_login and config.secrets.proxy_password:
-        proxy_creds = f"{config.secrets.proxy_login}:{config.secrets.proxy_password}@"
+import urllib.parse
+
+  if config.secrets.proxy_login or config.secrets.proxy_password:
+      if not (config.secrets.proxy_login and config.secrets.proxy_password):
+          logger.warning("Both proxy_login and proxy_password must be set, ignoring proxy credentials")
+          proxy_creds = ""
+      else:
+          proxy_creds = f"{urllib.parse.quote(config.secrets.proxy_login, safe='')}:{urllib.parse.quote(config.secrets.proxy_password, safe='')}@"
+  else:
+      proxy_creds = ""
 
     proxy_uri = ""
 
