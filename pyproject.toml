@@ -64,6 +64,7 @@ line-length = 200
 [tool.ruff.lint]
 select = [
     "A",     # flake8-builtins
+    "D",     # pydocstyle
     "ARG",   # flake8-unused-arguments
     "ASYNC", # flake8-async
     "B",     # flake8-bugbear
@@ -99,7 +100,13 @@ select = [
     "W",     # pycodestyle warnings
 ]
 ignore = [
-    "D",       # pydocstyle
+    "D102",    # undocumented-public-method
+    "D103",    # undocumented-public-function
+    "D104",    # undocumented-public-package
+    "D105",    # undocumented-magic-method
+    "D107",    # undocumented-public-init
+    "D203",    # incorrect-blank-line-before-class (conflicts with D211)
+    "D213",    # multi-line-summary-second-line (conflicts with D212)
     "E501",    # line length handled by formatter
     "PERF203", # try-except in loop — intentional error handling
     "RUF006",  # fire-and-forget asyncio task — existing pattern
@@ -119,7 +126,7 @@ known-first-party = [
     "telegram_helper",
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [ "S101", "S105", "SLF001" ]
+"tests/**/*.py" = [ "D100", "S101", "S105", "SLF001" ]
 
 [tool.codespell]
 skip = "uv.lock"

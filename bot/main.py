@@ -1,3 +1,5 @@
+"""Telegram bot entry point and main async loop."""
+
 from __future__ import annotations
 
 import argparse

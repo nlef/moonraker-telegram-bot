@@ -1,3 +1,5 @@
+"""Custom FFmpeg stream reader with low-latency RTSP/stream settings."""
+
 from __future__ import annotations
 
 import logging
@@ -10,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class FFmpegReaderStreamRTCustom(FFmpegReader):  # type: ignore[misc]
+    """FFmpeg stream reader tuned for low-latency real-time capture."""
+
     def __init__(self) -> None:
         super().__init__()
 

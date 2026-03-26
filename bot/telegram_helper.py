@@ -1,3 +1,5 @@
+"""Helper for building and sending Telegram messages with media support."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,6 +13,8 @@ if TYPE_CHECKING:
 
 
 class TelegramMessageRepr:
+    """Structured Telegram message representation."""
+
     def __init__(
         self,
         text: str = "",

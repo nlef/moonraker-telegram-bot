@@ -1,4 +1,5 @@
-# Todo: class for printer states!
+"""Moonraker HTTP/REST client for printer control and status."""
+
 from __future__ import annotations
 
 import asyncio
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class PrintState(Enum):
+    """Klipper print job states."""
+
     STANDBY = "standby"
     START = "start"
     PRINTING = "printing"
@@ -45,6 +48,8 @@ class PrintState(Enum):
 
 
 class PowerDevice:
+    """Moonraker power device with async on/off control."""
+
     def __init__(self, name: str, klippy_: Klippy) -> None:
         self.name: str = name
         self._state_lock_async = asyncio.Lock()
@@ -96,6 +101,8 @@ class PowerDevice:
 
 
 class Klippy:
+    """HTTP client for the Moonraker API."""
+
     _DATA_MACRO: Final = "bot_data"
 
     _SENSOR_PARAMS: Final = {"temperature": "temperature", "target": "target", "power": "power", "speed": "speed", "rpm": "rpm"}

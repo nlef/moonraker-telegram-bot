@@ -1,3 +1,5 @@
+"""INI-based configuration parsing and validation for all bot settings."""
+
 from __future__ import annotations
 
 import configparser
@@ -8,6 +10,8 @@ from typing import Any, Callable, ClassVar, Final
 
 
 class ConfigHelper:
+    """Base class for INI section parsers with typed getters and validation."""
+
     _section: str
     _KNOWN_ITEMS: ClassVar[list[str]]
 
@@ -134,6 +138,8 @@ class ConfigHelper:
 
 
 class SecretsConfig(ConfigHelper):
+    """Config for the [secrets] section."""
+
     _section = "secrets"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "bot_token",
@@ -177,6 +183,8 @@ class SecretsConfig(ConfigHelper):
 
 
 class BotConfig(ConfigHelper):
+    """Config for the [bot] section."""
+
     _section = "bot"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "bot_token",
@@ -251,6 +259,8 @@ class BotConfig(ConfigHelper):
 
 
 class CameraConfig(ConfigHelper):
+    """Config for the [camera] section."""
+
     _section = "camera"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "host",
@@ -290,6 +300,8 @@ class CameraConfig(ConfigHelper):
 
 
 class NotifierConfig(ConfigHelper):
+    """Config for the [progress_notification] section."""
+
     _section = "progress_notification"
     _KNOWN_ITEMS: ClassVar[list[str]] = ["percent", "height", "time", "groups", "group_only"]
 
@@ -321,6 +333,8 @@ class NotifierConfig(ConfigHelper):
 
 
 class TimelapseConfig(ConfigHelper):
+    """Config for the [timelapse] section."""
+
     _section = "timelapse"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "basedir",
@@ -372,6 +386,8 @@ class TimelapseConfig(ConfigHelper):
 
 
 class TelegramUIConfig(ConfigHelper):
+    """Config for the [telegram_ui] section."""
+
     _section = "telegram_ui"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "silent_progress",
@@ -450,6 +466,8 @@ class TelegramUIConfig(ConfigHelper):
 
 
 class StatusMessageContentConfig(ConfigHelper):
+    """Config for the [status_message_content] section."""
+
     _section = "status_message_content"
     _KNOWN_ITEMS: ClassVar[list[str]] = ["content", "sensors", "heaters", "fans", "moonraker_devices"]
     _MESSAGE_CONTENT: Final = [
@@ -475,6 +493,8 @@ class StatusMessageContentConfig(ConfigHelper):
 
 
 class ConfigWrapper:
+    """Top-level config loader that parses telegram.conf and assembles section configs."""
+
     def __init__(self, path: str):
         config = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         config.read(path)

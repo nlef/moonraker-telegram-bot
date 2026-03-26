@@ -1,3 +1,5 @@
+"""Print progress notifications and status message management for Telegram."""
+
 from __future__ import annotations
 
 import asyncio
@@ -27,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class Notifier:
+    """Sends print progress notifications and manages status messages in Telegram."""
+
     def __init__(
         self,
         config: ConfigWrapper,

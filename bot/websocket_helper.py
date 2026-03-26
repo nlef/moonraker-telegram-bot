@@ -1,3 +1,5 @@
+"""WebSocket client for Moonraker event subscriptions and reconnection handling."""
+
 from __future__ import annotations
 
 from functools import wraps
@@ -49,6 +51,8 @@ def websocket_alive(func: F) -> F:
 
 
 class WebSocketHelper:
+    """Subscribes to Moonraker printer events and dispatches them to the scheduler."""
+
     def __init__(
         self,
         config: ConfigWrapper,

@@ -1,3 +1,5 @@
+"""Timelapse video generation from frames captured during prints."""
+
 from __future__ import annotations
 
 import asyncio
@@ -31,6 +33,8 @@ def logging_callback(future: Future[Any]) -> None:
 
 
 class Timelapse:
+    """Captures frames during prints and encodes timelapse videos."""
+
     def __init__(
         self,
         config: ConfigWrapper,

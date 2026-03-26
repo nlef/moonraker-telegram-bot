@@ -1,3 +1,5 @@
+"""Camera backends for photo/video capture and timelapse frame storage."""
+
 from __future__ import annotations
 
 import asyncio
@@ -86,6 +88,8 @@ def os_nice(value: int) -> None:
 
 
 class Camera:
+    """Base camera backend."""
+
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
         self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
@@ -622,6 +626,8 @@ class Camera:
 
 
 class FFmpegCamera(Camera):
+    """Camera backend using FFmpeg for RTSP/stream capture."""
+
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         super().__init__(config, klippy, logging_handler)
 
@@ -634,6 +640,8 @@ class FFmpegCamera(Camera):
 
 
 class MjpegCamera(Camera):
+    """Camera backend using MJPEG snapshot/stream URLs."""
+
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         super().__init__(config, klippy, logging_handler)
         self._img_extension = "jpeg"
@@ -785,6 +793,8 @@ class MjpegCamera(Camera):
 
 
 class RawStreamCamera(MjpegCamera):
+    """Camera backend for direct H.264/snapshot passthrough without re-encoding."""
+
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler):
         super().__init__(config, klippy, logging_handler)
 
