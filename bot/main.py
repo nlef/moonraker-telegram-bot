@@ -1357,7 +1357,6 @@ if __name__ == "__main__":
     )
     system_args = parser.parse_args()
 
-    # Todo: os.chdir(Path(sys.path[0]).parent.absolute())
     os.chdir(sys.path[0])
 
     config_wrap = ConfigWrapper(system_args.configfile)

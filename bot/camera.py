@@ -164,8 +164,6 @@ class Camera:
                 cv2.ocl.setUseOpenCL(True)
                 logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
 
-            # Todo: write this back or remove useless code
-            # self._cv2_params: List = config.camera.cv2_params
             self._cv2_params: list[Any] = []
             cv2.setNumThreads(self._threads)
             self.cam_cam = cv2.VideoCapture()
@@ -480,7 +478,6 @@ class Camera:
     def _calculate_fps(self, frames_count: int) -> int:
         actual_duration = frames_count / self._target_fps
 
-        # Todo: check _max_lapse_duration > _min_lapse_duration
         if (
             (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
             or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0)
