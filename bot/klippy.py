@@ -108,6 +108,7 @@ class Klippy:
     _SENSOR_PARAMS: Final = ["temperature", "target", "power", "speed", "rpm"]
 
     _POWER_DEVICE_PARAMS: Final = ["device", "status", "locked_while_printing", "type", "is_shutdown"]
+    _MAX_CONNECT_RETRIES: Final = 10
 
     def __init__(
         self,
@@ -376,7 +377,7 @@ class Klippy:
 
     async def make_request(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30) -> httpx.Response:
         res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
-        if res.status_code == 401:  # Unauthorized
+        if res.status_code == httpx.codes.UNAUTHORIZED:
             logger.debug("JWT token expired, refreshing...")
             await self._refresh_moonraker_token()
             res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
@@ -392,7 +393,7 @@ class Klippy:
         connected = False
         retries = 0
         last_reason = ""
-        while not connected and retries < 10:
+        while not connected and retries < self._MAX_CONNECT_RETRIES:
             try:
                 response = await self.make_request("GET", "/printer/info", timeout=3)
                 connected = response.is_success
@@ -417,6 +418,7 @@ class Klippy:
 
     @staticmethod
     def _sensor_message(name: str, value: dict[str, Any]) -> str:
+        temp_display_threshold: Final = 2
         sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
         message = ""
 
@@ -431,7 +433,7 @@ class Klippy:
 
         if "temperature" in value:
             message += f" {round(value['temperature'])} \N{DEGREE SIGN}C"
-        if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > 2:
+        if "target" in value and value["target"] > 0.0 and abs(value["target"] - value["temperature"]) > temp_display_threshold:
             message += emoji.emojize(" :arrow_right: ", language="alias") + f"{round(value['target'])} \N{DEGREE SIGN}C"
         if "power" in value and value["power"] > 0.0:
             message += emoji.emojize(" :fire:", language="alias")

@@ -229,10 +229,10 @@ class BotConfig(ConfigHelper):
         self.log_parser: bool = self._get_boolean("log_parser", default=False)
 
         host_parts = self.host.split(":")
-        if len(host_parts) == 2 and host_parts[1].isdigit():
+        if len(host_parts) == 2 and host_parts[1].isdigit():  # noqa: PLR2004
             self.host = host_parts[0]
             self.port = int(host_parts[1])
-        elif len(host_parts) >= 2:
+        elif len(host_parts) >= 2:  # noqa: PLR2004
             self._parsing_errors.append("Protocol must be specified in other configuration parameters")
 
         if self.http_proxy and self.socks_proxy:
@@ -320,7 +320,7 @@ class NotifierConfig(ConfigHelper):
     def _get_group_with_thread_id(self, group_id: str) -> tuple[int, int | None] | None:
         try:
             parts = group_id.split(":")
-            if len(parts) == 2:
+            if len(parts) == 2:  # noqa: PLR2004
                 return int(parts[0]), int(parts[1])
             if len(parts) == 1:
                 return int(parts[0]), None

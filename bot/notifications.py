@@ -530,13 +530,12 @@ class Notifier:
                 async with aiofiles.open(path_obj, "rb") as fh:
                     bio.write(await fh.read())
                 bio.seek(0)
-                if bio.getbuffer().nbytes > 10485760:
-                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a 10mb filesize restriction for images, image couldn't be uploaded: `{path}`")
+                if bio.getbuffer().nbytes > self._max_upload_file_size * 1024 * 1024:
+                    await self._bot.send_message(self._chat_id, text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, image couldn't be uploaded: `{path}`")
+                elif not photos_list:
+                    photos_list.append(InputMediaPhoto(bio, filename=bio.name, caption=message))
                 else:
-                    if not photos_list:
-                        photos_list.append(InputMediaPhoto(bio, filename=bio.name, caption=message))
-                    else:
-                        photos_list.append(InputMediaPhoto(bio, filename=bio.name))
+                    photos_list.append(InputMediaPhoto(bio, filename=bio.name))
                 bio.close()
 
             await self._bot.send_media_group(
@@ -576,11 +575,10 @@ class Notifier:
                 bio.seek(0)
                 if bio.getbuffer().nbytes > self._max_upload_file_size * 1024 * 1024:
                     await self._bot.send_message(self._chat_id, text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, video couldn't be uploaded: `{path}`")
+                elif not photos_list:
+                    photos_list.append(InputMediaVideo(bio, filename=bio.name, caption=message))
                 else:
-                    if not photos_list:
-                        photos_list.append(InputMediaVideo(bio, filename=bio.name, caption=message))
-                    else:
-                        photos_list.append(InputMediaVideo(bio, filename=bio.name))
+                    photos_list.append(InputMediaVideo(bio, filename=bio.name))
                 bio.close()
 
             await self._bot.send_media_group(
@@ -621,11 +619,10 @@ class Notifier:
                 bio.seek(0)
                 if bio.getbuffer().nbytes > self._max_upload_file_size * 1024 * 1024:
                     await self._bot.send_message(self._chat_id, text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, document couldn't be uploaded: `{path}`")
+                elif not photos_list:
+                    photos_list.append(InputMediaDocument(bio, filename=bio.name, caption=message))
                 else:
-                    if not photos_list:
-                        photos_list.append(InputMediaDocument(bio, filename=bio.name, caption=message))
-                    else:
-                        photos_list.append(InputMediaDocument(bio, filename=bio.name))
+                    photos_list.append(InputMediaDocument(bio, filename=bio.name))
                 bio.close()
 
             await self._bot.send_media_group(

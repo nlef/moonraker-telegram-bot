@@ -20,7 +20,7 @@ import socket
 import subprocess
 import sys
 import tarfile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 import urllib.parse
 from zipfile import ZipFile
 
@@ -134,6 +134,9 @@ a_scheduler = AsyncIOScheduler(
 )
 a_scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
+_GCODE_FILES_PER_PAGE: Final = 10
+_MAX_BOT_COMMANDS: Final = 100
+
 config_wrap: ConfigWrapper
 main_pid = os.getpid()
 camera_wrap: Camera
@@ -184,11 +187,10 @@ async def status_no_confirm(effective_message: Message) -> None:
                 else:
                     await message.send_as_reply(effective_message, photo=bio)
                 bio.close()
+        elif is_inline_button_press:
+            await message.update_existing(effective_message)
         else:
-            if is_inline_button_press:
-                await message.update_existing(effective_message)
-            else:
-                await message.send_as_reply(effective_message)
+            await message.send_as_reply(effective_message)
 
 
 async def status(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -545,7 +547,7 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
 
     async with aiofiles.open(config_wrap.bot_config.log_file.parent / "logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
         resp = await client_loc.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": await log_archive_ojb.read()}, follow_redirects=False, timeout=25)
-        if resp.status_code < 400:
+        if not resp.is_error:
             logs_path = resp.headers["location"]
             logger.info(logs_path)
             await resp_message.edit_text(f"Logs are available at https://coderus.openrepos.net{logs_path}")
@@ -885,14 +887,14 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
         ]
 
     gcodes = await klippy.get_gcode_files()
-    files_keys: list[list[InlineKeyboardButton]] = list(map(create_file_button, gcodes[offset : offset + 10]))
-    if len(gcodes) > 10:
+    files_keys: list[list[InlineKeyboardButton]] = list(map(create_file_button, gcodes[offset : offset + _GCODE_FILES_PER_PAGE]))
+    if len(gcodes) > _GCODE_FILES_PER_PAGE:
         arrows = []
-        if offset >= 10:
+        if offset >= _GCODE_FILES_PER_PAGE:
             arrows.append(
                 InlineKeyboardButton(
                     emoji.emojize(":arrow_backward:previous", language="alias"),
-                    callback_data=f"gcode_files_offset:{offset - 10}",
+                    callback_data=f"gcode_files_offset:{offset - _GCODE_FILES_PER_PAGE}",
                 ),
             )
         arrows.append(
@@ -901,11 +903,11 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
                 callback_data="do_nothing",
             ),
         )
-        if offset + 10 <= len(gcodes):
+        if offset + _GCODE_FILES_PER_PAGE <= len(gcodes):
             arrows.append(
                 InlineKeyboardButton(
                     emoji.emojize("next:arrow_forward:", language="alias"),
-                    callback_data=f"gcode_files_offset:{offset + 10}",
+                    callback_data=f"gcode_files_offset:{offset + _GCODE_FILES_PER_PAGE}",
                 ),
             )
 
@@ -1097,43 +1099,42 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                 disable_notification=notifier.silent_commands,
                 do_quote=True,
             )
+        elif await klippy.upload_gcode_file(sending_bio, config_wrap.bot_config.upload_path):
+            start_pre_mess = "Successfully uploaded file:"
+            mess, thumb = await klippy.get_file_info_by_name(
+                f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
+                f"{start_pre_mess}{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
+            )
+            filehash = f"{hashlib.md5(doc.file_name.encode()).hexdigest()}.gcode"
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        emoji.emojize(":robot: print file", language="alias"),
+                        callback_data=f"print_file:{filehash}",
+                    ),
+                    InlineKeyboardButton(
+                        emoji.emojize(":cross_mark: do nothing", language="alias"),
+                        callback_data="do_nothing",
+                    ),
+                ],
+            ]
+            await update.effective_message.reply_photo(
+                photo=thumb,
+                caption=mess,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                disable_notification=notifier.silent_commands,
+                do_quote=True,
+                caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}"))],
+            )
+            thumb.close()
+            # Todo: delete uploaded file
+            # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
         else:
-            if await klippy.upload_gcode_file(sending_bio, config_wrap.bot_config.upload_path):
-                start_pre_mess = "Successfully uploaded file:"
-                mess, thumb = await klippy.get_file_info_by_name(
-                    f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
-                    f"{start_pre_mess}{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
-                )
-                filehash = f"{hashlib.md5(doc.file_name.encode()).hexdigest()}.gcode"
-                keyboard = [
-                    [
-                        InlineKeyboardButton(
-                            emoji.emojize(":robot: print file", language="alias"),
-                            callback_data=f"print_file:{filehash}",
-                        ),
-                        InlineKeyboardButton(
-                            emoji.emojize(":cross_mark: do nothing", language="alias"),
-                            callback_data="do_nothing",
-                        ),
-                    ],
-                ]
-                await update.effective_message.reply_photo(
-                    photo=thumb,
-                    caption=mess,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    disable_notification=notifier.silent_commands,
-                    do_quote=True,
-                    caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}"))],
-                )
-                thumb.close()
-                # Todo: delete uploaded file
-                # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
-            else:
-                await update.effective_message.reply_text(
-                    f"Failed uploading file: {sending_bio.name}",
-                    disable_notification=notifier.silent_commands,
-                    do_quote=True,
-                )
+            await update.effective_message.reply_text(
+                f"Failed uploading file: {sending_bio.name}",
+                disable_notification=notifier.silent_commands,
+                do_quote=True,
+            )
 
     uploaded_bio.close()
     sending_bio.close()
@@ -1228,9 +1229,9 @@ def prepare_commands_list(macros: list[str], add_macros: bool) -> list[Any]:
     commands = list(bot_commands().items())
     if add_macros:
         commands += list(filter(lambda el: el, map(prepare_command, macros)))  # type: ignore[arg-type]
-        if len(commands) >= 100:
+        if len(commands) >= _MAX_BOT_COMMANDS:
             logger.warning("Commands list too large!")
-            commands = commands[0:99]
+            commands = commands[0 : _MAX_BOT_COMMANDS - 1]
     return commands
 
 
