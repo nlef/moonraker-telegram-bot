@@ -89,6 +89,7 @@ select = [
     "PLE",   # pylint error
     "PLW",   # pylint warning
     "PTH",   # flake8-use-pathlib
+    "PYI",   # flake8-pyi
     "RET",   # flake8-return
     "RSE",   # flake8-raise
     "RUF",   # ruff-specific

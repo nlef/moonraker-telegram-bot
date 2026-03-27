@@ -40,11 +40,11 @@ class ConfigHelper:
     def _check_numerical_value(
         self,
         option: str,
-        value: int | float,
-        above: int | float | None = None,
-        below: int | float | None = None,
-        min_value: int | float | None = None,
-        max_value: int | float | None = None,
+        value: float,
+        above: float | None = None,
+        below: float | None = None,
+        min_value: float | None = None,
+        max_value: float | None = None,
     ) -> None:
         if not self._config.has_option(self._section, option):
             return
@@ -85,10 +85,10 @@ class ConfigHelper:
         self,
         option: str,
         default: int | None = None,
-        above: int | float | None = None,
-        below: int | float | None = None,
-        min_value: int | float | None = None,
-        max_value: int | float | None = None,
+        above: float | None = None,
+        below: float | None = None,
+        min_value: float | None = None,
+        max_value: float | None = None,
     ) -> int:
         val: int = self._get_option_value(self._config.getint, option, default)
         self._check_numerical_value(option, val, above, below, min_value, max_value)
@@ -98,10 +98,10 @@ class ConfigHelper:
         self,
         option: str,
         default: float | None = None,
-        above: int | float | None = None,
-        below: int | float | None = None,
-        min_value: int | float | None = None,
-        max_value: int | float | None = None,
+        above: float | None = None,
+        below: float | None = None,
+        min_value: float | None = None,
+        max_value: float | None = None,
     ) -> float:
         val: float = self._get_option_value(self._config.getfloat, option, default)
         self._check_numerical_value(option, val, above, below, min_value, max_value)
