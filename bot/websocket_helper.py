@@ -22,6 +22,8 @@ from websockets.protocol import State
 from klippy import Klippy, PrintState
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 
     from configuration import ConfigWrapper
@@ -75,6 +77,7 @@ class WebSocketHelper:
         self._timelapse: Timelapse = timelapse
         self._scheduler: BaseScheduler = scheduler
         self._log_parser: bool = config.bot_config.log_parser
+        self._log_file: Path = config.bot_config.log_file
 
         self._ws: ClientConnection
         self._pending_requests: dict[int, str] = {}
@@ -426,7 +429,7 @@ class WebSocketHelper:
         await self._send_jsonrpc("printer.gcode.script", {"script": gcode})
 
     async def parselog(self) -> None:
-        async with aiofiles.open("../telegram.log", encoding="utf-8") as file:
+        async with aiofiles.open(self._log_file, encoding="utf-8") as file:
             lines = await file.readlines()
 
         wslines = list(filter(lambda it: " - b'{" in it, lines))
@@ -437,6 +440,9 @@ class WebSocketHelper:
             await anyio.sleep(0.01)
 
     async def run_forever_async(self) -> None:
+        if self._log_parser:
+            await self.parselog()
+
         # Todo: use headers instead of inline token
         async for websocket in connect(
             uri=f"{self._protocol}://{self._host}:{self._port}/websocket{await self._klippy.get_one_shot_token()}",
