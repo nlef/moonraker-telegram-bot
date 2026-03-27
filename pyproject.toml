@@ -91,6 +91,7 @@ select = [
     "RET",   # flake8-return
     "RSE",   # flake8-raise
     "RUF",   # ruff-specific
+    "S101",  # assert
     "SIM",   # flake8-simplify
     "SLF",   # flake8-self
     "T20",   # flake8-print
@@ -113,6 +114,7 @@ ignore = [
     "RUF006",  # fire-and-forget asyncio task — existing pattern
     "SIM108",  # ternary — would produce very long lines
     "TD",      # flake8-todos
+    "TRY003",  # long exception messages — not worth extracting
 ]
 [tool.ruff.lint.isort]
 force-sort-within-sections = true

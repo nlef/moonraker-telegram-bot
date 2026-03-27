@@ -736,7 +736,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.delete_message()
         await command_exec(effective_message=update.effective_message.reply_to_message, exec_text="Restarting bot", exec_func=restart_bot())
     elif query.data == "power_off_printer":
-        assert psu_power_device is not None
+        if psu_power_device is None:
+            return
         await psu_power_device.turn_off()
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle off\nError: {psu_power_device.device_error}"
@@ -748,7 +749,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             do_quote=True,
         )
     elif query.data == "power_on_printer":
-        assert psu_power_device is not None
+        if psu_power_device is None:
+            return
         await psu_power_device.turn_on()
         if psu_power_device.device_error:
             mess = f"Device `{psu_power_device.name}` failed to toggle on\nError: {psu_power_device.device_error}"
@@ -1406,7 +1408,8 @@ if __name__ == "__main__":
 
     ws_helper = WebSocketHelper(config_wrap, klippy, notifier, timelapse, a_scheduler, rotating_handler)
 
-    assert bot_updater.job_queue is not None
+    if bot_updater.job_queue is None:
+        raise RuntimeError("job_queue is not initialized")
     bot_updater.job_queue.run_once(start_scheduler, 1)
     bot_updater.run_polling(allowed_updates=Update.ALL_TYPES)
 

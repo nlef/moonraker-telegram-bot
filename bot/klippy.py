@@ -175,7 +175,8 @@ class Klippy:
         await self._auth_moonraker()
 
     def call_async(self, coro: Coroutine[Any, Any, T]) -> T:
-        assert self._loop is not None, "Event loop not set. Call async_init() first."
+        if self._loop is None:
+            raise RuntimeError("Event loop not set. Call async_init() first.")
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result()
 
     def prepare_sens_dict_subscribe(self) -> dict[str, Any]:

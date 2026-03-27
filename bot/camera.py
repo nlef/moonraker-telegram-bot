@@ -497,7 +497,7 @@ class Camera:
 
     def _create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message, loop: asyncio.AbstractEventLoop) -> tuple[bytes, bytes, int, int, str, str]:
         if not printing_filename:
-            raise ValueError("Gcode file name is empty")  # noqa: TRY003
+            raise ValueError("Gcode file name is empty")
 
         while self.light_need_off:
             time.sleep(1)
@@ -509,7 +509,7 @@ class Camera:
         raw_frames = list(lapse_dir.glob(f"*.{self._raw_frame_extension}"))
         photo_count = len(raw_frames)
         if photo_count == 0:
-            raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")  # noqa: TRY003
+            raise ValueError(f"Empty photos list for {printing_filename} in lapse path {lapse_dir}")
 
         lock_file = lapse_dir / "lapse.lock"
         if not lock_file.is_file():
