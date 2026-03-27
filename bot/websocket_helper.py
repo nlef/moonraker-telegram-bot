@@ -5,7 +5,6 @@ from __future__ import annotations
 from functools import wraps
 import logging
 import os
-import random
 import ssl
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
@@ -81,6 +80,7 @@ class WebSocketHelper:
 
         self._ws: ClientConnection
         self._pending_requests: dict[int, str] = {}
+        self._request_id_counter: int = 0
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
@@ -94,7 +94,8 @@ class WebSocketHelper:
 
     @property
     def _next_request_id(self) -> int:
-        return random.randint(0, 300000)
+        self._request_id_counter += 1
+        return self._request_id_counter
 
     async def _send_jsonrpc(self, method: str, params: dict[str, Any] | None = None) -> None:
         request_id = self._next_request_id
