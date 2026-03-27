@@ -194,7 +194,7 @@ class Timelapse:
         elif self._running:
             self._add_timelapse_timer()
 
-    def take_lapse_photo(self, position_z: float = -1001, manually: bool = False, gcode: bool = False) -> None:
+    def take_lapse_photo(self, position_z: float | None = None, manually: bool = False, gcode: bool = False) -> None:
         if not self._enabled:
             logger.debug("lapse is disabled")
             return
@@ -213,11 +213,11 @@ class Timelapse:
 
         gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
 
-        if self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
+        if position_z is None:
+            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
+        elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
-        elif position_z < -1000:
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
 
     def take_test_lapse_photo(self) -> None:
         self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
