@@ -494,14 +494,14 @@ class StatusMessageContentConfig(ConfigHelper):
 class ConfigWrapper:
     """Top-level config loader that parses telegram.conf and assembles section configs."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: Path):
         config = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         config.read(path)
 
         for sec in config.sections():
             if sec.startswith("include"):
                 addit_conf = sec.replace("include", "").strip()
-                config.read(Path(path).parent.joinpath(addit_conf))
+                config.read(path.parent / addit_conf)
 
         self._config = config
         self.secrets = SecretsConfig(config)

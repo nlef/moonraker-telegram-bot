@@ -14,18 +14,18 @@ CONFIG_WITH_AUTH_PATH = "tests/resources/telegram_with_auth.conf"
 
 
 def test_template_config_has_no_errors() -> None:
-    config_path = pathlib.Path(CONFIG_TEMPLATE_PATH).absolute().as_posix()
+    config_path = pathlib.Path(CONFIG_TEMPLATE_PATH).absolute()
     assert ConfigWrapper(config_path).configuration_errors == ""
 
 
 def test_minimal_config_has_no_errors() -> None:
-    config_path = pathlib.Path(CONFIG_MINIMAL_PATH).absolute().as_posix()
+    config_path = pathlib.Path(CONFIG_MINIMAL_PATH).absolute()
     assert ConfigWrapper(config_path).configuration_errors == ""
 
 
 @pytest.fixture
 def config_secrets_helper() -> ConfigWrapper:
-    config_path = pathlib.Path(CONFIG_WITH_SECRETS_PATH).absolute().as_posix()
+    config_path = pathlib.Path(CONFIG_WITH_SECRETS_PATH).absolute()
     return ConfigWrapper(config_path)
 
 
@@ -40,7 +40,7 @@ def test_config_with_secrets_is_valid(config_secrets_helper: ConfigWrapper) -> N
 
 @pytest.fixture
 def config_helper() -> ConfigWrapper:
-    config_path = pathlib.Path(CONFIG_PATH).absolute().as_posix()
+    config_path = pathlib.Path(CONFIG_PATH).absolute()
     return ConfigWrapper(config_path)
 
 
@@ -55,7 +55,7 @@ def test_config_bot_is_valid(config_helper: ConfigWrapper) -> None:
 
 @pytest.fixture
 def config_with_auth(tmp_path: Path) -> ConfigWrapper:
-    config_path = pathlib.Path(CONFIG_WITH_AUTH_PATH).absolute().as_posix()
+    config_path = pathlib.Path(CONFIG_WITH_AUTH_PATH).absolute()
     wrapper = ConfigWrapper(config_path)
     wrapper.bot_config.log_file = tmp_path / "bot.log"
     return wrapper

@@ -1338,7 +1338,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c",
         "--configfile",
-        default="./telegram.conf",
+        type=Path,
+        default=Path("./telegram.conf"),
         metavar="<configfile>",
         help="Location of moonraker telegram bot configuration file",
     )
