@@ -113,7 +113,7 @@ class Klippy:
         self,
         config: ConfigWrapper,
         logging_handler: logging.Handler,
-    ):
+    ) -> None:
         self._protocol: str = "https" if config.bot_config.ssl else "http"
         self._host: str = f"{self._protocol}://{config.bot_config.host}:{config.bot_config.port}"
         self._ssl_verify: bool = config.bot_config.ssl_verify

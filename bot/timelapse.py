@@ -43,7 +43,7 @@ class Timelapse:
         scheduler: BaseScheduler,
         bot: Bot,
         logging_handler: logging.Handler,
-    ):
+    ) -> None:
         self._enabled: bool = config.timelapse.enabled and camera.enabled
         self._mode_manual: bool = config.timelapse.mode_manual
         self._height: float = config.timelapse.height

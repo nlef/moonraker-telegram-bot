@@ -65,11 +65,12 @@ line-length = 200
 [tool.ruff.lint]
 select = [
     "A",     # flake8-builtins
-    "D",     # pydocstyle
+    "ANN",   # flake8-annotations
     "ARG",   # flake8-unused-arguments
     "ASYNC", # flake8-async
     "B",     # flake8-bugbear
     "C4",    # flake8-comprehensions
+    "D",     # pydocstyle
     "E",     # pycodestyle errors
     "F",     # pyflakes
     "FA",    # flake8-future-annotations
@@ -102,6 +103,7 @@ select = [
     "W",     # pycodestyle warnings
 ]
 ignore = [
+    "ANN401",  # any-type — too strict
     "D102",    # undocumented-public-method
     "D103",    # undocumented-public-function
     "D104",    # undocumented-public-package

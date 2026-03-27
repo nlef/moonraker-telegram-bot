@@ -15,7 +15,7 @@ class ConfigHelper:
     _section: str
     _KNOWN_ITEMS: ClassVar[list[str]]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         self._config = config
         self._parsing_errors: list[str] = []
 
@@ -151,7 +151,7 @@ class SecretsConfig(ConfigHelper):
         "proxy_password",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         secrets_path = Path(config.get("secrets", "secrets_path", fallback="")).expanduser()
         secrets_path_default_name = (secrets_path / "secrets.conf").expanduser()
         conf = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
@@ -208,7 +208,7 @@ class BotConfig(ConfigHelper):
         "services",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
 
         # Todo: validate server addr have ho port or protocol!
@@ -277,7 +277,7 @@ class CameraConfig(ConfigHelper):
         "type",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
         self.cam_type: str = self._get_str("type", default="mjpeg", allowed_values=["opencv", "ffmpeg", "mjpeg", "raw_stream"])
@@ -304,7 +304,7 @@ class NotifierConfig(ConfigHelper):
     _section = "progress_notification"
     _KNOWN_ITEMS: ClassVar[list[str]] = ["percent", "height", "time", "groups", "group_only"]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
         self.percent: int = self._get_int("percent", default=0, min_value=0)
@@ -354,7 +354,7 @@ class TimelapseConfig(ConfigHelper):
         "raw_compressed",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
         self.enabled: bool = config.has_section(self._section)
         self.base_dir: Path = Path(self._get_str("basedir", default="~/moonraker-telegram-bot-timelapse"))
@@ -419,7 +419,7 @@ class TelegramUIConfig(ConfigHelper):
         "last_update_time",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
         self.eta_source: str = self._get_str("eta_source", default="slicer", allowed_values=["slicer", "file"])
         self.buttons_default: bool = bool(not config.has_option(self._section, "buttons"))
@@ -482,7 +482,7 @@ class StatusMessageContentConfig(ConfigHelper):
         "last_update_time",
     ]
 
-    def __init__(self, config: configparser.ConfigParser):
+    def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
         self.content: list[str] = self._get_list("content", default=self._MESSAGE_CONTENT, allowed_values=self._MESSAGE_CONTENT)
         self.sensors: list[str] = self._get_list("sensors", default=[])
@@ -494,7 +494,7 @@ class StatusMessageContentConfig(ConfigHelper):
 class ConfigWrapper:
     """Top-level config loader that parses telegram.conf and assembles section configs."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path) -> None:
         config = configparser.ConfigParser(allow_no_value=True, inline_comment_prefixes=(";", "#"))
         config.read(path)
 

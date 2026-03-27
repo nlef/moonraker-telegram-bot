@@ -39,7 +39,7 @@ class Notifier:
         camera_wrapper: Camera,
         scheduler: BaseScheduler,
         logging_handler: logging.Handler,
-    ):
+    ) -> None:
         self._bot: Bot = bot
         self._chat_id: int = config.secrets.chat_id
         self._cam_wrap: Camera = camera_wrapper

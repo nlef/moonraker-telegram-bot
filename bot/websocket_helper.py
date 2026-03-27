@@ -62,7 +62,7 @@ class WebSocketHelper:
         timelapse: Timelapse,
         scheduler: BaseScheduler,
         logging_handler: logging.Handler,
-    ):
+    ) -> None:
         self._host: str = config.bot_config.host
         self._port = config.bot_config.port
         self._protocol: str = "wss" if config.bot_config.ssl else "ws"
