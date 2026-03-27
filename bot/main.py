@@ -1053,7 +1053,7 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    # Todo: add context management!
+    # TODO: add context management!
     uploaded_bio = BytesIO()
     uploaded_bio.name = doc.file_name
     uploaded_bio.write(file_byte_array)
@@ -1127,7 +1127,7 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                 caption_entities=[MessageEntity(type="bold", offset=len(start_pre_mess), length=len(f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}"))],
             )
             thumb.close()
-            # Todo: delete uploaded file
+            # TODO: delete uploaded file
             # bot.delete_message(update.effective_message.chat_id, update.effective_message.message_id)
         else:
             await update.effective_message.reply_text(
@@ -1189,7 +1189,7 @@ def bot_commands() -> dict[str, str]:
 
 
 async def help_command_no_confirm(effective_message: Message) -> None:
-    ## Fixme: escape symbols???  from telegram.utils.helpers import escape
+    ## TODO: [fixme] escape symbols???  from telegram.utils.helpers import escape
     mess = (
         await klippy.get_versions_info(bot_only=True)
         + ("\n".join([f"/{c} - {a}" for c, a in bot_commands().items()]))

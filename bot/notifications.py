@@ -397,7 +397,7 @@ class Notifier:
 
     def add_notifier_timer(self) -> None:
         if self._interval > 0:
-            # Todo: maybe check if job exists?
+            # TODO: maybe check if job exists?
             self._sched.add_job(
                 self._notify_by_time,
                 "interval",
@@ -424,7 +424,7 @@ class Notifier:
         await self.reset_notifications()
         self.remove_notifier_timer()
 
-    # Todo: refactor with TelegramMessageRepr class
+    # TODO: refactor with TelegramMessageRepr class
     async def _send_print_start_info(self) -> None:
         message, bio = await self._klippy.get_file_info(state=PrintState.START)
 
@@ -465,7 +465,7 @@ class Notifier:
                 max_instances=1,
                 replace_existing=True,
             )
-        # Todo: reset something? or check if reset by setting new filename?
+        # TODO: reset something? or check if reset by setting new filename?
 
     async def _send_print_finish(self) -> None:
         self._schedule_notification(state=PrintState.FINISH)

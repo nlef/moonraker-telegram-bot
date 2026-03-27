@@ -158,7 +158,7 @@ class Klippy:
         self._jwt_token: str = ""
         self._refresh_token: str = ""
 
-        # Todo: create sensors class!!
+        # TODO: create sensors class!!
         self._objects_list: list[str] = []
         self._sensors_dict: dict[str, dict[str, Any]] = {}
         self._power_devices: dict[str, Any] = {}
@@ -189,7 +189,7 @@ class Klippy:
                 if elem.split(" ")[-1] == heat:
                     sens_dict[elem] = None
             for sens in self._sensors_list:
-                if elem.split(" ")[-1] == sens and "sensor" in elem:  # Todo: add adc\thermistor
+                if elem.split(" ")[-1] == sens and "sensor" in elem:  # TODO: add adc\thermistor
                     sens_dict[elem] = None
             for fan in self._fans_list:
                 if elem.split(" ")[-1] == fan and "fan" in elem:
@@ -234,7 +234,7 @@ class Klippy:
         self._reset_file_info()
         self._objects_list = []
 
-    # Todo: save macros list until klippy restart
+    # TODO: save macros list until klippy restart
     @property
     def macros(self) -> list[str]:
         return self._get_macro_list()
@@ -294,7 +294,7 @@ class Klippy:
     async def set_printing_filename(self, new_value: str) -> None:
         if new_value == self._printing_filename:
             logger.info("'filename' has the same value as the current: %s", new_value)
-            # Fixme: maybe we should reset file info on all filename updates?
+            # TODO: [fixme] maybe we should reset file info on all filename updates?
             self._reset_file_info()
             return
 
@@ -389,7 +389,7 @@ class Klippy:
 
                 if connected:
                     return ""
-                # Todo: get reason from error handler
+                # TODO: get reason from error handler
                 last_reason = f"{response.status_code}"
             except Exception:
                 logger.exception("Failed to check connection")
@@ -576,7 +576,7 @@ class Klippy:
         print_stats = resp_json["result"]["status"]["print_stats"]
         message = ""
 
-        # Todo: refactor!
+        # TODO: refactor!
         if print_stats["state"] == "printing":
             if not self.printing_filename:
                 await self.set_printing_filename(print_stats["filename"])
@@ -671,7 +671,7 @@ class Klippy:
         if res.is_success:
             return orjson.loads(res.text)["result"]["value"]
         logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
-        # Fixme: return default value? check for 404!
+        # TODO: [fixme] return default value? check for 404!
         return None
 
     async def save_param_to_db(self, param_name: str, value: Any) -> None:

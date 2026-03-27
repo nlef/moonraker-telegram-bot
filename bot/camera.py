@@ -102,7 +102,7 @@ class Camera:
         self._stream_fps: int = config.camera.stream_fps
         self._klippy: Klippy = klippy
 
-        # Todo: refactor into timelapse class
+        # TODO: refactor into timelapse class
         self._base_dir: Path = config.timelapse.base_dir
         self._ready_dir: Path | None = config.timelapse.ready_dir
         self._cleanup: bool = config.timelapse.cleanup
@@ -153,8 +153,8 @@ class Camera:
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
-        # fixme: check init with NO opencv in other cameras!
-        # Fixme: deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
+        # TODO: [fixme] check init with NO opencv in other cameras!
+        # TODO: [fixme] deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
         if cv2:
             if config.bot_config.debug:
                 logger.debug(cv2.getBuildInformation())
@@ -378,7 +378,7 @@ class Camera:
 
             if not success:
                 logger.debug("failed to get camera frame for video")
-                # Todo: get picture from imgs?
+                # TODO: get picture from imgs?
 
             frame = process_video_frame(frame)
             height, width, channels = frame.shape
@@ -437,7 +437,7 @@ class Camera:
 
     def take_lapse_photo(self, gcode: str = "") -> None:
         logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
-        # Todo: check for space available?
+        # TODO: check for space available?
         self.lapse_dir.mkdir(parents=True, exist_ok=True)
         # never add self in params there!
         raw_frame = self._take_raw_frame(rgb=False)
@@ -463,7 +463,7 @@ class Camera:
         # never add self in params there!
         if self._save_lapse_photos_as_images:
             with self.take_photo(raw_frame_rgb) as photo:
-                # Fixme: jpeg_low is bad file extension!
+                # TODO: [fixme] jpeg_low is bad file extension!
                 filename = self.lapse_dir / f"{time.time()}.{self._img_extension}"
                 with filename.open("wb") as outfile:
                     outfile.write(photo.getvalue())
@@ -573,7 +573,7 @@ class Camera:
 
         del raw_frames, img, layers, last_frame
 
-        # Todo: some error handling?
+        # TODO: some error handling?
 
         video_bytes: bytes = b""
 
@@ -610,11 +610,11 @@ class Camera:
             for filename in self.lapse_dir.iterdir():
                 filename.unlink()
 
-    # Todo: check if lapse was in subfolder ( alike gcode folders)
-    # Todo: refactor into timelapse class
-    # Todo: check for 64 symbols length in lapse names
+    # TODO: check if lapse was in subfolder ( alike gcode folders)
+    # TODO: refactor into timelapse class
+    # TODO: check for 64 symbols length in lapse names
     def detect_unfinished_lapses(self) -> list[str]:
-        # Todo: detect unstarted timelapse builds? folder with pics and no mp4 files
+        # TODO: detect unstarted timelapse builds? folder with pics and no mp4 files
         return [el.parent.name for el in self._base_dir.rglob("*.lock")]
 
     def cleanup_unfinished_lapses(self) -> None:
@@ -666,7 +666,7 @@ class MjpegCamera(Camera):
         bio = BytesIO()
         os_nice(15)
         try:
-            # Todo: speedup coonections?
+            # TODO: speedup coonections?
             response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
 
             os_nice(15)
@@ -692,7 +692,7 @@ class MjpegCamera(Camera):
 
     def take_lapse_photo(self, gcode: str = "") -> None:
         logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
-        # Todo: check for space available?
+        # TODO: check for space available?
         self.lapse_dir.mkdir(parents=True, exist_ok=True)
         with self.take_photo(force_rotate=False) as photo:
             if gcode:
@@ -716,7 +716,7 @@ class MjpegCamera(Camera):
         del img
         return cast("NDArray[Any]", res[:, :, [2, 1, 0]].copy())
 
-    # Todo: apply frames rotation during ffmpeg call!
+    # TODO: apply frames rotation during ffmpeg call!
     def _get_frame(self, path: Path) -> NDArray[Any]:
         with path.open("rb") as image_file:
             buff = BytesIO(image_file.read())
@@ -734,7 +734,7 @@ class MjpegCamera(Camera):
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
-            # Todo: maybe there is another way to get fps from a streamer
+            # TODO: maybe there is another way to get fps from a streamer
             fps_cam = 15 if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
 

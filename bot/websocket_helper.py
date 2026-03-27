@@ -163,13 +163,13 @@ class WebSocketHelper:
                 await self._klippy.set_printing_filename(print_stats["filename"])
                 self._klippy.printing_duration = print_stats["print_duration"]
                 self._klippy.filament_used = print_stats["filament_used"]
-                # Todo: maybe get print start time and set start interval for job?
+                # TODO: maybe get print start time and set start interval for job?
                 self._notifier.add_notifier_timer()
                 if not self._timelapse.manual_mode:
                     self._timelapse.is_running = True
-                    # TOdo: manual timelapse start check?
+                    # TODO: manual timelapse start check?
 
-            # Fixme: some logic error with states for klippy.paused and printing
+            # TODO: [fixme] some logic error with states for klippy.paused and printing
             if print_stats["state"] == "printing":
                 self._klippy.paused = False
                 if not self._timelapse.manual_mode:
@@ -277,7 +277,7 @@ class WebSocketHelper:
     async def parse_print_stats(self, message_params: list[dict[str, Any]]) -> None:
         state = ""
         print_stats_loc = message_params[0]["print_stats"]
-        # Fixme:  maybe do not parse without state? history data may not be available
+        # TODO: [fixme]  maybe do not parse without state? history data may not be available
         # Message with filename will be sent before printing is started
         if "filename" in print_stats_loc:
             await self._klippy.set_printing_filename(print_stats_loc["filename"])
@@ -285,7 +285,7 @@ class WebSocketHelper:
             self._klippy.filament_used = print_stats_loc["filament_used"]
         if "state" in print_stats_loc:
             state = print_stats_loc["state"]
-        # Fixme: reset notify percent & height on finish/cancel/start
+        # TODO: [fixme] reset notify percent & height on finish/cancel/start
         if "print_duration" in print_stats_loc:
             self._klippy.printing_duration = print_stats_loc["print_duration"]
         if state == "printing":
@@ -307,14 +307,14 @@ class WebSocketHelper:
             self._klippy.paused = True
             if not self._timelapse.manual_mode:
                 self._timelapse.paused = True
-        # Todo: cleanup timelapse dir on cancel print!
+        # TODO: cleanup timelapse dir on cancel print!
         elif state == "complete":
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
             if not self._timelapse.manual_mode:
                 self._timelapse.is_running = False
                 self._timelapse.send_timelapse()
-            # Fixme: add finish printing method in notifier
+            # TODO: [fixme] add finish printing method in notifier
             self._notifier.send_print_finish()
         elif state == "error":
             self._notifier.update_status_on_abort(state=PrintState.ERROR)
@@ -329,7 +329,7 @@ class WebSocketHelper:
         elif state == "standby":
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
-            # Fixme: check manual mode
+            # TODO: [fixme] check manual mode
             self._timelapse.is_running = False
             # if not self._timelapse.manual_mode:
             # self._timelapse.send_timelapse()

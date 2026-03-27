@@ -96,6 +96,7 @@ select = [
     "SLF",   # flake8-self
     "T20",   # flake8-print
     "TCH",   # flake8-type-checking
+    "TD",    # flake8-todos
     "TID",   # flake8-tidy-imports
     "TRY",   # tryceratops
     "UP",    # pyupgrade
@@ -123,7 +124,8 @@ ignore = [
     "PLR0913", # too-many-arguments
     "PLR0915", # too-many-statements
     "SIM108",  # ternary — would produce very long lines
-    "TD",      # flake8-todos
+    "TD002",   # missing-todo-author
+    "TD003",   # missing-todo-link
     "TRY003",  # long exception messages — not worth extracting
 ]
 [tool.ruff.lint.isort]

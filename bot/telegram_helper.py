@@ -76,7 +76,7 @@ class TelegramMessageRepr:
 
     async def update_existing(self, other_message: Message, photo: BytesIO | bytes | None = None) -> None:
         if photo:
-            # Fixme: check if media in message!
+            # TODO: [fixme] check if media in message!
             await other_message.edit_media(media=InputMediaPhoto(photo))
         if other_message.caption:
             await other_message.edit_caption(

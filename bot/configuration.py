@@ -126,11 +126,11 @@ class ConfigHelper:
                     val = default
                 else:
                     val = []
-                    # Todo: raise some parsing exception
+                    # TODO: raise some parsing exception
         elif default is not None:
             val = default
         else:
-            # Todo: raise some parsing exception
+            # TODO: raise some parsing exception
             val = []
 
         self._check_list_values(option, val, allowed_values)
@@ -211,7 +211,7 @@ class BotConfig(ConfigHelper):
     def __init__(self, config: configparser.ConfigParser) -> None:
         super().__init__(config)
 
-        # Todo: validate server addr have ho port or protocol!
+        # TODO: validate server addr have ho port or protocol!
         self.host: str = self._get_str("server", default="localhost")
         self.ssl: bool = self._get_boolean("ssl", default=False)
         self.ssl_verify: bool = self._get_boolean("ssl_verify", default=True)
@@ -289,8 +289,9 @@ class CameraConfig(ConfigHelper):
         self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
         self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
 
-        # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
-        self.threads: int = self._get_int("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
+        # TODO: [fixme] fix default calcs! add check max value cpu count
+        # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
+        self.threads: int = self._get_int("threads", default=2, min_value=0)
 
         self.video_duration: int = self._get_int("video_duration", default=5, above=0)
         self.video_buffer_size: int = self._get_int("video_buffer_size", default=2, above=0)
@@ -365,8 +366,8 @@ class TimelapseConfig(ConfigHelper):
         self.interval: int = self._get_int("time", default=0, min_value=0)
         self.target_fps: int = self._get_int("target_fps", default=15, above=0)
         self.limit_fps: bool = self._get_boolean("limit_fps", default=False)
-        self.min_lapse_duration: int = self._get_int("min_lapse_duration", default=0, min_value=0)  # Todo: check if max_value is max_lapse_duration
-        self.max_lapse_duration: int = self._get_int("max_lapse_duration", default=0, min_value=0)  # Todo: check if min_value is more than min_lapse_duration
+        self.min_lapse_duration: int = self._get_int("min_lapse_duration", default=0, min_value=0)  # TODO: check if max_value is max_lapse_duration
+        self.max_lapse_duration: int = self._get_int("max_lapse_duration", default=0, min_value=0)  # TODO: check if min_value is more than min_lapse_duration
         self.last_frame_duration: int = self._get_int("last_frame_duration", default=5, min_value=0)
         self.after_lapse_gcode: str = self._get_str("after_lapse_gcode", default="")
         self.send_finished_lapse: bool = self._get_boolean("send_finished_lapse", default=True)
