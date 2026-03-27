@@ -255,28 +255,17 @@ class Klippy:
         return self._host
 
     @property
-    def _headers(self) -> dict[str, str]:
-        heads = {}
+    def auth_headers(self) -> dict[str, str]:
         if self._jwt_token:
-            heads = {"Authorization": f"Bearer {self._jwt_token}"}
-        elif self._api_token:
-            heads = {"X-Api-Key": self._api_token}
-        return heads
+            return {"Authorization": f"Bearer {self._jwt_token}"}
+        if self._api_token:
+            return {"X-Api-Key": self._api_token}
+        return {}
 
-    async def get_one_shot_token(self) -> str:
-        if (not self._user and not self._jwt_token) and not self._api_token:
-            return ""
-
-        resp = await self._client.get(f"{self._host}/access/oneshot_token", headers=self._headers, timeout=15)
-
-        try:
-            resp.raise_for_status()
-            res = f"?token={orjson.loads(resp.text)['result']}"
-        except httpx.HTTPError:
-            logger.exception("Failed to get one shot token async")
-            res = ""
-
-        return res
+    async def ensure_auth(self) -> None:
+        """Refresh JWT token if using user/password auth. No-op for API token."""
+        if self._refresh_token:
+            await self._refresh_moonraker_token()
 
     async def _update_printer_objects(self) -> None:
         resp = await self.make_request("GET", "/printer/objects/list")
@@ -376,11 +365,11 @@ class Klippy:
             logger.exception("Failed to refresh token")
 
     async def make_request(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30) -> httpx.Response:
-        res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
+        res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self.auth_headers, files=files, timeout=timeout)
         if res.status_code == httpx.codes.UNAUTHORIZED:
             logger.debug("JWT token expired, refreshing...")
             await self._refresh_moonraker_token()
-            res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self._headers, files=files, timeout=timeout)
+            res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self.auth_headers, files=files, timeout=timeout)
 
         try:
             res.raise_for_status()
