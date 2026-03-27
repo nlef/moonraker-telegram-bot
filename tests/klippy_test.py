@@ -249,3 +249,15 @@ async def test_turn_on_sync_reports_error(mock_klippy: Klippy) -> None:
 
     assert result is False
     assert device.device_error == "device busy"
+
+
+def test_device_message_shows_lock_when_locked_while_printing() -> None:
+    value = {"status": "on", "locked_while_printing": True}
+    msg = Klippy._device_message("psu", value)
+    assert "🔒" in msg
+
+
+def test_device_message_no_lock_when_not_locked() -> None:
+    value = {"status": "on", "locked_while_printing": False}
+    msg = Klippy._device_message("psu", value)
+    assert "🔒" not in msg

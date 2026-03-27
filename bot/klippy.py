@@ -453,7 +453,7 @@ class Klippy:
         message = emoji.emojize(f" {emoji_symbol} ", language="alias") + f"{name}: "
         if "status" in value:
             message += f" {value['status']} "
-        if "locked_while_printing" in value and value["locked_while_printing"] == "True":
+        if value.get("locked_while_printing"):
             message += emoji.emojize(" :lock: ", language="alias")
         if message:
             message += "\n"
