@@ -103,6 +103,14 @@ select = [
     "W",     # pycodestyle warnings
 ]
 ignore = [
+    # formatter-handled rules (https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules)
+    "D206",    # docstring-tab-indentation
+    "D300",    # triple-single-quotes
+    "E111",    # indentation-with-invalid-multiple
+    "E114",    # indentation-with-invalid-multiple-comment
+    "E117",    # over-indented
+    "W191",    # tab-indentation
+    # project-specific ignores
     "ANN401",  # any-type — too strict
     "D102",    # undocumented-public-method
     "D103",    # undocumented-public-function

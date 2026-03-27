@@ -148,9 +148,9 @@ class Notifier:
                         InlineKeyboardButton(
                             text="Update",
                             callback_data="updstatus",
-                        )
-                    ]
-                ]
+                        ),
+                    ],
+                ],
             )
         return inline_keyboard
 
@@ -691,10 +691,10 @@ class Notifier:
                             parse_button,
                             re.findall(r"\{.[^\}]*\}", el),
                         ),
-                    )
+                    ),
                 ),
                 re.findall(r"\[.[^\]]*\]", message),
-            )
+            ),
         )
 
         title_mathc = re.search(r"message\s*=\s*\'(.[^\']*)\'", message)

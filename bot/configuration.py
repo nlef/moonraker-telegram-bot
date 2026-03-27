@@ -429,10 +429,10 @@ class TelegramUIConfig(ConfigHelper):
                     map(
                         lambda iel: f"/{iel.strip()}",
                         el.replace("[", "").replace("]", "").split(","),
-                    )
+                    ),
                 ),
                 re.findall(r"\[.[^\]]*\]", self._get_str("buttons", default="[pause,cancel,resume],[status,files,macros],[fw_restart,emergency,shutdown,services]")),
-            )
+            ),
         )
         self.progress_update_message: bool = self._get_boolean("progress_update_message", default=False)
         self.send_reply_keyboard: bool = self._get_boolean("send_reply_keyboard", default=True)
@@ -448,7 +448,8 @@ class TelegramUIConfig(ConfigHelper):
         self.send_greeting_message: bool = self._get_boolean("send_greeting_message", default=True)
         self.status_update_button: bool = self._get_boolean("status_update_button", default=True)
         self.require_confirmation: list[str] = self._get_list(
-            "require_confirmation", default=["logs", "logs_upload", "shutdown", "restart", "cancel", "fw_restart", "emergency", "reboot", "power", "bot_restart"]
+            "require_confirmation",
+            default=["logs", "logs_upload", "shutdown", "restart", "cancel", "fw_restart", "emergency", "reboot", "power", "bot_restart"],
         )
 
     def is_present_in_require_confirmation(self, command: str) -> bool:

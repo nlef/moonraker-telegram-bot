@@ -130,7 +130,7 @@ a_scheduler = AsyncIOScheduler(
     {
         "apscheduler.job_defaults.coalesce": "false",
         "apscheduler.job_defaults.max_instances": "4",
-    }
+    },
 )
 a_scheduler.add_listener(errors_listener, EVENT_JOB_ERROR)
 
@@ -213,16 +213,16 @@ async def check_unfinished_lapses(bot: telegram.Bot) -> None:
             InlineKeyboardButton(
                 emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
-            )
-        ]
+            ),
+        ],
     )
     files_keys.append(
         [
             InlineKeyboardButton(
                 emoji.emojize(":wastebasket: Cleanup unfinished", language="alias"),
                 callback_data="cleanup_timelapse_unfinished",
-            )
-        ]
+            ),
+        ],
     )
     await bot.send_message(
         config_wrap.secrets.chat_id,
@@ -303,7 +303,7 @@ def confirm_keyboard(callback_mess: str) -> InlineKeyboardMarkup:
                 emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
             ),
-        ]
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -347,25 +347,45 @@ async def command_exec(effective_message: Message, exec_text: str, exec_func: Co
 
 async def pause_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(
-        update=update, command="pause", confirm_text="Pause printing?", exec_text="Pausing printing", callback_mess="pause_printing", exec_func=ws_helper.manage_printing("pause")
+        update=update,
+        command="pause",
+        confirm_text="Pause printing?",
+        exec_text="Pausing printing",
+        callback_mess="pause_printing",
+        exec_func=ws_helper.manage_printing("pause"),
     )
 
 
 async def resume_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(
-        update=update, command="resume", confirm_text="Resume printing?", exec_text="Resuming printing", callback_mess="resume_printing", exec_func=ws_helper.manage_printing("resume")
+        update=update,
+        command="resume",
+        confirm_text="Resume printing?",
+        exec_text="Resuming printing",
+        callback_mess="resume_printing",
+        exec_func=ws_helper.manage_printing("resume"),
     )
 
 
 async def cancel_printing(update: Update, __: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(
-        update=update, command="cancel", confirm_text="Cancel printing?", exec_text="Canceling printing", callback_mess="cancel_printing", exec_func=ws_helper.manage_printing("cancel")
+        update=update,
+        command="cancel",
+        confirm_text="Cancel printing?",
+        exec_text="Canceling printing",
+        callback_mess="cancel_printing",
+        exec_func=ws_helper.manage_printing("cancel"),
     )
 
 
 async def emergency_stop(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(
-        update=update, command="emergency", confirm_text="Execute emergency stop?", exec_text="Executing emergency stop", callback_mess="emergency_stop", exec_func=ws_helper.emergency_stop_printer()
+        update=update,
+        command="emergency",
+        confirm_text="Execute emergency stop?",
+        exec_text="Executing emergency stop",
+        callback_mess="emergency_stop",
+        exec_func=ws_helper.emergency_stop_printer(),
     )
 
 
@@ -382,7 +402,12 @@ async def firmware_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None
 
 async def shutdown_host(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await command_confirm_message_ext(
-        update=update, command="shutdown", confirm_text="Shutdown host?", exec_text="Shutting down host", callback_mess="shutdown_host", exec_func=ws_helper.shutdown_pi_host()
+        update=update,
+        command="shutdown",
+        confirm_text="Shutdown host?",
+        exec_text="Shutting down host",
+        callback_mess="shutdown_host",
+        exec_func=ws_helper.shutdown_pi_host(),
     )
 
 
@@ -621,7 +646,7 @@ async def button_lapse_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         filter(
             lambda el: el[0].callback_data == query.data,
             query.message.reply_markup.inline_keyboard,
-        )
+        ),
     )[0].text
 
     info_mess: Message = await context.bot.send_message(
@@ -662,7 +687,7 @@ async def print_file_dialog_handler(update: Update, context: ContextTypes.DEFAUL
                 emoji.emojize(":cross_mark: cancel", language="alias"),
                 callback_data="cancel_file",
             ),
-        ]
+        ],
     ]
     start_pre_mess = "Start printing file:"
     message, bio = await klippy.get_file_info_by_name(pri_filename, f"{start_pre_mess}{pri_filename}?")
@@ -856,7 +881,7 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 filename,
                 callback_data=f"{hashlib.md5(filename.encode()).hexdigest()}.gcode",
-            )
+            ),
         ]
 
     gcodes = await klippy.get_gcode_files()
@@ -868,20 +893,20 @@ async def gcode_files_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     emoji.emojize(":arrow_backward:previous", language="alias"),
                     callback_data=f"gcode_files_offset:{offset - 10}",
-                )
+                ),
             )
         arrows.append(
             InlineKeyboardButton(
                 emoji.emojize(":no_entry_sign: ", language="alias"),
                 callback_data="do_nothing",
-            )
+            ),
         )
         if offset + 10 <= len(gcodes):
             arrows.append(
                 InlineKeyboardButton(
                     emoji.emojize("next:arrow_forward:", language="alias"),
                     callback_data=f"gcode_files_offset:{offset + 10}",
-                )
+                ),
             )
 
         files_keys += [arrows]
@@ -895,7 +920,7 @@ async def services_keyboard_no_confirm(effective_message: Message) -> None:
             InlineKeyboardButton(
                 element,
                 callback_data=f"rstrt_srvc:{element}" if config_wrap.telegram_ui.is_present_in_require_confirmation("services") else f"rstrt_srv:{element}",
-            )
+            ),
         ]
 
     services = config_wrap.bot_config.services
@@ -944,7 +969,7 @@ async def get_macros_no_confirm(effective_message: Message) -> None:
             InlineKeyboardButton(
                 el,
                 callback_data=(f"macroc:{el}" if config_wrap.telegram_ui.is_present_in_require_confirmation(el) or config_wrap.telegram_ui.confirm_macro() else f"macro:{el}"),
-            )
+            ),
         ]
         for el in klippy.macros
     ]
@@ -1076,7 +1101,8 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
             if await klippy.upload_gcode_file(sending_bio, config_wrap.bot_config.upload_path):
                 start_pre_mess = "Successfully uploaded file:"
                 mess, thumb = await klippy.get_file_info_by_name(
-                    f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}", f"{start_pre_mess}{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}"
+                    f"{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
+                    f"{start_pre_mess}{config_wrap.bot_config.formatted_upload_path}{sending_bio.name}",
                 )
                 filehash = f"{hashlib.md5(doc.file_name.encode()).hexdigest()}.gcode"
                 keyboard = [
@@ -1089,7 +1115,7 @@ async def upload_file(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
                             emoji.emojize(":cross_mark: do nothing", language="alias"),
                             callback_data="do_nothing",
                         ),
-                    ]
+                    ],
                 ]
                 await update.effective_message.reply_photo(
                     photo=thumb,
