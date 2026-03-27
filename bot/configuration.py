@@ -223,7 +223,7 @@ class BotConfig(ConfigHelper):
         self.poweroff_device_name: str = self._get_str("power_device", default="")
         self.debug: bool = self._get_boolean("debug", default=False)
         self.log_path: Path = Path(self._get_str("log_path", default="/tmp"))
-        self.log_file: Path = Path(self._get_str("log_path", default="/tmp"))
+        self.log_file: Path = self.log_path
         self.upload_path: str = self._get_str("upload_path", default="")
         self.services: list[str] = self._get_list("services", default=["klipper", "moonraker"])
         self.log_parser: bool = self._get_boolean("log_parser", default=False)

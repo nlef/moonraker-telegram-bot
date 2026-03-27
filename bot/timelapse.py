@@ -296,7 +296,7 @@ class Timelapse:
 
             if self._after_lapse_gcode and gcode_name_out is not None:
                 # Todo: add exception handling
-                await self._klippy.save_data_to_marco(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
+                await self._klippy.save_data_to_macro(video_bio_nbytes, video_path, f"{gcode_name}.mp4")
                 await self._klippy.execute_gcode_script(self._after_lapse_gcode.strip())
         except Exception as ex:
             logger.warning("Failed to send time-lapse to telegram bot: %s", ex)

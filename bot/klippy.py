@@ -235,18 +235,18 @@ class Klippy:
     # Todo: save macros list until klippy restart
     @property
     def macros(self) -> list[str]:
-        return self._get_marco_list()
+        return self._get_macro_list()
 
     async def get_macros_force(self) -> list[str]:
         try:
             await self._update_printer_objects()
         except Exception:
             logger.exception("Failed to get macros force")
-        return self._get_marco_list()
+        return self._get_macro_list()
 
     @property
     def macros_all(self) -> list[str]:
-        return self._get_full_marco_list()
+        return self._get_full_macro_list()
 
     @property
     def moonraker_host(self) -> str:
@@ -340,12 +340,12 @@ class Klippy:
     def printing_filename_with_time(self) -> str:
         return f"{self._printing_filename}_{datetime.fromtimestamp(self.file_print_start_time):%Y-%m-%d_%H-%M}"
 
-    def _get_full_marco_list(self) -> list[str]:
+    def _get_full_macro_list(self) -> list[str]:
         macro_lines = list(filter(lambda it: "gcode_macro" in it, self._objects_list))
         return [el.split(" ")[1].upper() for el in macro_lines]
 
-    def _get_marco_list(self) -> list[str]:
-        return [key for key in self._get_full_marco_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
+    def _get_macro_list(self) -> list[str]:
+        return [key for key in self._get_full_macro_list() if key not in self._hidden_macros and (True if self._show_private_macros else not key.startswith("_"))]
 
     async def _auth_moonraker(self) -> None:
         if not self._user or not self._passwd:
@@ -694,12 +694,12 @@ class Klippy:
             logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
 
     # macro data section
-    async def save_data_to_marco(self, lapse_size: int, filename: str, path: str) -> None:
-        full_macro_list = self._get_full_marco_list()
+    async def save_data_to_macro(self, lapse_size: int, filename: str, path: str) -> None:
+        full_macro_list = self._get_full_macro_list()
         if self._DATA_MACRO in full_macro_list:
             await self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE={lapse_size}")
             await self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='\"{filename}\"'")
             await self.execute_gcode_script(f"SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='\"{path}\"'")
 
         else:
-            logger.error("Marco %s not defined", self._DATA_MACRO)
+            logger.error("Macro %s not defined", self._DATA_MACRO)

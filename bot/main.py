@@ -975,7 +975,7 @@ async def macros_handler(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if command in klippy.macros_all:
         if config_wrap.telegram_ui.is_present_in_require_confirmation(command):
             await update.effective_message.reply_text(
-                f"Execute marco {command}?",
+                f"Execute macro {command}?",
                 reply_markup=confirm_keyboard(f"macro:{command}"),
                 disable_notification=notifier.silent_commands,
                 do_quote=True,
@@ -1184,15 +1184,15 @@ async def help_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         await help_command_no_confirm(update.effective_message)
 
 
-def prepare_command(marco: str) -> BotCommand | None:
-    if re.match("^[a-zA-Z0-9_]{1,32}$", marco):
+def prepare_command(macro: str) -> BotCommand | None:
+    if re.match("^[a-zA-Z0-9_]{1,32}$", macro):
         try:
-            return BotCommand(marco.lower(), marco)
+            return BotCommand(macro.lower(), macro)
         except Exception:
-            logger.exception("Bad macro name '%s'", marco)
+            logger.exception("Bad macro name '%s'", macro)
             return None
     else:
-        logger.warning("Bad macro name '%s'", marco)
+        logger.warning("Bad macro name '%s'", macro)
         return None
 
 
