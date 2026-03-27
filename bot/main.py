@@ -468,7 +468,7 @@ def prepare_log_files() -> tuple[list[str], bool, str | None]:
                     debug_file.write(f"\n{file}\n")
                     with Path(file).open(encoding="utf-8") as file_obj:
                         debug_file.writelines(file_obj.readlines())
-            except Exception as err:
+            except Exception as err:  # noqa: PERF203
                 logger.warning(err)
 
     return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "KlipperScreen.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
@@ -495,7 +495,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
                         logs_list.append(InputMediaDocument(content, filename=log_file))
                     else:
                         logger.debug("skipping empty log file: %s", log_file)
-        except FileNotFoundError as err:
+        except FileNotFoundError as err:  # noqa: PERF203
             logger.warning(err)
 
     if logs_list:
@@ -1359,7 +1359,7 @@ async def start_scheduler(context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     # bot_updater.create_task(ws_helper.run_forever_async())
     loop = asyncio.get_event_loop()
-    loop.create_task(ws_helper.run_forever_async())
+    loop.create_task(ws_helper.run_forever_async())  # noqa: RUF006
 
 
 if __name__ == "__main__":

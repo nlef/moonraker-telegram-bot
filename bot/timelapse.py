@@ -386,7 +386,7 @@ class Timelapse:
                     response += f"after_photo_gcode={self._after_photo_gcode} "
                 else:
                     await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="unknown param `{part}`"')
-            except Exception as ex:
+            except Exception as ex:  # noqa: PERF203
                 await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Timelapse params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = (

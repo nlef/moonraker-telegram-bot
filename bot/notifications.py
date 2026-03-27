@@ -662,7 +662,7 @@ class Notifier:
                     response += f"time={self.interval} "
                 else:
                     await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params error" MSG="unknown param `{part}`"')
-            except Exception as ex:
+            except Exception as ex:  # noqa: PERF203
                 await self._klippy.execute_gcode_script(f'RESPOND PREFIX="Notification params error" MSG="Failed parsing `{part}`. {ex}"')
         if response:
             full_conf = f"percent={self.percent} height={self.height} time={self.interval} "
