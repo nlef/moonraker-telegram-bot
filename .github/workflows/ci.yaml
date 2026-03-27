@@ -44,7 +44,7 @@ jobs:
 
   docker:
     needs: lint-test
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'nlef/moonraker-telegram-bot'
     runs-on: ubuntu-24.04
     steps:
       -
