@@ -105,9 +105,9 @@ class Klippy:
 
     _DATA_MACRO: Final = "bot_data"
 
-    _SENSOR_PARAMS: Final = {"temperature": "temperature", "target": "target", "power": "power", "speed": "speed", "rpm": "rpm"}
+    _SENSOR_PARAMS: Final = ["temperature", "target", "power", "speed", "rpm"]
 
-    _POWER_DEVICE_PARAMS: Final = {"device": "device", "status": "status", "locked_while_printing": "locked_while_printing", "type": "type", "is_shutdown": "is_shutdown"}
+    _POWER_DEVICE_PARAMS: Final = ["device", "status", "locked_while_printing", "type", "is_shutdown"]
 
     def __init__(
         self,
@@ -410,9 +410,9 @@ class Klippy:
     def update_sensor(self, name: str, value: dict[str, Any]) -> None:
         if name not in self._sensors_dict:
             self._sensors_dict[name] = {}
-        for key, val in self._SENSOR_PARAMS.items():
+        for key in self._SENSOR_PARAMS:
             if key in value:
-                self._sensors_dict[name][key] = value[val]
+                self._sensors_dict[name][key] = value[key]
 
     @staticmethod
     def _sensor_message(name: str, value: dict[str, Any]) -> str:
@@ -444,9 +444,9 @@ class Klippy:
     def update_power_device(self, name: str, value: dict[str, Any]) -> None:
         if name not in self._power_devices:
             self._power_devices[name] = {}
-        for key, val in self._POWER_DEVICE_PARAMS.items():
+        for key in self._POWER_DEVICE_PARAMS:
             if key in value:
-                self._power_devices[name][key] = value[val]
+                self._power_devices[name][key] = value[key]
 
     @staticmethod
     def _device_message(name: str, value: dict[str, Any], emoji_symbol: str = ":vertical_traffic_light:") -> str:
