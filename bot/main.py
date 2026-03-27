@@ -397,7 +397,7 @@ async def bot_restart(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 def prepare_log_files() -> tuple[list[str], bool, str | None]:
     dmesg_success = True
     dmesg_error = None
-    log_dir = config_wrap.bot_config.log_path
+    log_dir = config_wrap.bot_config.log_file.parent
 
     dmesg_file = log_dir / "dmesg.txt"
     if dmesg_file.exists():
@@ -455,7 +455,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         do_quote=True,
     )
 
-    log_dir = config_wrap.bot_config.log_path
+    log_dir = config_wrap.bot_config.log_file.parent
     logs_list: list[InputMediaAudio | InputMediaDocument | InputMediaPhoto | InputMediaVideo] = []
     for log_file in prepare_log_files()[0]:
         try:
@@ -477,7 +477,7 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         await effective_message.reply_media_group(logs_list, disable_notification=notifier.silent_commands, do_quote=True, write_timeout=120)
         await resp_message.edit_text(text=f"{await klippy.get_versions_info()}\nUpload logs to analyzer /logs_upload")
     else:
-        await resp_message.edit_text(text=f"No logs found in log_path `{config_wrap.bot_config.log_path}`")
+        await resp_message.edit_text(text=f"No logs found in log_path `{config_wrap.bot_config.log_file.parent}`")
 
 
 async def send_logs(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -503,7 +503,7 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
         await resp_message.edit_text(f"Dmesg log file creation error {dmesg_error}")
         return
 
-    log_dir = config_wrap.bot_config.log_path
+    log_dir = config_wrap.bot_config.log_file.parent
     archive_path = log_dir / "logs.tar.xz"
 
     if await anyio.Path(archive_path).exists():
@@ -518,7 +518,7 @@ async def upload_logs_no_confirm(effective_message: Message) -> None:
     await resp_message.edit_text("Uploading logs to parser")
     await effective_message.get_bot().send_chat_action(chat_id=config_wrap.secrets.chat_id, action=ChatAction.UPLOAD_DOCUMENT)
 
-    async with aiofiles.open(config_wrap.bot_config.log_path / "logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
+    async with aiofiles.open(config_wrap.bot_config.log_file.parent / "logs.tar.xz", "rb") as log_archive_ojb, httpx.AsyncClient() as client_loc:
         resp = await client_loc.post(url="https://coderus.openrepos.net/klipper_logs", files={"tarfile": await log_archive_ojb.read()}, follow_redirects=False, timeout=25)
         if resp.status_code < 400:
             logs_path = resp.headers["location"]
@@ -1345,6 +1345,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l",
         "--logfile",
+        type=Path,
+        default=None,
         metavar="<logfile>",
         help="Location of moonraker telegram bot log file",
     )
@@ -1353,7 +1355,7 @@ if __name__ == "__main__":
     os.chdir(sys.path[0])
 
     config_wrap = ConfigWrapper(system_args.configfile)
-    config_wrap.bot_config.log_path_update(system_args.logfile)
+    config_wrap.bot_config.resolve_log_path(system_args.logfile)
     config_wrap.dump_config_to_log()
 
     rotating_handler = RotatingFileHandler(
