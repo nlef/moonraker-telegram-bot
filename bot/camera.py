@@ -60,22 +60,22 @@ def cam_light_toggle(func: F) -> F:
 
         self.light_timer_event.wait()
 
-        # Todo: maybe add try block?
-        result = func(self, *args, **kwargs)
+        try:
+            result = func(self, *args, **kwargs)
+        finally:
+            self.free_light()
 
-        self.free_light()
+            def delayed_light_off() -> None:
+                if self.light_requests == 0:
+                    if self.light_lock.locked():
+                        self.light_lock.release()
+                    self.light_need_off = False
+                    self.light_device.turn_off_sync()
+                else:
+                    logger.debug("light requests count: %s", self.light_requests)
 
-        def delayed_light_off() -> None:
-            if self.light_requests == 0:
-                if self.light_lock.locked():
-                    self.light_lock.release()
-                self.light_need_off = False
-                self.light_device.turn_off_sync()
-            else:
-                logger.debug("light requests count: %s", self.light_requests)
-
-        if self.light_need_off and self.light_requests == 0:
-            threading.Timer(self.light_timeout, delayed_light_off).start()
+            if self.light_need_off and self.light_requests == 0:
+                threading.Timer(self.light_timeout, delayed_light_off).start()
 
         return result
 
