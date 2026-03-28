@@ -105,7 +105,7 @@ class Klippy:
 
     _DATA_MACRO: Final = "bot_data"
 
-    _SENSOR_PARAMS: Final = ["temperature", "target", "power", "speed", "rpm"]
+    _SENSOR_PARAMS: Final = ["temperature", "humidity", "target", "power", "speed", "rpm"]
 
     _POWER_DEVICE_PARAMS: Final = ["device", "status", "locked_while_printing", "type", "is_shutdown"]
     _MAX_CONNECT_RETRIES: Final = 10
@@ -441,6 +441,8 @@ class Klippy:
             message += f" {round(value['speed'] * 100)}%"
         if "rpm" in value and value["rpm"] is not None:
             message += f" {round(value['rpm'])} RPM"
+        if "humidity" in value:
+            message += emoji.emojize(" :droplet: ", language="alias") + f"{round(value['humidity'])}%"
 
         return message
 
