@@ -465,7 +465,6 @@ class Notifier:
                 max_instances=1,
                 replace_existing=True,
             )
-        # TODO: reset something? or check if reset by setting new filename?
 
     async def _send_print_finish(self) -> None:
         self._schedule_notification(state=PrintState.FINISH)

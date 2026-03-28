@@ -294,7 +294,6 @@ class Klippy:
     async def set_printing_filename(self, new_value: str) -> None:
         if new_value == self._printing_filename:
             logger.info("'filename' has the same value as the current: %s", new_value)
-            # TODO: [fixme] maybe we should reset file info on all filename updates?
             self._reset_file_info()
             return
 

@@ -463,7 +463,6 @@ class Camera:
         # never add self in params there!
         if self._save_lapse_photos_as_images:
             with self.take_photo(raw_frame_rgb) as photo:
-                # TODO: [fixme] jpeg_low is bad file extension!
                 filename = self.lapse_dir / f"{time.time()}.{self._img_extension}"
                 with filename.open("wb") as outfile:
                     outfile.write(photo.getvalue())

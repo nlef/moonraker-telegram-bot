@@ -285,7 +285,6 @@ class WebSocketHelper:
             self._klippy.filament_used = print_stats_loc["filament_used"]
         if "state" in print_stats_loc:
             state = print_stats_loc["state"]
-        # TODO: [fixme] reset notify percent & height on finish/cancel/start
         if "print_duration" in print_stats_loc:
             self._klippy.printing_duration = print_stats_loc["print_duration"]
         if state == "printing":
@@ -314,7 +313,6 @@ class WebSocketHelper:
             if not self._timelapse.manual_mode:
                 self._timelapse.is_running = False
                 self._timelapse.send_timelapse()
-            # TODO: [fixme] add finish printing method in notifier
             self._notifier.send_print_finish()
         elif state == "error":
             self._notifier.update_status_on_abort(state=PrintState.ERROR)
