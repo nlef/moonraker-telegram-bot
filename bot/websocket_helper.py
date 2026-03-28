@@ -143,8 +143,10 @@ class WebSocketHelper:
     async def status_response(self, status_resp: dict[str, Any]) -> None:
         if "print_stats" in status_resp:
             print_stats = status_resp["print_stats"]
-            if print_stats["state"] in ["printing", "paused"]:
+            state = print_stats["state"]
+            if state in ["printing", "paused"]:
                 self._klippy.printing = True
+                self._klippy.paused = state == "paused"
                 await self._klippy.set_printing_filename(print_stats["filename"])
                 self._klippy.printing_duration = print_stats["print_duration"]
                 self._klippy.filament_used = print_stats["filament_used"]
@@ -153,16 +155,7 @@ class WebSocketHelper:
                 if not self._timelapse.manual_mode:
                     self._timelapse.is_running = True
                     # TODO: manual timelapse start check?
-
-            # TODO: [fixme] some logic error with states for klippy.paused and printing
-            if print_stats["state"] == "printing":
-                self._klippy.paused = False
-                if not self._timelapse.manual_mode:
-                    self._timelapse.paused = False
-            if print_stats["state"] == "paused":
-                self._klippy.paused = True
-                if not self._timelapse.manual_mode:
-                    self._timelapse.paused = True
+                    self._timelapse.paused = state == "paused"
         if "display_status" in status_resp:
             self._notifier.m117_status = status_resp["display_status"]["message"]
             self._klippy.printing_progress = status_resp["display_status"]["progress"]
