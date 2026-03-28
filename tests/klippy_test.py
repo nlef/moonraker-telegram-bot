@@ -25,7 +25,17 @@ def test_sensor_message() -> None:
     assert temp_sensor_message == "🌡️ Temp: 155 °C"
 
     sht3x_message = Klippy._sensor_message("sht3x", test_sensors["sht3x"])
-    assert sht3x_message == "🌡️ Sht 3X: 25 °C 💧 45%"
+    assert sht3x_message == "🌡️ Sht3X: 25 °C 💧 45%"
+
+
+def test_sensor_name_formatting() -> None:
+    data: dict[str, Any] = {"temperature": 20.0}
+    assert "Sht3X:" in Klippy._sensor_message("sht3x", data)
+    assert "Sht3X:" in Klippy._sensor_message("SHT3X", data)
+    assert "Bme280:" in Klippy._sensor_message("bme280", data)
+    assert "Heater Bed:" in Klippy._sensor_message("heater_bed", data)
+    assert "Heater Bed:" in Klippy._sensor_message("heaterBed", data)
+    assert "Extruder:" in Klippy._sensor_message("extruder", data)
 
 
 @pytest.fixture

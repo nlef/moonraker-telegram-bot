@@ -419,7 +419,7 @@ class Klippy:
     @staticmethod
     def _sensor_message(name: str, value: dict[str, Any]) -> str:
         temp_display_threshold: Final = 2
-        sens_name = re.sub(r"([A-Z]|\d|_)", r" \1", name).replace("_", "")
+        display_name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name).replace("_", " ")
         message = ""
 
         if "power" in value:
@@ -429,7 +429,7 @@ class Klippy:
         elif "temperature" in value:
             message = emoji.emojize(":thermometer: ", language="alias")
 
-        message += f"{sens_name.title()}:"
+        message += f"{display_name.title()}:"
 
         if "temperature" in value:
             message += f" {round(value['temperature'])} \N{DEGREE SIGN}C"
