@@ -363,17 +363,21 @@ class Klippy:
         except httpx.HTTPError:
             logger.exception("Failed to refresh token")
 
-    async def make_request(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30) -> httpx.Response:
-        res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self.auth_headers, files=files, timeout=timeout)
+    async def make_request(self, method: str, url_path: str, json: Any = None, files: Any = None, timeout: int = 30, *, log_errors: bool = True) -> httpx.Response:
+        headers = {**self.auth_headers, "Content-Type": "application/json"} if json else self.auth_headers
+        content = orjson.dumps(json) if json else None
+        res = await self._client.request(method, f"{self._host}{url_path}", content=content, headers=headers, files=files, timeout=timeout)
         if res.status_code == httpx.codes.UNAUTHORIZED:
             logger.debug("JWT token expired, refreshing...")
             await self._refresh_moonraker_token()
-            res = await self._client.request(method, f"{self._host}{url_path}", content=orjson.dumps(json) if json else None, headers=self.auth_headers, files=files, timeout=timeout)
+            headers = {**self.auth_headers, "Content-Type": "application/json"} if json else self.auth_headers
+            res = await self._client.request(method, f"{self._host}{url_path}", content=content, headers=headers, files=files, timeout=timeout)
 
-        try:
-            res.raise_for_status()
-        except httpx.HTTPError:
-            logger.exception("Failed to make request asynchronously")
+        if log_errors:
+            try:
+                res.raise_for_status()
+            except httpx.HTTPError:
+                logger.exception("Failed to make request asynchronously")
 
         return res
 
@@ -668,23 +672,21 @@ class Klippy:
 
     # moonraker database section
     async def get_param_from_db(self, param_name: str) -> Any:
-        res = await self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}")
+        res = await self.make_request("GET", f"/server/database/item?namespace={self._dbname}&key={param_name}", log_errors=False)
         if res.is_success:
             return orjson.loads(res.text)["result"]["value"]
-        logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
-        # TODO: [fixme] return default value? check for 404!
+        if res.status_code == httpx.codes.NOT_FOUND:
+            return None
+        logger.error("Failed getting %s from database: %s", param_name, res.status_code)
         return None
 
     async def save_param_to_db(self, param_name: str, value: Any) -> None:
-        data = {"namespace": self._dbname, "key": param_name, "value": value}
-        res = await self.make_request("POST", "/server/database/item", json=data)
-        if not res.is_success:
-            logger.error("Failed saving %s to %s \n\n%s", param_name, self._dbname, res)
+        await self.make_request("POST", f"/server/database/item?namespace={self._dbname}&key={param_name}", json={"value": value})
 
     async def delete_param_from_db(self, param_name: str) -> None:
-        res = await self.make_request("DELETE", f"/server/database/item?namespace={self._dbname}&key={param_name}")
-        if not res.is_success:
-            logger.error("Failed getting %s from %s \n\n%s", param_name, self._dbname, res)
+        res = await self.make_request("DELETE", f"/server/database/item?namespace={self._dbname}&key={param_name}", log_errors=False)
+        if not res.is_success and res.status_code != httpx.codes.NOT_FOUND:
+            logger.error("Failed deleting %s from database: %s", param_name, res.status_code)
 
     # macro data section
     async def save_data_to_macro(self, lapse_size: int, filename: str, path: str) -> None:
