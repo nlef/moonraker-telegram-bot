@@ -320,7 +320,7 @@ class Klippy:
             if "filename" not in resp:
                 logger.error('"filename" field is not present in response: %s', resp)
             if "thumbnails" not in resp:
-                logger.error('"thumbnails" field is not present in response: %s', resp)
+                logger.info("No thumbnails in file metadata for %s", resp.get("filename", "unknown"))
 
     @property
     def printing_filename_with_time(self) -> str:
@@ -486,7 +486,7 @@ class Klippy:
     async def _populate_with_thumb(self, thumb_path: str, message: str) -> tuple[str, BytesIO]:
         if not thumb_path:
             img = Image.open("../imgs/nopreview.png").convert("RGB")
-            logger.warning("Empty thumbnail_path")
+            logger.debug("Empty thumbnail_path")
         else:
             response = await self.make_request("GET", f"/server/files/gcodes/{urllib.parse.quote(thumb_path)}")
             try:
