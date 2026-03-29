@@ -180,6 +180,8 @@ class Timelapse:
 
     @is_running.setter
     def is_running(self, new_val: bool) -> None:
+        if new_val != self._running:
+            logger.debug("Timelapse is_running: %s -> %s", self._running, new_val)
         self._running = new_val
         self._paused = False
         if new_val:
@@ -222,11 +224,15 @@ class Timelapse:
         gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
 
         if position_z is None:
+            logger.debug("Taking lapse photo (no position)")
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
         elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
+            logger.debug("Taking lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
             self._schedule_save()
+        else:
+            logger.debug("Skipping lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
 
     def clean(self) -> None:
         self._camera.clean()
@@ -291,6 +297,7 @@ class Timelapse:
                     self._camera.cleanup(lapse_filename)
             else:
                 await info_mess.edit_text(text="Time-lapse creation finished")
+            logger.info("Timelapse assembly complete for %s", gcode_name)
 
             video_bio_nbytes = len(video_bytes)
 
@@ -315,6 +322,7 @@ class Timelapse:
 
         lapse_filename = self._klippy.printing_filename_with_time
         gcode_name = self._klippy.printing_filename
+        logger.info("Starting timelapse assembly for %s", gcode_name)
 
         info_mess: Message = await self._bot.send_message(
             chat_id=self._chat_id,
