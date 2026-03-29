@@ -255,7 +255,6 @@ class Camera:
         img.save(bio, "JPEG", quality=100, optimize=True)
         bio.seek(0)
         img.close()
-        img = None  # type: ignore[assignment]
         del img
         return bio
 
@@ -591,7 +590,6 @@ class Camera:
         res_thumb_bytes = thumb_bio.getvalue()
 
         thumb_bio.close()
-        thumb_bio = None  # type: ignore[assignment]
         del thumb_bio
 
         return video_bytes, res_thumb_bytes, width, height, str(video_filepath), gcode_name

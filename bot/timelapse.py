@@ -300,11 +300,7 @@ class Timelapse:
             logger.info("Timelapse assembly complete for %s", gcode_name)
 
             video_bio_nbytes = len(video_bytes)
-
-            thumb_bytes = None  # type: ignore[assignment]
-            video_bytes = None  # type: ignore[assignment]
             del video_bytes, thumb_bytes
-
             gc.collect()
 
             if self._after_lapse_gcode and gcode_name_out is not None:
@@ -341,7 +337,6 @@ class Timelapse:
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
         await self.upload_timelapse(lapse_filename, info_mess, gcode_name)
-        info_mess = None  # type: ignore[assignment]
 
     def send_timelapse(self) -> None:
         self._sched.add_job(
