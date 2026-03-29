@@ -6,7 +6,7 @@ import asyncio
 from concurrent.futures import Future, ThreadPoolExecutor
 import gc
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from telegram import InputFile
 from telegram.constants import ChatAction
@@ -30,6 +30,12 @@ def logging_callback(future: Future[Any]) -> None:
         return
 
     logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
+
+
+_DB_KEY: Final = "timelapse_state"
+_STATE_RUNNING: Final = "running"
+_STATE_PAUSED: Final = "paused"
+_STATE_LAST_HEIGHT: Final = "last_height"
 
 
 class Timelapse:
@@ -181,6 +187,7 @@ class Timelapse:
             self._camera.lapse_missed_frames = 0
         else:
             self._remove_timelapse_timer()
+        self._schedule_save()
 
     @property
     def paused(self) -> bool:
@@ -193,6 +200,7 @@ class Timelapse:
             self._remove_timelapse_timer()
         elif self._running:
             self._add_timelapse_timer()
+        self._schedule_save()
 
     def take_lapse_photo(self, position_z: float | None = None, manually: bool = False, gcode: bool = False) -> None:
         if not self._enabled:
@@ -218,6 +226,7 @@ class Timelapse:
         elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
+            self._schedule_save()
 
     def clean(self) -> None:
         self._camera.clean()
@@ -341,6 +350,39 @@ class Timelapse:
         self._paused = False
         self._last_height = 0.0
         self._camera.lapse_missed_frames = 0
+        self._schedule_save()
+
+    def _schedule_save(self) -> None:
+        """Schedule state save without blocking the event loop."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._save_state())  # noqa: RUF006
+        except RuntimeError:
+            pass
+
+    async def _save_state(self) -> None:
+        """Persist timelapse state to Moonraker database."""
+        if not self._running:
+            await self._clear_state()
+            return
+        state = {_STATE_RUNNING: self._running, _STATE_PAUSED: self._paused, _STATE_LAST_HEIGHT: self._last_height}
+        await self._klippy.save_param_to_db(_DB_KEY, state)
+
+    async def _clear_state(self) -> None:
+        await self._klippy.delete_param_from_db(_DB_KEY)
+
+    async def restore_state(self) -> None:
+        """Restore timelapse state from database after reconnect."""
+        state = await self._klippy.get_param_from_db(_DB_KEY)
+        if state is None:
+            return
+        self._running = state.get(_STATE_RUNNING, False)
+        self._paused = state.get(_STATE_PAUSED, False)
+        self._last_height = state.get(_STATE_LAST_HEIGHT, 0.0)
+        if self._running:
+            logger.info("Restored timelapse state: running=%s, paused=%s, last_height=%.2f", self._running, self._paused, self._last_height)
+            if not self._paused:
+                self._add_timelapse_timer()
 
     async def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")

@@ -154,7 +154,6 @@ class WebSocketHelper:
                 self._notifier.add_notifier_timer()
                 if not self._timelapse.manual_mode:
                     self._timelapse.is_running = True
-                    # TODO: manual timelapse start check?
                     self._timelapse.paused = state == "paused"
         if "display_status" in status_resp:
             self._notifier.m117_status = status_resp["display_status"]["message"]
@@ -352,6 +351,7 @@ class WebSocketHelper:
                     if klippy_state == "ready":
                         if self._ws.state is State.OPEN:
                             await self._klippy.on_connected()
+                            await self._timelapse.restore_state()
                             if self._klippy.state_message:
                                 self._notifier.send_error(f"Klippy changed state to {self._klippy.state}")
                                 self._klippy.state_message = ""
