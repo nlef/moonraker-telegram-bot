@@ -98,7 +98,6 @@ class Camera:
         self._flip_horizontally: bool = config.camera.flip_horizontally
         self._fourcc: str = config.camera.fourcc
         self._video_duration: int = config.camera.video_duration
-        self._video_buffer_size: int = config.camera.video_buffer_size
         self._stream_fps: int = config.camera.stream_fps
         self._klippy: Klippy = klippy
 

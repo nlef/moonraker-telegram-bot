@@ -251,10 +251,6 @@ class Klippy:
         return self._get_full_macro_list()
 
     @property
-    def moonraker_host(self) -> str:
-        return self._host
-
-    @property
     def auth_headers(self) -> dict[str, str]:
         if self._jwt_token:
             return {"Authorization": f"Bearer {self._jwt_token}"}
@@ -470,9 +466,6 @@ class Klippy:
                 else:
                     message += self._device_message(name, value)
         return message
-
-    async def execute_command(self, *command: str) -> None:
-        await self.make_request("POST", "/api/printer/command", json={"commands": [f"{el}" for el in command]})
 
     async def execute_gcode_script(self, gcode: str) -> None:
         await self.make_request("GET", f"/printer/gcode/script?script={gcode}")

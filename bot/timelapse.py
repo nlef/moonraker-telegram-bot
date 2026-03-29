@@ -219,9 +219,6 @@ class Timelapse:
             self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
             self._last_height = position_z
 
-    def take_test_lapse_photo(self) -> None:
-        self._executors_pool.submit(self._camera.take_lapse_photo).add_done_callback(logging_callback)
-
     def clean(self) -> None:
         self._camera.clean()
 

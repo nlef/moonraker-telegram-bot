@@ -15,7 +15,6 @@ def make_camera(test_dir: Path) -> Camera:
 
     config.camera.fourcc = "h264"
     config.camera.video_duration = 5
-    config.camera.video_buffer_size = 10
     config.camera.stream_fps = 15
 
     config.timelapse.base_dir = test_dir
