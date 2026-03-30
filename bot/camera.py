@@ -92,8 +92,7 @@ class Camera:
 
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
-        self._host = int(config.camera.host) if str.isdigit(config.camera.host) else config.camera.host
-        self._threads: int = config.camera.threads
+        self._host: str = config.camera.host
         self._flip_vertically: bool = config.camera.flip_vertically
         self._flip_horizontally: bool = config.camera.flip_horizontally
         self._fourcc: str = config.camera.fourcc
@@ -147,26 +146,18 @@ class Camera:
 
         self._lapse_missed_frames: int = 0
 
+        # cam_cam and _init_cam are provided by subclasses (OpenCVCamera, FFmpegCamera)
+        # that use the numpy frame pipeline (_take_raw_frame, take_photo, take_video)
+        self.cam_cam: Any = None
+
         if logging_handler:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
-        # TODO: [fixme] check init with NO opencv in other cameras!
-        # TODO: [fixme] deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
-        if cv2:
-            if config.bot_config.debug:
-                logger.debug(cv2.getBuildInformation())
-                os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
-            if cv2.ocl.haveOpenCL():
-                logger.debug("OpenCL is available")
-                cv2.ocl.setUseOpenCL(True)
-                logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
-
-            self._cv2_params: list[Any] = []
-            cv2.setNumThreads(self._threads)
-            self.cam_cam = cv2.VideoCapture()
-            self._set_cv2_params()
+    def _init_cam(self) -> None:
+        msg = "_init_cam not implemented"
+        raise NotImplementedError(msg)
 
     @property
     def light_need_off(self) -> bool:
@@ -258,44 +249,6 @@ class Camera:
         del img
         return bio
 
-    @staticmethod
-    def _isfloat(value: str) -> bool:
-        try:
-            float(value)
-        except ValueError:
-            return False
-        else:
-            return True
-
-    def _set_cv2_params(self) -> None:
-        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-        for prop_name, value in self._cv2_params:
-            if prop_name.upper() == "CAP_PROP_FOURCC":
-                try:
-                    prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))  # type: ignore[attr-defined]
-                except AttributeError:
-                    logger.exception("Failed to set fourcc for camera %s", prop_name)
-            else:
-                val: Any
-                if value.isnumeric():
-                    val = int(value)
-                elif self._isfloat(value):
-                    val = float(value)
-                else:
-                    val = value
-                try:
-                    prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, val)
-                except AttributeError:
-                    logger.exception("Failed to set fourcc for camera %s", prop_name)
-
-    def _init_cam(self) -> None:
-        self.cam_cam.open(self._host)
-        self._set_cv2_params()
-        cv2.setNumThreads(self._threads)
-
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
         with self._camera_lock:
@@ -323,7 +276,7 @@ class Camera:
                 if self._rotation_count is not None:
                     image = np.rot90(image, k=self._rotation_count, axes=(1, 0))
 
-            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()  # type: ignore[index, union-attr]
+            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
             image = None
             del image, success
 
@@ -618,6 +571,72 @@ class Camera:
             self.cleanup(lapse_name, force=True)
 
 
+class OpenCVCamera(Camera):
+    """Camera backend using OpenCV VideoCapture for local devices and RTSP streams."""
+
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(config, klippy, logging_handler)
+
+        if not cv2:
+            logger.warning("OpenCV not available, camera disabled")
+            self.enabled = False
+            return
+
+        self._threads: int = config.camera.threads
+
+        if config.bot_config.debug:
+            logger.debug(cv2.getBuildInformation())
+            os.environ["OPENCV_VIDEOIO_DEBUG"] = "1"
+        if cv2.ocl.haveOpenCL():
+            logger.debug("OpenCL is available")
+            cv2.ocl.setUseOpenCL(True)
+            logger.debug("OpenCL in OpenCV is enabled: %s", cv2.ocl.useOpenCL())
+
+        self._cv2_params: list[Any] = []
+        cv2.setNumThreads(self._threads)
+        self.cam_cam = cv2.VideoCapture()
+        self._set_cv2_params()
+
+    @staticmethod
+    def _isfloat(value: str) -> bool:
+        try:
+            float(value)
+        except ValueError:
+            return False
+        else:
+            return True
+
+    def _set_cv2_params(self) -> None:
+        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        for prop_name, value in self._cv2_params:
+            if prop_name.upper() == "CAP_PROP_FOURCC":
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))  # type: ignore[attr-defined]
+                except AttributeError:
+                    logger.exception("Failed to set fourcc for camera %s", prop_name)
+            else:
+                val: Any
+                if value.isnumeric():
+                    val = int(value)
+                elif self._isfloat(value):
+                    val = float(value)
+                else:
+                    val = value
+                try:
+                    prop = getattr(cv2, prop_name.upper())
+                    self.cam_cam.set(prop, val)
+                except AttributeError:
+                    logger.exception("Failed to set fourcc for camera %s", prop_name)
+
+    def _init_cam(self) -> None:
+        device = int(self._host) if self._host.isdigit() else self._host
+        self.cam_cam.open(device)
+        self._set_cv2_params()
+        cv2.setNumThreads(self._threads)
+
+
 class FFmpegCamera(Camera):
     """Camera backend using FFmpeg for RTSP/stream capture."""
 
@@ -629,7 +648,7 @@ class FFmpegCamera(Camera):
         self.cam_cam: FFmpegReader
 
     def _init_cam(self) -> None:
-        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)  # type: ignore[arg-type]
+        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
 
 
 class MjpegCamera(Camera):

@@ -50,7 +50,7 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import Application, CallbackContext, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from camera import Camera, FFmpegCamera, MjpegCamera, RawStreamCamera
+from camera import Camera, FFmpegCamera, MjpegCamera, OpenCVCamera, RawStreamCamera
 from configuration import ConfigWrapper
 from klippy import Klippy, PowerDevice, PrintState
 from notifications import Notifier
@@ -1427,7 +1427,7 @@ if __name__ == "__main__":
     elif cam_type == "raw_stream":
         camera_wrap = RawStreamCamera(config_wrap, klippy, rotating_handler)
     else:
-        camera_wrap = Camera(config_wrap, klippy, rotating_handler)
+        camera_wrap = OpenCVCamera(config_wrap, klippy, rotating_handler)
     bot_updater = start_bot(config_wrap)
     timelapse = Timelapse(config_wrap, klippy, camera_wrap, a_scheduler, bot_updater.bot, rotating_handler)
     notifier = Notifier(config_wrap, bot_updater.bot, klippy, camera_wrap, a_scheduler, rotating_handler)
