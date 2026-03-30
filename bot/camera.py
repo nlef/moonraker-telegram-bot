@@ -146,18 +146,19 @@ class Camera:
 
         self._lapse_missed_frames: int = 0
 
-        # cam_cam and _init_cam are provided by subclasses (OpenCVCamera, FFmpegCamera)
-        # that use the numpy frame pipeline (_take_raw_frame, take_photo, take_video)
-        self.cam_cam: Any = None
-
         if logging_handler:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
-    def _init_cam(self) -> None:
-        msg = "_init_cam not implemented"
-        raise NotImplementedError(msg)
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:
+        raise NotImplementedError
+
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
+        raise NotImplementedError
+
+    def take_lapse_photo(self, gcode: str = "") -> None:
+        raise NotImplementedError
 
     @property
     def light_need_off(self) -> bool:
@@ -248,178 +249,6 @@ class Camera:
         img.close()
         del img
         return bio
-
-    @cam_light_toggle
-    def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
-        with self._camera_lock:
-            st_time = time.time()
-            self._init_cam()
-            success, image = self.cam_cam.read()
-            self.cam_cam.release()
-            logger.debug("_take_raw_frame cam read execution time: %s millis", (time.time() - st_time) * 1000)
-
-            if not success:
-                logger.debug("failed to get camera frame for photo")
-                if rgb:
-                    img = Image.open("../imgs/nosignal.png")
-                    image = np.array(img)
-                    img.close()
-                    del img
-                else:
-                    # image is None
-                    return cast("NDArray[Any]", np.empty(0))
-            else:
-                if self._flip_vertically:
-                    image = np.flipud(image)
-                if self._flip_horizontally:
-                    image = np.fliplr(image)
-                if self._rotation_count is not None:
-                    image = np.rot90(image, k=self._rotation_count, axes=(1, 0))
-
-            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
-            image = None
-            del image, success
-
-        return cast("NDArray[Any]", ndaarr)
-
-    def take_photo(self, ndarr: NDArray[Any] | None = None) -> BytesIO:
-        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
-
-        os_nice(15)
-        if img.mode != "RGB":
-            logger.warning("img mode is %s", img.mode)
-            img = img.convert("RGB")
-        bio = BytesIO()
-        bio.name = f"status.{self._img_extension}"
-        if self._img_extension in ["jpg", "jpeg"] or self._picture_quality == "high":
-            img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
-        elif self._picture_quality == "low":
-            img.save(bio, "JPEG", quality=65, subsampling=0)
-        # memory leaks!
-        elif self._img_extension == "webp":
-            # https://github.com/python-pillow/Pillow/issues/4364
-            _webp.HAVE_WEBPANIM = False
-            img.save(bio, "WebP", quality=0, lossless=True)
-        elif self._img_extension == "png":
-            img.save(bio, "PNG")
-        bio.seek(0)
-
-        img.close()
-        os_nice(0)
-        del img
-        return bio
-
-    @cam_light_toggle
-    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
-        def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
-            if self._flip_vertically:
-                frame_local = np.flipud(frame_local)
-            if self._flip_horizontally:
-                frame_local = np.fliplr(frame_local)
-            if self._rotation_count is not None:
-                frame_local = np.rot90(frame_local, k=self._rotation_count, axes=(1, 0))
-            return frame_local
-
-        with self._camera_lock:
-            os_nice(15)
-            st_time = time.time()
-            self._init_cam()
-            success, frame = self.cam_cam.read()
-            logger.debug("take_video cam read first frame execution time: %s millis", (time.time() - st_time) * 1000)
-
-            if not success:
-                logger.debug("failed to get camera frame for video")
-                # TODO: get picture from imgs?
-
-            frame = process_video_frame(frame)
-            height, width, channels = frame.shape
-            thumb_bio = self._create_thumb(frame)
-            del frame, channels
-
-            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
-            frame_time = 1.0 / fps_cam
-
-            filepath = Path("/tmp") / "video.mp4"
-            frame_list = []
-
-            t_end = time.time() + self._video_duration
-            time_last_frame = time.time()
-            while success and time.time() <= t_end:
-                st_time = time.time()
-                success, frame_loc = self.cam_cam.read()
-                logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
-                if time.time() > time_last_frame + frame_time:
-                    time_last_frame = time.time()
-                    if success:
-                        frame_list.append(pickle.dumps(frame_loc))
-                del frame_loc
-
-            self.cam_cam.release()
-
-            res_fps = len(frame_list) / self._video_duration
-
-            logger.debug("res fps - %s", res_fps)
-
-            out = ffmpegcv.VideoWriter(
-                filepath.as_posix(),
-                codec=self._fourcc,
-                fps=res_fps,
-            )
-
-            for el in frame_list:
-                loc_loc = pickle.loads(el)
-                out.write(process_video_frame(loc_loc))
-                del loc_loc
-
-            out.release()
-            del out
-            os_nice(0)
-
-            frame_list.clear()
-            del frame_list
-
-        video_bio = BytesIO()
-        video_bio.name = "video.mp4"
-        with filepath.open("rb") as video_file:
-            video_bio.write(video_file.read())
-        filepath.unlink()
-        video_bio.seek(0)
-        return video_bio, thumb_bio, width, height
-
-    def take_lapse_photo(self, gcode: str = "") -> None:
-        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
-        # TODO: check for space available?
-        self.lapse_dir.mkdir(parents=True, exist_ok=True)
-        # never add self in params there!
-        raw_frame = self._take_raw_frame(rgb=False)
-
-        if gcode:
-            try:
-                self._klippy.execute_gcode_script_sync(gcode.strip())
-            except Exception:
-                logger.exception("Failed to execute gcode before timelapse shot")
-
-        if raw_frame.size == 0:
-            self._lapse_missed_frames += 1
-            return
-
-        os_nice(15)
-
-        np.savez_compressed(self.lapse_dir / str(time.time()), raw=raw_frame)
-
-        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
-        del raw_frame
-        os_nice(0)
-
-        # never add self in params there!
-        if self._save_lapse_photos_as_images:
-            with self.take_photo(raw_frame_rgb) as photo:
-                filename = self.lapse_dir / f"{time.time()}.{self._img_extension}"
-                with filename.open("wb") as outfile:
-                    outfile.write(photo.getvalue())
-                photo.close()
-
-        del raw_frame_rgb
 
     async def create_timelapse(self, printing_filename: str, gcode_name: str, info_mess: Message) -> tuple[bytes, bytes, int, int, str, str]:
         loop = asyncio.get_running_loop()
@@ -571,8 +400,188 @@ class Camera:
             self.cleanup(lapse_name, force=True)
 
 
-class OpenCVCamera(Camera):
+class NumpyCamera(Camera):
+    """Camera backend using numpy arrays for frame processing. Base for OpenCV and FFmpeg cameras."""
+
+    cam_cam: Any  # Set by subclasses (OpenCVCamera, FFmpegCamera)
+
+    def _init_cam(self) -> None:
+        msg = "_init_cam must be implemented by subclass"
+        raise NotImplementedError(msg)
+
+    @cam_light_toggle
+    def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
+        with self._camera_lock:
+            st_time = time.time()
+            self._init_cam()
+            success, image = self.cam_cam.read()
+            self.cam_cam.release()
+            logger.debug("_take_raw_frame cam read execution time: %s millis", (time.time() - st_time) * 1000)
+
+            if not success:
+                logger.debug("failed to get camera frame for photo")
+                if rgb:
+                    img = Image.open("../imgs/nosignal.png")
+                    image = np.array(img)
+                    img.close()
+                    del img
+                else:
+                    return cast("NDArray[Any]", np.empty(0))
+            else:
+                if self._flip_vertically:
+                    image = np.flipud(image)
+                if self._flip_horizontally:
+                    image = np.fliplr(image)
+                if self._rotation_count is not None:
+                    image = np.rot90(image, k=self._rotation_count, axes=(1, 0))
+
+            ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
+            image = None
+            del image, success
+
+        return cast("NDArray[Any]", ndaarr)
+
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:  # noqa: ARG002
+        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
+
+        os_nice(15)
+        if img.mode != "RGB":
+            logger.warning("img mode is %s", img.mode)
+            img = img.convert("RGB")
+        bio = BytesIO()
+        bio.name = f"status.{self._img_extension}"
+        if self._img_extension in ["jpg", "jpeg"] or self._picture_quality == "high":
+            img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
+        elif self._picture_quality == "low":
+            img.save(bio, "JPEG", quality=65, subsampling=0)
+        # memory leaks!
+        elif self._img_extension == "webp":
+            # https://github.com/python-pillow/Pillow/issues/4364
+            _webp.HAVE_WEBPANIM = False
+            img.save(bio, "WebP", quality=0, lossless=True)
+        elif self._img_extension == "png":
+            img.save(bio, "PNG")
+        bio.seek(0)
+
+        img.close()
+        os_nice(0)
+        del img
+        return bio
+
+    @cam_light_toggle
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
+        def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
+            if self._flip_vertically:
+                frame_local = np.flipud(frame_local)
+            if self._flip_horizontally:
+                frame_local = np.fliplr(frame_local)
+            if self._rotation_count is not None:
+                frame_local = np.rot90(frame_local, k=self._rotation_count, axes=(1, 0))
+            return frame_local
+
+        with self._camera_lock:
+            os_nice(15)
+            st_time = time.time()
+            self._init_cam()
+            success, frame = self.cam_cam.read()
+            logger.debug("take_video cam read first frame execution time: %s millis", (time.time() - st_time) * 1000)
+
+            if not success:
+                logger.debug("failed to get camera frame for video")
+                # TODO: get picture from imgs?
+
+            frame = process_video_frame(frame)
+            height, width, channels = frame.shape
+            thumb_bio = self._create_thumb(frame)
+            del frame, channels
+
+            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            frame_time = 1.0 / fps_cam
+
+            filepath = Path("/tmp") / "video.mp4"
+            frame_list = []
+
+            t_end = time.time() + self._video_duration
+            time_last_frame = time.time()
+            while success and time.time() <= t_end:
+                st_time = time.time()
+                success, frame_loc = self.cam_cam.read()
+                logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
+                if time.time() > time_last_frame + frame_time:
+                    time_last_frame = time.time()
+                    if success:
+                        frame_list.append(pickle.dumps(frame_loc))
+                del frame_loc
+
+            self.cam_cam.release()
+
+            res_fps = len(frame_list) / self._video_duration
+
+            logger.debug("res fps - %s", res_fps)
+
+            out = ffmpegcv.VideoWriter(
+                filepath.as_posix(),
+                codec=self._fourcc,
+                fps=res_fps,
+            )
+
+            for el in frame_list:
+                loc_loc = pickle.loads(el)
+                out.write(process_video_frame(loc_loc))
+                del loc_loc
+
+            out.release()
+            del out
+            os_nice(0)
+
+            frame_list.clear()
+            del frame_list
+
+        video_bio = BytesIO()
+        video_bio.name = "video.mp4"
+        with filepath.open("rb") as video_file:
+            video_bio.write(video_file.read())
+        filepath.unlink()
+        video_bio.seek(0)
+        return video_bio, thumb_bio, width, height
+
+    def take_lapse_photo(self, gcode: str = "") -> None:
+        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
+        self.lapse_dir.mkdir(parents=True, exist_ok=True)
+        raw_frame = self._take_raw_frame(rgb=False)
+
+        if gcode:
+            try:
+                self._klippy.execute_gcode_script_sync(gcode.strip())
+            except Exception:
+                logger.exception("Failed to execute gcode before timelapse shot")
+
+        if raw_frame.size == 0:
+            self._lapse_missed_frames += 1
+            return
+
+        os_nice(15)
+
+        np.savez_compressed(self.lapse_dir / str(time.time()), raw=raw_frame)
+
+        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
+        del raw_frame
+        os_nice(0)
+
+        if self._save_lapse_photos_as_images:
+            with self.take_photo(raw_frame_rgb) as photo:
+                filename = self.lapse_dir / f"{time.time()}.{self._img_extension}"
+                with filename.open("wb") as outfile:
+                    outfile.write(photo.getvalue())
+                photo.close()
+
+        del raw_frame_rgb
+
+
+class OpenCVCamera(NumpyCamera):
     """Camera backend using OpenCV VideoCapture for local devices and RTSP streams."""
+
+    # TODO: [fixme] deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
 
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
         super().__init__(config, klippy, logging_handler)
@@ -637,7 +646,7 @@ class OpenCVCamera(Camera):
         cv2.setNumThreads(self._threads)
 
 
-class FFmpegCamera(Camera):
+class FFmpegCamera(NumpyCamera):
     """Camera backend using FFmpeg for RTSP/stream capture."""
 
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
