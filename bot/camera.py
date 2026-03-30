@@ -25,7 +25,7 @@ from ffmpegcv.stream_info import get_info  # type: ignore[import-untyped]
 import httpx
 from httpx import HTTPError
 import numpy as np
-from PIL import Image, _webp
+from PIL import Image
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -455,10 +455,7 @@ class NumpyCamera(Camera):
             img.save(bio, "JPEG", quality=95, subsampling=0, optimize=True)
         elif self._picture_quality == "low":
             img.save(bio, "JPEG", quality=65, subsampling=0)
-        # memory leaks!
         elif self._img_extension == "webp":
-            # https://github.com/python-pillow/Pillow/issues/4364
-            _webp.HAVE_WEBPANIM = False
             img.save(bio, "WebP", quality=0, lossless=True)
         elif self._img_extension == "png":
             img.save(bio, "PNG")
