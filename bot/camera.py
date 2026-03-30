@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import abc
 import asyncio
 import contextlib
 import functools
@@ -87,8 +88,8 @@ def os_nice(value: int) -> None:
         os.nice(value)
 
 
-class Camera:
-    """Base camera backend."""
+class Camera(abc.ABC):
+    """Abstract base for all camera backends."""
 
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
         self.enabled: bool = bool(config.camera.enabled and config.camera.host)
@@ -151,14 +152,14 @@ class Camera:
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
 
-    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO: ...
 
-    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def take_video(self) -> tuple[BytesIO, BytesIO, int, int]: ...
 
-    def take_lapse_photo(self, gcode: str = "") -> None:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def take_lapse_photo(self, gcode: str = "") -> None: ...
 
     @property
     def light_need_off(self) -> bool:

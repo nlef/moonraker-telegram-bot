@@ -2,7 +2,14 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from camera import Camera
+from camera import Camera, NumpyCamera
+
+
+class _TestCamera(NumpyCamera):
+    """Minimal concrete camera for testing."""
+
+    def _init_cam(self) -> None:
+        pass
 
 
 def make_camera(test_dir: Path) -> Camera:
@@ -33,7 +40,7 @@ def make_camera(test_dir: Path) -> Camera:
     klippy.printing = True
     klippy.printing_duration = 100.0
 
-    return Camera(config, klippy, logging.NullHandler())
+    return _TestCamera(config, klippy, logging.NullHandler())
 
 
 LAPSES_NAMES = ["lapse1", "lapse2", "lapse3", "lapse4"]
