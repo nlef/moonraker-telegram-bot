@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import Future, ThreadPoolExecutor
+import functools
 import gc
 import logging
+import math
+import os
+from pathlib import Path
+import time
 from typing import TYPE_CHECKING, Any, Final
 
+import ffmpegcv  # type: ignore[import-untyped]
 from telegram import InputFile
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
+
+from camera import os_nice
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
@@ -21,15 +29,6 @@ if TYPE_CHECKING:
     from klippy import Klippy
 
 logger = logging.getLogger(__name__)
-
-
-def logging_callback(future: Future[Any]) -> None:
-    exc = future.exception()
-
-    if exc is None:
-        return
-
-    logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
 
 
 _DB_KEY: Final = "timelapse_state"
@@ -64,18 +63,17 @@ class Timelapse:
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
         self._after_photo_gcode: str = config.timelapse.after_photo_gcode
+        self._fourcc: str = config.camera.fourcc
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
 
         self._klippy: Klippy = klippy
         self._camera: Camera = camera
 
-        # push params to cameras instances
-        self._camera.target_fps = self._target_fps
-        self._camera.limit_fps = self._limit_fps
-        self._camera.min_lapse_duration = self._min_lapse_duration
-        self._camera.max_lapse_duration = self._max_lapse_duration
-        self._camera.last_frame_duration = self._last_frame_duration
+        self._base_dir: Path = config.timelapse.base_dir
+        self._ready_dir: Path | None = config.timelapse.ready_dir
+        self._cleanup: bool = config.timelapse.cleanup
+        self._lapse_missed_frames: int = 0
 
         self._sched: BaseScheduler = scheduler
         self._chat_id: int = config.secrets.chat_id
@@ -91,6 +89,12 @@ class Timelapse:
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
+
+    @property
+    def _lapse_dir(self) -> Path:
+        return self._base_dir / self._klippy.printing_filename_with_time
+
+    # timelapse lifecycle
 
     @property
     def enabled(self) -> bool:
@@ -138,7 +142,6 @@ class Timelapse:
     def target_fps(self, new_value: int) -> None:
         if new_value >= 1:
             self._target_fps = new_value
-            self._camera.target_fps = new_value
 
     @property
     def min_lapse_duration(self) -> int:
@@ -150,7 +153,6 @@ class Timelapse:
             if new_value <= self._max_lapse_duration and new_value != 0:
                 logger.warning("Min lapse duration %s is lower than max lapse duration %s", new_value, self._max_lapse_duration)
             self._min_lapse_duration = new_value
-            self._camera.min_lapse_duration = new_value
 
     @property
     def max_lapse_duration(self) -> int:
@@ -162,7 +164,6 @@ class Timelapse:
             if new_value <= self._min_lapse_duration and new_value != 0:
                 logger.warning("Max lapse duration %s is lower than min lapse duration %s", new_value, self._min_lapse_duration)
             self._max_lapse_duration = new_value
-            self._camera.max_lapse_duration = new_value
 
     @property
     def last_frame_duration(self) -> int:
@@ -172,7 +173,6 @@ class Timelapse:
     def last_frame_duration(self, new_value: int) -> None:
         if new_value >= 0:
             self._last_frame_duration = new_value
-            self._camera.last_frame_duration = new_value
 
     @property
     def is_running(self) -> bool:
@@ -186,7 +186,7 @@ class Timelapse:
         self._paused = False
         if new_val:
             self._add_timelapse_timer()
-            self._camera.lapse_missed_frames = 0
+            self._lapse_missed_frames = 0
         else:
             self._remove_timelapse_timer()
         self._schedule_save()
@@ -203,6 +203,14 @@ class Timelapse:
         elif self._running:
             self._add_timelapse_timer()
         self._schedule_save()
+
+    def _lapse_photo_callback(self, future: Future[bool]) -> None:
+        exc = future.exception()
+        if exc is not None:
+            logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
+            return
+        if not future.result():
+            self._lapse_missed_frames += 1
 
     def take_lapse_photo(self, position_z: float | None = None, manually: bool = False, gcode: bool = False) -> None:
         if not self._enabled:
@@ -225,17 +233,19 @@ class Timelapse:
 
         if position_z is None:
             logger.debug("Taking lapse photo (no position)")
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
+            self._executors_pool.submit(self._camera.take_lapse_photo, self._lapse_dir, gcode=gcode_command).add_done_callback(self._lapse_photo_callback)
         elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             logger.debug("Taking lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
-            self._executors_pool.submit(self._camera.take_lapse_photo, gcode=gcode_command).add_done_callback(logging_callback)
+            self._executors_pool.submit(self._camera.take_lapse_photo, self._lapse_dir, gcode=gcode_command).add_done_callback(self._lapse_photo_callback)
             self._last_height = position_z
             self._schedule_save()
         else:
             logger.debug("Skipping lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
 
     def clean(self) -> None:
-        self._camera.clean()
+        if self._cleanup and self._klippy.printing_filename and self._lapse_dir.is_dir():
+            for filename in self._lapse_dir.iterdir():
+                filename.unlink()
 
     def _add_timelapse_timer(self) -> None:
         if self._interval > 0 and not self._sched.get_job("timelapse_timer"):
@@ -262,14 +272,14 @@ class Timelapse:
 
     async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: str | None = None) -> None:
         try:
+            gcode_name = lapse_filename if gcode_name_out is None else gcode_name_out
             (
                 video_bytes,
                 thumb_bytes,
                 width,
                 height,
                 video_path,
-                gcode_name,
-            ) = await self._camera.create_timelapse(lapse_filename, lapse_filename if gcode_name_out is None else gcode_name_out, info_mess)
+            ) = await self._create_timelapse(lapse_filename, info_mess)
 
             if self._send_finished_lapse:
                 await info_mess.edit_text(text="Uploading time-lapse")
@@ -278,8 +288,8 @@ class Timelapse:
                     await info_mess.edit_text(text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
                     lapse_caption = f"time-lapse of {gcode_name}"
-                    if self._camera.lapse_missed_frames > 0:
-                        lapse_caption += f"\n{self._camera.lapse_missed_frames} frames missed"
+                    if self._lapse_missed_frames > 0:
+                        lapse_caption += f"\n{self._lapse_missed_frames} frames missed"
                     await self._bot.send_video(
                         self._chat_id,
                         video=InputFile(video_bytes, filename=f"{gcode_name}.mp4"),
@@ -294,7 +304,7 @@ class Timelapse:
                         await self._bot.delete_message(self._chat_id, message_id=info_mess.message_id)
                     except BadRequest as badreq:
                         logger.warning("Failed deleting message \n%s", badreq)
-                    self._camera.cleanup(lapse_filename)
+                    self._cleanup_lapse(lapse_filename)
             else:
                 await info_mess.edit_text(text="Time-lapse creation finished")
             logger.info("Timelapse assembly complete for %s", gcode_name)
@@ -347,12 +357,148 @@ class Timelapse:
             replace_existing=False,
         )
 
+    # timelapse assembly
+
+    async def _create_timelapse(self, printing_filename: str, info_mess: Any) -> tuple[bytes, bytes, int, int, str]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, functools.partial(self._assemble_timelapse, printing_filename, info_mess, loop))
+
+    def _calculate_fps(self, frames_count: int) -> int:
+        actual_duration = frames_count / self._target_fps
+        if (
+            (self._min_lapse_duration == 0 and self._max_lapse_duration == 0)
+            or (self._min_lapse_duration <= actual_duration <= self._max_lapse_duration and self._max_lapse_duration > 0)
+            or (actual_duration > self._min_lapse_duration and self._max_lapse_duration == 0)
+        ):
+            return self._target_fps
+        if actual_duration < self._min_lapse_duration and self._min_lapse_duration > 0:
+            fps = math.ceil(frames_count / self._min_lapse_duration)
+            return max(fps, 1)
+        if actual_duration > self._max_lapse_duration > 0:
+            return math.ceil(frames_count / self._max_lapse_duration)
+        logger.error("Unknown fps calculation state for durations min:%s and max:%s and actual:%s", self._min_lapse_duration, self._max_lapse_duration, actual_duration)
+        return self._target_fps
+
+    def _assemble_timelapse(self, printing_filename: str, info_mess: Any, loop: asyncio.AbstractEventLoop) -> tuple[bytes, bytes, int, int, str]:
+        if not printing_filename:
+            msg = "Gcode file name is empty"
+            raise ValueError(msg)
+
+        while self._camera.light_need_off:
+            time.sleep(1)
+
+        os_nice(15)
+
+        lapse_dir = self._base_dir / printing_filename
+        raw_ext = self._camera.raw_frame_extension
+
+        raw_frames = list(lapse_dir.glob(f"*.{raw_ext}"))
+        photo_count = len(raw_frames)
+        if photo_count == 0:
+            msg = f"Empty photos list for {printing_filename} in lapse path {lapse_dir}"
+            raise ValueError(msg)
+
+        lock_file = lapse_dir / "lapse.lock"
+        if not lock_file.is_file():
+            lock_file.touch()
+
+        raw_frames.sort(key=os.path.getmtime)
+
+        asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Creating thumbnail"), loop).result()
+        last_frame = raw_frames[-1]
+        img = self._camera.get_frame(last_frame)
+
+        height, width, layers = img.shape
+        thumb_bio = self._camera.create_thumb(img)
+
+        video_filepath = lapse_dir / f"{Path(printing_filename).name}.mp4"
+        if video_filepath.is_file():
+            video_filepath.unlink()
+
+        lapse_fps = self._calculate_fps(photo_count)
+        odd_frames = 1
+        if self._limit_fps and lapse_fps > self._target_fps:
+            odd_frames = math.ceil(lapse_fps / self._target_fps)
+            lapse_fps = self._target_fps
+
+        out = ffmpegcv.VideoWriter(
+            video_filepath.as_posix(),
+            codec=self._fourcc,
+            fps=lapse_fps,
+        )
+
+        asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Images recoding"), loop).result()
+        last_update_time = time.time()
+        frames_skipped = 0
+        frames_recorded = 0
+        for fnum, filename in enumerate(raw_frames):
+            if time.time() >= last_update_time + 10:
+                if self._limit_fps:
+                    asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images processed: {fnum}/{photo_count}, recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
+                else:
+                    asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recoded {fnum}/{photo_count}"), loop).result()
+                last_update_time = time.time()
+
+            if not self._limit_fps or fnum % odd_frames == 0:
+                out.write(self._camera.get_frame(filename))
+                frames_recorded += 1
+            else:
+                frames_skipped += 1
+
+        if self._last_frame_duration > 0:
+            asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Repeating last image for {self._last_frame_duration} seconds"), loop).result()
+            for _ in range(lapse_fps * self._last_frame_duration):
+                out.write(img)
+
+        if self._limit_fps:
+            asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
+
+        out.release()
+        del out, raw_frames, img, layers, last_frame
+
+        # TODO: some error handling?
+        video_bytes: bytes = b""
+        with video_filepath.open("rb") as fh:
+            video_bytes = fh.read()
+        if self._ready_dir and self._ready_dir.is_dir():
+            asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Copy lapse to target ditectory"), loop).result()
+            target_video_file = self._ready_dir / f"{printing_filename}.mp4"
+            target_video_file.parent.mkdir(parents=True, exist_ok=True)
+            with target_video_file.open("wb") as cpf:
+                cpf.write(video_bytes)
+
+        (lapse_dir / "lapse.lock").unlink(missing_ok=True)
+        os_nice(0)
+
+        res_thumb_bytes = thumb_bio.getvalue()
+        thumb_bio.close()
+        del thumb_bio
+
+        return video_bytes, res_thumb_bytes, width, height, str(video_filepath)
+
+    def _cleanup_lapse(self, lapse_filename: str, *, force: bool = False) -> None:
+        lapse_dir = self._base_dir / lapse_filename
+        if self._cleanup or force:
+            for filename in lapse_dir.iterdir():
+                filename.unlink()
+            lapse_dir.rmdir()
+
+    # TODO: check if lapse was in subfolder (alike gcode folders)
+    # TODO: check for 64 symbols length in lapse names
+    def detect_unfinished_lapses(self) -> list[str]:
+        # TODO: detect unstarted timelapse builds? folder with pics and no mp4 files
+        return [el.parent.name for el in self._base_dir.rglob("*.lock")]
+
+    def cleanup_unfinished_lapses(self) -> None:
+        for lapse_name in self.detect_unfinished_lapses():
+            self._cleanup_lapse(lapse_name, force=True)
+
     def stop_all(self) -> None:
         self._remove_timelapse_timer()
         self._running = False
         self._paused = False
         self._last_height = 0.0
-        self._camera.lapse_missed_frames = 0
+        self._lapse_missed_frames = 0
         self._schedule_save()
 
     def _schedule_save(self) -> None:

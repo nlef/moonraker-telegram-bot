@@ -1,12 +1,19 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from timelapse import Timelapse
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-@pytest.fixture
-def mock_timelapse() -> Timelapse:
+LAPSES_NAMES = ["lapse1", "lapse2", "lapse3", "lapse4"]
+
+
+def make_timelapse(base_dir: Path, *, cleanup: bool = True) -> Timelapse:
     config = MagicMock()
     config.timelapse.enabled = True
     config.timelapse.mode_manual = True
@@ -20,29 +27,52 @@ def mock_timelapse() -> Timelapse:
     config.timelapse.after_lapse_gcode = ""
     config.timelapse.send_finished_lapse = True
     config.timelapse.after_photo_gcode = ""
+    config.timelapse.base_dir = base_dir
+    config.timelapse.ready_dir = None
+    config.timelapse.cleanup = cleanup
     config.bot_config.debug = False
     config.bot_config.max_upload_file_size = 50
     config.secrets.chat_id = 123
     config.telegram_ui.silent_progress = False
-
-    klippy = MagicMock()
-    klippy.save_param_to_db = AsyncMock()
-    klippy.get_param_from_db = AsyncMock(return_value=None)
-    klippy.delete_param_from_db = AsyncMock()
+    config.camera.fourcc = "h264"
 
     camera = MagicMock()
     camera.enabled = True
 
+    klippy = MagicMock()
+    klippy.light_device = None
+
     scheduler = MagicMock()
     scheduler.get_job.return_value = None
 
-    bot = MagicMock()
+    return Timelapse(config, klippy, camera, scheduler, MagicMock(), MagicMock())
 
-    return Timelapse(config, klippy, camera, scheduler, bot, MagicMock())
+
+def _create_test_lapses(test_dir: Path) -> None:
+    for lap in LAPSES_NAMES:
+        lap_path = test_dir / lap
+        lap_path.mkdir(parents=True, exist_ok=True)
+        (lap_path / "lapse.lock").touch()
+
+
+def test_detect_unfinished_lapses(tmp_path: Path) -> None:
+    _create_test_lapses(tmp_path)
+    tl = make_timelapse(tmp_path)
+    lapses_list = tl.detect_unfinished_lapses()
+    lapses_list.sort()
+    assert lapses_list == LAPSES_NAMES
+
+
+def test_cleanup_unfinished_lapses(tmp_path: Path) -> None:
+    _create_test_lapses(tmp_path)
+    tl = make_timelapse(tmp_path)
+    tl.cleanup_unfinished_lapses()
+    assert not any(tmp_path.iterdir())
 
 
 @pytest.mark.asyncio
-async def test_save_and_restore_state(mock_timelapse: Timelapse) -> None:
+async def test_save_and_restore_state(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
     saved_state: dict[str, object] = {}
 
     async def mock_save(key: str, value: object) -> None:
@@ -51,57 +81,56 @@ async def test_save_and_restore_state(mock_timelapse: Timelapse) -> None:
     async def mock_get(key: str) -> object:
         return saved_state.get(key)
 
-    mock_timelapse._klippy.save_param_to_db = AsyncMock(side_effect=mock_save)
-    mock_timelapse._klippy.get_param_from_db = AsyncMock(side_effect=mock_get)
+    tl._klippy.save_param_to_db = AsyncMock(side_effect=mock_save)
+    tl._klippy.get_param_from_db = AsyncMock(side_effect=mock_get)
 
-    mock_timelapse._running = True
-    mock_timelapse._paused = True
-    mock_timelapse._last_height = 12.5
-    await mock_timelapse._save_state()
+    tl._running = True
+    tl._paused = True
+    tl._last_height = 12.5
+    await tl._save_state()
 
-    mock_timelapse._running = False
-    mock_timelapse._paused = False
-    mock_timelapse._last_height = 0.0
-    await mock_timelapse.restore_state()
+    tl._running = False
+    tl._paused = False
+    tl._last_height = 0.0
+    await tl.restore_state()
 
-    assert mock_timelapse._running is True
-    assert mock_timelapse._paused is True
-    assert mock_timelapse._last_height == 12.5
-
-
-@pytest.mark.asyncio
-async def test_stop_all_clears_state(mock_timelapse: Timelapse) -> None:
-    mock_timelapse._running = True
-    mock_timelapse.stop_all()
-
-    assert mock_timelapse._running is False
-    assert mock_timelapse._paused is False
-    assert mock_timelapse._last_height == 0.0
+    assert tl._running is True
+    assert tl._paused is True
+    assert tl._last_height == 12.5
 
 
 @pytest.mark.asyncio
-async def test_restore_with_no_saved_state(mock_timelapse: Timelapse) -> None:
-    mock_timelapse._klippy.get_param_from_db = AsyncMock(return_value=None)
+async def test_stop_all_clears_state(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+    tl._running = True
+    tl.stop_all()
 
-    mock_timelapse._running = False
-    mock_timelapse._paused = False
-    mock_timelapse._last_height = 0.0
-    await mock_timelapse.restore_state()
-
-    assert mock_timelapse._running is False
-    assert mock_timelapse._paused is False
-    assert mock_timelapse._last_height == 0.0
+    assert tl._running is False
+    assert tl._paused is False
+    assert tl._last_height == 0.0
 
 
 @pytest.mark.asyncio
-async def test_save_clears_on_not_running(mock_timelapse: Timelapse) -> None:
+async def test_restore_with_no_saved_state(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+    tl._klippy.get_param_from_db = AsyncMock(return_value=None)
+    await tl.restore_state()
+
+    assert tl._running is False
+    assert tl._paused is False
+    assert tl._last_height == 0.0
+
+
+@pytest.mark.asyncio
+async def test_save_clears_on_not_running(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
     delete_mock = AsyncMock()
     save_mock = AsyncMock()
-    mock_timelapse._klippy.delete_param_from_db = delete_mock
-    mock_timelapse._klippy.save_param_to_db = save_mock
+    tl._klippy.delete_param_from_db = delete_mock
+    tl._klippy.save_param_to_db = save_mock
 
-    mock_timelapse._running = False
-    await mock_timelapse._save_state()
+    tl._running = False
+    await tl._save_state()
 
     delete_mock.assert_called_once_with("timelapse_state")
     save_mock.assert_not_called()
