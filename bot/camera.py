@@ -404,19 +404,25 @@ class Camera(abc.ABC):
 class NumpyCamera(Camera):
     """Camera backend using numpy arrays for frame processing. Base for OpenCV and FFmpeg cameras."""
 
-    cam_cam: Any  # Set by subclasses (OpenCVCamera, FFmpegCamera)
+    @abc.abstractmethod
+    def _open_capture(self) -> None: ...
 
-    def _init_cam(self) -> None:
-        msg = "_init_cam must be implemented by subclass"
-        raise NotImplementedError(msg)
+    @abc.abstractmethod
+    def _read_frame(self) -> tuple[bool, Any]: ...
+
+    @abc.abstractmethod
+    def _release_capture(self) -> None: ...
+
+    @abc.abstractmethod
+    def _get_capture_fps(self) -> float: ...
 
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
         with self._camera_lock:
             st_time = time.time()
-            self._init_cam()
-            success, image = self.cam_cam.read()
-            self.cam_cam.release()
+            self._open_capture()
+            success, image = self._read_frame()
+            self._release_capture()
             logger.debug("_take_raw_frame cam read execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
@@ -480,8 +486,8 @@ class NumpyCamera(Camera):
         with self._camera_lock:
             os_nice(15)
             st_time = time.time()
-            self._init_cam()
-            success, frame = self.cam_cam.read()
+            self._open_capture()
+            success, frame = self._read_frame()
             logger.debug("take_video cam read first frame execution time: %s millis", (time.time() - st_time) * 1000)
 
             if not success:
@@ -493,7 +499,7 @@ class NumpyCamera(Camera):
             thumb_bio = self._create_thumb(frame)
             del frame, channels
 
-            fps_cam = self.cam_cam.get(cv2.CAP_PROP_FPS) if self._stream_fps == 0 else self._stream_fps
+            fps_cam = self._get_capture_fps() if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
 
             filepath = Path("/tmp") / "video.mp4"
@@ -503,7 +509,7 @@ class NumpyCamera(Camera):
             time_last_frame = time.time()
             while success and time.time() <= t_end:
                 st_time = time.time()
-                success, frame_loc = self.cam_cam.read()
+                success, frame_loc = self._read_frame()
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
@@ -511,7 +517,7 @@ class NumpyCamera(Camera):
                         frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
-            self.cam_cam.release()
+            self._release_capture()
 
             res_fps = len(frame_list) / self._video_duration
 
@@ -601,7 +607,7 @@ class OpenCVCamera(NumpyCamera):
 
         self._cv2_params: list[Any] = []
         cv2.setNumThreads(self._threads)
-        self.cam_cam = cv2.VideoCapture()
+        self._capture = cv2.VideoCapture()
         self._set_cv2_params()
 
     @staticmethod
@@ -614,13 +620,13 @@ class OpenCVCamera(NumpyCamera):
             return True
 
     def _set_cv2_params(self) -> None:
-        self.cam_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         for prop_name, value in self._cv2_params:
             if prop_name.upper() == "CAP_PROP_FOURCC":
                 try:
                     prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, cv2.VideoWriter_fourcc(*value))  # type: ignore[attr-defined]
+                    self._capture.set(prop, cv2.VideoWriter_fourcc(*value))  # type: ignore[attr-defined]
                 except AttributeError:
                     logger.exception("Failed to set fourcc for camera %s", prop_name)
             else:
@@ -633,15 +639,24 @@ class OpenCVCamera(NumpyCamera):
                     val = value
                 try:
                     prop = getattr(cv2, prop_name.upper())
-                    self.cam_cam.set(prop, val)
+                    self._capture.set(prop, val)
                 except AttributeError:
                     logger.exception("Failed to set fourcc for camera %s", prop_name)
 
-    def _init_cam(self) -> None:
+    def _open_capture(self) -> None:
         device = int(self._host) if self._host.isdigit() else self._host
-        self.cam_cam.open(device)
+        self._capture.open(device)
         self._set_cv2_params()
         cv2.setNumThreads(self._threads)
+
+    def _read_frame(self) -> tuple[bool, Any]:
+        return self._capture.read()
+
+    def _release_capture(self) -> None:
+        self._capture.release()
+
+    def _get_capture_fps(self) -> float:
+        return self._capture.get(cv2.CAP_PROP_FPS)
 
 
 class FFmpegCamera(NumpyCamera):
@@ -651,11 +666,23 @@ class FFmpegCamera(NumpyCamera):
         super().__init__(config, klippy, logging_handler)
 
         self._cam_timeout: int = 5
-        self.videoinfo = get_info(self._host, self._cam_timeout)
-        self.cam_cam: FFmpegReader
+        self._videoinfo = get_info(self._host, self._cam_timeout)
+        self._capture: FFmpegReader | None = None
 
-    def _init_cam(self) -> None:
-        self.cam_cam = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self.videoinfo)
+    def _open_capture(self) -> None:
+        self._capture = FFmpegReaderStreamRTCustomInit(self._host, timeout=self._cam_timeout, videoinfo=self._videoinfo)
+
+    def _read_frame(self) -> tuple[bool, Any]:
+        if self._capture is None:
+            return False, None
+        return cast("tuple[bool, Any]", self._capture.read())
+
+    def _release_capture(self) -> None:
+        if self._capture is not None:
+            self._capture.release()
+
+    def _get_capture_fps(self) -> float:
+        return cast("float", self._videoinfo.fps)
 
 
 class MjpegCamera(Camera):

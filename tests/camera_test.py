@@ -8,8 +8,17 @@ from camera import Camera, NumpyCamera
 class _TestCamera(NumpyCamera):
     """Minimal concrete camera for testing."""
 
-    def _init_cam(self) -> None:
+    def _open_capture(self) -> None:
         pass
+
+    def _read_frame(self) -> tuple[bool, None]:
+        return False, None
+
+    def _release_capture(self) -> None:
+        pass
+
+    def _get_capture_fps(self) -> float:
+        return 0.0
 
 
 def make_camera(test_dir: Path) -> Camera:
