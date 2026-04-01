@@ -212,16 +212,16 @@ class Timelapse:
         if not future.result():
             self._lapse_missed_frames += 1
 
-    def _take_lapse_and_gcode(self, lapse_dir: Path, gcode: str) -> bool:
+    def _take_lapse_and_gcode(self, lapse_dir: Path, after_gcode: str | None) -> bool:
         result = self._camera.take_lapse_photo(lapse_dir)
-        if gcode:
+        if after_gcode:
             try:
-                self._klippy.execute_gcode_script_sync(gcode.strip())
+                self._klippy.execute_gcode_script_sync(after_gcode.strip())
             except Exception:
                 logger.exception("Failed to execute gcode after timelapse shot")
         return result
 
-    def take_lapse_photo(self, position_z: float | None = None, manually: bool = False, gcode: bool = False) -> None:
+    def take_lapse_photo(self, position_z: float | None = None, manually: bool = False, with_after_gcode: bool = False) -> None:
         if not self._enabled:
             logger.debug("lapse is disabled")
             return
@@ -238,14 +238,14 @@ class Timelapse:
             logger.debug("lapse must not run with auto mode and zero print duration")
             return
 
-        gcode_command = self._after_photo_gcode if gcode and self._after_photo_gcode else ""
+        after_gcode = self._after_photo_gcode if with_after_gcode and self._after_photo_gcode else None
 
         if position_z is None:
             logger.debug("Taking lapse photo (no position)")
-            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, gcode_command).add_done_callback(self._lapse_photo_callback)
+            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, after_gcode).add_done_callback(self._lapse_photo_callback)
         elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             logger.debug("Taking lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
-            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, gcode_command).add_done_callback(self._lapse_photo_callback)
+            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, after_gcode).add_done_callback(self._lapse_photo_callback)
             self._last_height = position_z
             self._schedule_save()
         else:
