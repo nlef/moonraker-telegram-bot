@@ -158,8 +158,6 @@ class Camera(abc.ABC):
         else:
             self._img_extension = config.camera.picture_quality
 
-        self.raw_frame_extension: str = "npz"
-
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
 
@@ -188,6 +186,13 @@ class Camera(abc.ABC):
     def take_lapse_photo(self, lapse_dir: Path) -> bool: ...
 
     @property
+    @abc.abstractmethod
+    def raw_frame_extension(self) -> str: ...
+
+    @abc.abstractmethod
+    def get_frame(self, path: Path) -> NDArray[Any]: ...
+
+    @property
     def light_need_off(self) -> bool:
         with self._light_need_off_lock:
             return self._light_need_off
@@ -210,10 +215,6 @@ class Camera(abc.ABC):
         with self._light_request_lock:
             self._light_requests -= 1
 
-    def get_frame(self, path: Path) -> NDArray[Any]:
-        """Load a timelapse frame from disk. Override for different frame formats."""
-        return cast("NDArray[Any]", np.load(path, allow_pickle=True)["raw"])
-
 
 class NumpyCamera(Camera):
     """Camera backend using numpy arrays for frame processing. Base for OpenCV and FFmpeg cameras."""
@@ -221,6 +222,13 @@ class NumpyCamera(Camera):
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
         super().__init__(config, klippy, logging_handler)
         self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
+
+    @property
+    def raw_frame_extension(self) -> str:
+        return "npz"
+
+    def get_frame(self, path: Path) -> NDArray[Any]:
+        return cast("NDArray[Any]", np.load(path, allow_pickle=True)["raw"])
 
     @abc.abstractmethod
     def _open_capture(self) -> None: ...
@@ -480,10 +488,13 @@ class MjpegCamera(Camera):
     def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
         super().__init__(config, klippy, logging_handler)
         self._img_extension = "jpeg"
-        self.raw_frame_extension: str = "jpeg"
         self._host = config.camera.host
         self._host_snapshot = config.camera.host_snapshot or self._host.replace("stream", "snapshot")
         self._http = httpx.Client(timeout=5, verify=False)
+
+    @property
+    def raw_frame_extension(self) -> str:
+        return "jpeg"
 
     def _rotate_img(self, img: Image.Image) -> Image.Image:
         if self._flip_vertically:
