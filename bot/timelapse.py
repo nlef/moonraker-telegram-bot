@@ -18,7 +18,7 @@ from telegram import InputFile
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
 
-from camera import os_nice
+from camera import create_thumb, os_nice
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
@@ -418,7 +418,7 @@ class Timelapse:
         img = self._camera.get_frame(last_frame)
 
         height, width, layers = img.shape
-        thumb_bio = self._camera.create_thumb(img)
+        thumb_bio = create_thumb(img)
 
         video_filepath = lapse_dir / f"{Path(printing_filename).name}.mp4"
         if video_filepath.is_file():

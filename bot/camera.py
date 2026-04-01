@@ -85,6 +85,18 @@ def os_nice(value: int) -> None:
         os.nice(value)
 
 
+def create_thumb(image: NDArray[Any]) -> BytesIO:
+    img = Image.fromarray(image[:, :, [2, 1, 0]])
+    bio = BytesIO()
+    bio.name = "thumbnail.jpeg"
+    img.thumbnail((320, 320))
+    img.save(bio, "JPEG", quality=100, optimize=True)
+    bio.seek(0)
+    img.close()
+    del img
+    return bio
+
+
 class Camera(abc.ABC):
     """Abstract base for all camera backends."""
 
@@ -166,18 +178,6 @@ class Camera(abc.ABC):
     def free_light(self) -> None:
         with self._light_request_lock:
             self._light_requests -= 1
-
-    @staticmethod
-    def create_thumb(image: NDArray[Any]) -> BytesIO:
-        img = Image.fromarray(image[:, :, [2, 1, 0]])
-        bio = BytesIO()
-        bio.name = "thumbnail.jpeg"
-        img.thumbnail((320, 320))
-        img.save(bio, "JPEG", quality=100, optimize=True)
-        bio.seek(0)
-        img.close()
-        del img
-        return bio
 
     def get_frame(self, path: Path) -> NDArray[Any]:
         """Load a timelapse frame from disk. Override for different frame formats."""
@@ -279,7 +279,7 @@ class NumpyCamera(Camera):
 
             frame = self._transform_frame(frame)
             height, width, channels = frame.shape
-            thumb_bio = self.create_thumb(frame)
+            thumb_bio = create_thumb(frame)
             del frame, channels
 
             fps_cam = self._get_capture_fps() if self._stream_fps == 0 else self._stream_fps
@@ -558,7 +558,7 @@ class MjpegCamera(Camera):
             os_nice(15)
             frame = self._image_to_frame(self._fetch_raw_snapshot())
             height, width, channels = frame.shape
-            thumb_bio = self.create_thumb(frame)
+            thumb_bio = create_thumb(frame)
             del frame, channels
 
             # TODO: maybe there is another way to get fps from a streamer
@@ -629,7 +629,7 @@ class RawStreamCamera(MjpegCamera):
 
             thumb_frame = self._image_to_frame(self._fetch_raw_snapshot())
             height, width, channels = thumb_frame.shape
-            thumb_bio = self.create_thumb(thumb_frame)
+            thumb_bio = create_thumb(thumb_frame)
             del thumb_frame, channels
 
             fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
