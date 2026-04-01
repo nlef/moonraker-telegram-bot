@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import pickle
 import subprocess
+import tempfile
 import threading
 import time
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, cast
@@ -284,7 +285,9 @@ class NumpyCamera(Camera):
             fps_cam = self._get_capture_fps() if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
 
-            filepath = Path("/tmp") / "video.mp4"
+            fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
+            os.close(fd)
+            filepath = Path(tmp)
             frame_list = []
 
             t_end = time.time() + self._video_duration
@@ -562,7 +565,9 @@ class MjpegCamera(Camera):
             fps_cam = 15 if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
 
-            filepath = Path("/tmp") / "video.mp4"
+            fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
+            os.close(fd)
+            filepath = Path(tmp)
             frame_list = []
 
             t_end = time.time() + self._video_duration
@@ -627,7 +632,9 @@ class RawStreamCamera(MjpegCamera):
             thumb_bio = self.create_thumb(thumb_frame)
             del thumb_frame, channels
 
-            filepath = Path("/tmp") / "video.mp4"
+            fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
+            os.close(fd)
+            filepath = Path(tmp)
             host = str(self._host)
 
             cmd = ["ffmpeg", "-y"]
