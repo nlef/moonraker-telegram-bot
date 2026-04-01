@@ -136,7 +136,7 @@ class Camera(abc.ABC):
             logger.setLevel(logging.DEBUG)
 
     @abc.abstractmethod
-    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO: ...
+    def take_photo(self) -> BytesIO: ...
 
     @abc.abstractmethod
     def take_video(self) -> tuple[BytesIO, BytesIO, int, int]: ...
@@ -235,9 +235,8 @@ class NumpyCamera(Camera):
 
         return cast("NDArray[Any]", ndaarr)
 
-    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:  # noqa: ARG002
-        img = Image.fromarray(ndarr) if ndarr is not None else Image.fromarray(self._take_raw_frame())
-
+    def _encode_image(self, ndarr: NDArray[Any]) -> BytesIO:
+        img = Image.fromarray(ndarr)
         os_nice(15)
         if img.mode != "RGB":
             logger.warning("img mode is %s", img.mode)
@@ -253,11 +252,13 @@ class NumpyCamera(Camera):
         elif self._img_extension == "png":
             img.save(bio, "PNG")
         bio.seek(0)
-
         img.close()
         os_nice(0)
         del img
         return bio
+
+    def take_photo(self) -> BytesIO:
+        return self._encode_image(self._take_raw_frame())
 
     @cam_light_toggle
     def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
@@ -352,7 +353,7 @@ class NumpyCamera(Camera):
 
         # never add self in params there!
         if self._save_lapse_photos_as_images:
-            with self.take_photo(raw_frame_rgb) as photo:
+            with self._encode_image(raw_frame_rgb) as photo:
                 filename = lapse_dir / f"{time.time()}.{self._img_extension}"
                 with filename.open("wb") as outfile:
                     outfile.write(photo.getvalue())
@@ -490,40 +491,45 @@ class MjpegCamera(Camera):
             img = img.transpose(self._ROTATION_TO_TRANSPOSE[self._rotation_count])
         return img
 
-    @cam_light_toggle
-    def take_photo(self, ndarr: NDArray[Any] | None = None, force_rotate: bool = True) -> BytesIO:  # noqa: ARG002
+    def _fetch_raw_snapshot(self) -> BytesIO:
         bio = BytesIO()
         os_nice(15)
         try:
             # TODO: speedup coonections?
             response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
-
             os_nice(15)
             if response.is_success and response.headers["Content-Type"] == "image/jpeg":
-                if force_rotate:
-                    img = self._rotate_img(Image.open(BytesIO(response.content)).convert("RGB"))
-                    img.save(bio, format="JPEG")
-                    img.close()
-                    del img
-                else:
-                    bio.write(response.content)
+                bio.write(response.content)
             else:
                 response.raise_for_status()
         except HTTPError:
             logger.exception("Streamer snapshot get failed\n%s")
-            if force_rotate:
-                with Image.open("../imgs/nosignal.png").convert("RGB") as img:
-                    img.save(bio, format="JPEG")
-
         os_nice(0)
         bio.seek(0)
         return bio
 
+    @cam_light_toggle
+    def take_photo(self) -> BytesIO:
+        raw = self._fetch_raw_snapshot()
+        bio = BytesIO()
+        if raw.getbuffer().nbytes > 0:
+            img = self._rotate_img(Image.open(raw).convert("RGB"))
+            img.save(bio, format="JPEG")
+            img.close()
+            del img
+        else:
+            with Image.open("../imgs/nosignal.png").convert("RGB") as img:
+                img.save(bio, format="JPEG")
+        raw.close()
+        bio.seek(0)
+        return bio
+
+    @cam_light_toggle
     def take_lapse_photo(self, lapse_dir: Path, gcode: str = "") -> bool:
         logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
         # TODO: check for space available?
         lapse_dir.mkdir(parents=True, exist_ok=True)
-        with self.take_photo(force_rotate=False) as photo:
+        with self._fetch_raw_snapshot() as photo:
             if gcode:
                 try:
                     self._klippy.execute_gcode_script_sync(gcode.strip())
@@ -558,7 +564,7 @@ class MjpegCamera(Camera):
 
         with self._camera_lock:
             os_nice(15)
-            frame = self._image_to_frame(self.take_photo(force_rotate=False))
+            frame = self._image_to_frame(self._fetch_raw_snapshot())
             height, width, channels = frame.shape
             thumb_bio = self.create_thumb(frame)
             del frame, channels
@@ -574,7 +580,7 @@ class MjpegCamera(Camera):
             time_last_frame = time.time()
             while time.time() <= t_end:
                 st_time = time.time()
-                frame_loc = self.take_photo(force_rotate=False)
+                frame_loc = self._fetch_raw_snapshot()
                 logger.debug("take_video cam read  frame execution time: %s millis", (time.time() - st_time) * 1000)
                 if time.time() > time_last_frame + frame_time:
                     time_last_frame = time.time()
@@ -627,7 +633,7 @@ class RawStreamCamera(MjpegCamera):
         with self._camera_lock:
             os_nice(15)
 
-            thumb_frame = self._image_to_frame(self.take_photo(force_rotate=False))
+            thumb_frame = self._image_to_frame(self._fetch_raw_snapshot())
             height, width, channels = thumb_frame.shape
             thumb_bio = self.create_thumb(thumb_frame)
             del thumb_frame, channels
