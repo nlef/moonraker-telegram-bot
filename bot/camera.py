@@ -199,6 +199,15 @@ class NumpyCamera(Camera):
     @abc.abstractmethod
     def _get_capture_fps(self) -> float: ...
 
+    def _transform_frame(self, frame: NDArray[Any]) -> NDArray[Any]:
+        if self._flip_vertically:
+            frame = np.flipud(frame)
+        if self._flip_horizontally:
+            frame = np.fliplr(frame)
+        if self._rotation_count is not None:
+            frame = np.rot90(frame, k=self._rotation_count, axes=(1, 0))
+        return frame
+
     @cam_light_toggle
     def _take_raw_frame(self, rgb: bool = True) -> NDArray[Any]:
         with self._camera_lock:
@@ -218,12 +227,7 @@ class NumpyCamera(Camera):
                 else:
                     return cast("NDArray[Any]", np.empty(0))
             else:
-                if self._flip_vertically:
-                    image = np.flipud(image)
-                if self._flip_horizontally:
-                    image = np.fliplr(image)
-                if self._rotation_count is not None:
-                    image = np.rot90(image, k=self._rotation_count, axes=(1, 0))
+                image = self._transform_frame(image)
 
             ndaarr = image[:, :, [2, 1, 0]].copy() if rgb else image.copy()
             image = None
@@ -257,15 +261,6 @@ class NumpyCamera(Camera):
 
     @cam_light_toggle
     def take_video(self) -> tuple[BytesIO, BytesIO, int, int]:
-        def process_video_frame(frame_local: NDArray[Any]) -> NDArray[Any]:
-            if self._flip_vertically:
-                frame_local = np.flipud(frame_local)
-            if self._flip_horizontally:
-                frame_local = np.fliplr(frame_local)
-            if self._rotation_count is not None:
-                frame_local = np.rot90(frame_local, k=self._rotation_count, axes=(1, 0))
-            return frame_local
-
         with self._camera_lock:
             os_nice(15)
             st_time = time.time()
@@ -277,7 +272,7 @@ class NumpyCamera(Camera):
                 logger.debug("failed to get camera frame for video")
                 # TODO: get picture from imgs?
 
-            frame = process_video_frame(frame)
+            frame = self._transform_frame(frame)
             height, width, channels = frame.shape
             thumb_bio = self.create_thumb(frame)
             del frame, channels
@@ -314,7 +309,7 @@ class NumpyCamera(Camera):
 
             for el in frame_list:
                 loc_loc = pickle.loads(el)
-                out.write(process_video_frame(loc_loc))
+                out.write(self._transform_frame(loc_loc))
                 del loc_loc
 
             out.release()
