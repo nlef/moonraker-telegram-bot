@@ -114,7 +114,6 @@ class Camera(abc.ABC):
         else:
             self._img_extension = config.camera.picture_quality
 
-        self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
         self.raw_frame_extension: str = "npz"
 
         self._light_requests: int = 0
@@ -142,7 +141,7 @@ class Camera(abc.ABC):
     def take_video(self) -> tuple[BytesIO, BytesIO, int, int]: ...
 
     @abc.abstractmethod
-    def take_lapse_photo(self, lapse_dir: Path, gcode: str = "") -> bool: ...
+    def take_lapse_photo(self, lapse_dir: Path) -> bool: ...
 
     @property
     def light_need_off(self) -> bool:
@@ -186,6 +185,10 @@ class Camera(abc.ABC):
 
 class NumpyCamera(Camera):
     """Camera backend using numpy arrays for frame processing. Base for OpenCV and FFmpeg cameras."""
+
+    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(config, klippy, logging_handler)
+        self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
 
     @abc.abstractmethod
     def _open_capture(self) -> None: ...
@@ -328,18 +331,11 @@ class NumpyCamera(Camera):
         video_bio.seek(0)
         return video_bio, thumb_bio, width, height
 
-    def take_lapse_photo(self, lapse_dir: Path, gcode: str = "") -> bool:
-        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
+    def take_lapse_photo(self, lapse_dir: Path) -> bool:
+        logger.debug("Take_lapse_photo called")
         # TODO: check for space available?
         lapse_dir.mkdir(parents=True, exist_ok=True)
-        # never add self in params there!
         raw_frame = self._take_raw_frame(rgb=False)
-
-        if gcode:
-            try:
-                self._klippy.execute_gcode_script_sync(gcode.strip())
-            except Exception:
-                logger.exception("Failed to execute gcode before timelapse shot")
 
         if raw_frame.size == 0:
             return False
@@ -347,19 +343,18 @@ class NumpyCamera(Camera):
         os_nice(15)
         np.savez_compressed(lapse_dir / str(time.time()), raw=raw_frame)
 
-        raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
-        del raw_frame
-        os_nice(0)
-
-        # never add self in params there!
         if self._save_lapse_photos_as_images:
+            raw_frame_rgb = raw_frame[:, :, [2, 1, 0]].copy()
+            del raw_frame
             with self._encode_image(raw_frame_rgb) as photo:
                 filename = lapse_dir / f"{time.time()}.{self._img_extension}"
                 with filename.open("wb") as outfile:
                     outfile.write(photo.getvalue())
-                photo.close()
+            del raw_frame_rgb
+        else:
+            del raw_frame
 
-        del raw_frame_rgb
+        os_nice(0)
         return True
 
 
@@ -525,17 +520,11 @@ class MjpegCamera(Camera):
         return bio
 
     @cam_light_toggle
-    def take_lapse_photo(self, lapse_dir: Path, gcode: str = "") -> bool:
-        logger.debug("Take_lapse_photo called with gcode `%s`", gcode)
+    def take_lapse_photo(self, lapse_dir: Path) -> bool:
+        logger.debug("Take_lapse_photo called")
         # TODO: check for space available?
         lapse_dir.mkdir(parents=True, exist_ok=True)
         with self._fetch_raw_snapshot() as photo:
-            if gcode:
-                try:
-                    self._klippy.execute_gcode_script_sync(gcode.strip())
-                except Exception:
-                    logger.exception("Failed to execute gcode before timelapse shot")
-
             if photo.getbuffer().nbytes > 0:
                 filename = lapse_dir / f"{time.time()}.{self._img_extension}"
                 with filename.open("wb") as outfile:
