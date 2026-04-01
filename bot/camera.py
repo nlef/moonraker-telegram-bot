@@ -479,6 +479,7 @@ class MjpegCamera(Camera):
         self.raw_frame_extension: str = "jpeg"
         self._host = config.camera.host
         self._host_snapshot = config.camera.host_snapshot or self._host.replace("stream", "snapshot")
+        self._http = httpx.Client(timeout=5, verify=False)
 
     def _rotate_img(self, img: Image.Image) -> Image.Image:
         if self._flip_vertically:
@@ -493,8 +494,7 @@ class MjpegCamera(Camera):
         bio = BytesIO()
         os_nice(15)
         try:
-            # TODO: speedup coonections?
-            response = httpx.get(f"{self._host_snapshot}", timeout=5, verify=False)
+            response = self._http.get(self._host_snapshot)
             os_nice(15)
             if response.is_success and response.headers["Content-Type"] == "image/jpeg":
                 bio.write(response.content)
