@@ -417,8 +417,7 @@ class Timelapse:
         last_frame = raw_frames[-1]
         img = self._camera.get_frame(last_frame)
 
-        height, width, layers = img.shape
-        thumb_bio = create_thumb(img)
+        thumb_bio, height, width = create_thumb(img)
 
         video_filepath = lapse_dir / f"{Path(printing_filename).name}.mp4"
         if video_filepath.is_file():
@@ -463,7 +462,7 @@ class Timelapse:
             asyncio.run_coroutine_threadsafe(info_mess.edit_text(text=f"Images recorded: {frames_recorded}, skipped: {frames_skipped}"), loop).result()
 
         out.release()
-        del out, raw_frames, img, layers, last_frame
+        del out, raw_frames, img, last_frame
 
         # TODO: some error handling?
         video_bytes: bytes = b""

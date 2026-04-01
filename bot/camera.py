@@ -85,7 +85,38 @@ def os_nice(value: int) -> None:
         os.nice(value)
 
 
-def create_thumb(image: NDArray[Any]) -> BytesIO:
+def _encode_frames(
+    frame_list: list[bytes],
+    filepath: Path,
+    fourcc: str,
+    duration: float,
+    transform: Callable[[Any], NDArray[Any]],
+) -> None:
+    res_fps = len(frame_list) / duration
+    logger.debug("res fps - %s", res_fps)
+    out = ffmpegcv.VideoWriter(filepath.as_posix(), codec=fourcc, fps=res_fps)
+    for el in frame_list:
+        frame = pickle.loads(el)
+        out.write(transform(frame))
+        del frame
+    out.release()
+    del out
+    frame_list.clear()
+
+
+def _read_and_cleanup_video(filepath: Path) -> BytesIO:
+    video_bio = BytesIO()
+    video_bio.name = "video.mp4"
+    if filepath.is_file():
+        with filepath.open("rb") as f:
+            video_bio.write(f.read())
+        filepath.unlink()
+    video_bio.seek(0)
+    return video_bio
+
+
+def create_thumb(image: NDArray[Any]) -> tuple[BytesIO, int, int]:
+    height, width = image.shape[:2]
     img = Image.fromarray(image[:, :, [2, 1, 0]])
     bio = BytesIO()
     bio.name = "thumbnail.jpeg"
@@ -94,7 +125,7 @@ def create_thumb(image: NDArray[Any]) -> BytesIO:
     bio.seek(0)
     img.close()
     del img
-    return bio
+    return bio, height, width
 
 
 class Camera(abc.ABC):
@@ -278,9 +309,8 @@ class NumpyCamera(Camera):
                 # TODO: get picture from imgs?
 
             frame = self._transform_frame(frame)
-            height, width, channels = frame.shape
-            thumb_bio = create_thumb(frame)
-            del frame, channels
+            thumb_bio, height, width = create_thumb(frame)
+            del frame
 
             fps_cam = self._get_capture_fps() if self._stream_fps == 0 else self._stream_fps
             frame_time = 1.0 / fps_cam
@@ -288,7 +318,7 @@ class NumpyCamera(Camera):
             fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
             os.close(fd)
             filepath = Path(tmp)
-            frame_list = []
+            frame_list: list[bytes] = []
 
             t_end = time.time() + self._video_duration
             time_last_frame = time.time()
@@ -303,36 +333,10 @@ class NumpyCamera(Camera):
                 del frame_loc
 
             self._release_capture()
-
-            res_fps = len(frame_list) / self._video_duration
-
-            logger.debug("res fps - %s", res_fps)
-
-            out = ffmpegcv.VideoWriter(
-                filepath.as_posix(),
-                codec=self._fourcc,
-                fps=res_fps,
-            )
-
-            for el in frame_list:
-                loc_loc = pickle.loads(el)
-                out.write(self._transform_frame(loc_loc))
-                del loc_loc
-
-            out.release()
-            del out
+            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._transform_frame)
             os_nice(0)
 
-            frame_list.clear()
-            del frame_list
-
-        video_bio = BytesIO()
-        video_bio.name = "video.mp4"
-        with filepath.open("rb") as video_file:
-            video_bio.write(video_file.read())
-        filepath.unlink()
-        video_bio.seek(0)
-        return video_bio, thumb_bio, width, height
+        return _read_and_cleanup_video(filepath), thumb_bio, width, height
 
     def take_lapse_photo(self, lapse_dir: Path) -> bool:
         logger.debug("Take_lapse_photo called")
@@ -557,9 +561,8 @@ class MjpegCamera(Camera):
         with self._camera_lock:
             os_nice(15)
             frame = self._image_to_frame(self._fetch_raw_snapshot())
-            height, width, channels = frame.shape
-            thumb_bio = create_thumb(frame)
-            del frame, channels
+            thumb_bio, height, width = create_thumb(frame)
+            del frame
 
             # TODO: maybe there is another way to get fps from a streamer
             fps_cam = 15 if self._stream_fps == 0 else self._stream_fps
@@ -568,7 +571,7 @@ class MjpegCamera(Camera):
             fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
             os.close(fd)
             filepath = Path(tmp)
-            frame_list = []
+            frame_list: list[bytes] = []
 
             t_end = time.time() + self._video_duration
             time_last_frame = time.time()
@@ -582,35 +585,10 @@ class MjpegCamera(Camera):
                         frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
-            res_fps = len(frame_list) / self._video_duration
-
-            logger.debug("res fps - %s", res_fps)
-
-            out = ffmpegcv.VideoWriter(
-                filepath.as_posix(),
-                codec=self._fourcc,
-                fps=res_fps,
-            )
-
-            for el in frame_list:
-                loc_loc = pickle.loads(el)
-                out.write(self._image_to_frame(loc_loc))
-                del loc_loc
-
-            out.release()
-            del out
+            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._image_to_frame)
             os_nice(0)
 
-            frame_list.clear()
-            del frame_list
-
-        video_bio = BytesIO()
-        video_bio.name = "video.mp4"
-        with filepath.open("rb") as video_file:
-            video_bio.write(video_file.read())
-        filepath.unlink()
-        video_bio.seek(0)
-        return video_bio, thumb_bio, width, height
+        return _read_and_cleanup_video(filepath), thumb_bio, width, height
 
 
 class RawStreamCamera(MjpegCamera):
@@ -628,9 +606,8 @@ class RawStreamCamera(MjpegCamera):
             os_nice(15)
 
             thumb_frame = self._image_to_frame(self._fetch_raw_snapshot())
-            height, width, channels = thumb_frame.shape
-            thumb_bio = create_thumb(thumb_frame)
-            del thumb_frame, channels
+            thumb_bio, height, width = create_thumb(thumb_frame)
+            del thumb_frame
 
             fd, tmp = tempfile.mkstemp(prefix="mtb_video_", suffix=".mp4")
             os.close(fd)
@@ -653,11 +630,4 @@ class RawStreamCamera(MjpegCamera):
 
             os_nice(0)
 
-        video_bio = BytesIO()
-        video_bio.name = "video.mp4"
-        if filepath.is_file():
-            with filepath.open("rb") as video_file:
-                video_bio.write(video_file.read())
-            filepath.unlink()
-        video_bio.seek(0)
-        return video_bio, thumb_bio, width, height
+        return _read_and_cleanup_video(filepath), thumb_bio, width, height
