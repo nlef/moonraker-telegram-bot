@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from enum import Enum
 from http import HTTPStatus
 import logging
 import os
 import ssl
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiofiles
 import anyio
@@ -51,39 +52,17 @@ _RETRYABLE_HTTP_CODES = frozenset(
 logger = logging.getLogger(__name__)
 
 
+class KlippyState(str, Enum):
+    """Klippy firmware states reported by Moonraker."""
+
+    READY = "ready"
+    ERROR = "error"
+    SHUTDOWN = "shutdown"
+    STARTUP = "startup"
+
+
 class WebSocketHelper:
     """Subscribes to Moonraker printer events and dispatches them to the scheduler."""
-
-    _TIMELAPSE_ASYNC_COMMANDS: ClassVar[dict[str, Callable[..., Any]]] = {
-        "timelapse start": lambda self: self._timelapse_start(),
-    }
-
-    _TIMELAPSE_COMMANDS: ClassVar[dict[str, Callable[..., Any]]] = {
-        "timelapse stop": lambda self: setattr(self._timelapse, "is_running", False),
-        "timelapse pause": lambda self: setattr(self._timelapse, "paused", True),
-        "timelapse resume": lambda self: setattr(self._timelapse, "paused", False),
-        "timelapse create": lambda self: self._timelapse.send_timelapse(),
-    }
-
-    _TGNOTIFY_PREFIXES: ClassVar[dict[str, Callable[..., Any]]] = {
-        "tgnotify ": lambda notifier, mess: notifier.send_notification(mess),
-        "tgnotify_photo ": lambda notifier, mess: notifier.send_notification_with_photo(mess),
-        "tgalarm ": lambda notifier, mess: notifier.send_error(mess),
-        "tgalarm_photo ": lambda notifier, mess: notifier.send_error_with_photo(mess),
-        "tgnotify_status ": lambda notifier, mess: setattr(notifier, "tgnotify_status", mess),
-    }
-
-    _TGNOTIFY_ASYNC_PREFIXES: ClassVar[dict[str, Callable[..., Any]]] = {
-        "set_timelapse_params ": lambda timelapse, mess: timelapse.parse_timelapse_params(mess),
-        "set_notify_params ": lambda notifier, mess: notifier.parse_notification_params(mess),
-        "tgcustom_keyboard ": lambda notifier, mess: notifier.send_custom_inline_keyboard(mess),
-    }
-
-    _TG_MEDIA_PREFIXES: ClassVar[dict[str, Callable[..., Any]]] = {
-        "tg_send_image": lambda notifier, mess: notifier.send_image(mess),
-        "tg_send_video": lambda notifier, mess: notifier.send_video(mess),
-        "tg_send_document": lambda notifier, mess: notifier.send_document(mess),
-    }
 
     _SENSOR_STRIP_PREFIXES: ClassVar[tuple[str, ...]] = (
         "temperature_sensor",
@@ -99,20 +78,7 @@ class WebSocketHelper:
         "fan",
     )
 
-    _NOTIFICATION_HANDLERS: ClassVar[dict[str, Callable[..., Any]]] = {
-        "notify_gcode_response": lambda self, params: self.notify_gcode_response(params),
-        "notify_power_changed": lambda self, params: [self.power_device_state(d) for d in params],
-        "notify_status_update": lambda self, params: self.notify_status_update(params),
-    }
-
-    _WS_KLIPPY_STATES: ClassVar[dict[str, str]] = {
-        "ready": "ready",
-        "error": "error",
-        "shutdown": "shutdown",
-        "startup": "startup",
-    }
-
-    _WS_KLIPPY_RECONNECT_STATES: ClassVar[frozenset[str]] = frozenset({"error", "shutdown", "startup"})
+    _KLIPPY_RECONNECT_STATES: ClassVar[frozenset[KlippyState]] = frozenset({KlippyState.ERROR, KlippyState.SHUTDOWN, KlippyState.STARTUP})
 
     _WS_RESCHEDULE_JOB_ID: ClassVar[str] = "ws_reschedule"
 
@@ -230,15 +196,16 @@ class WebSocketHelper:
 
     async def notify_gcode_response(self, message_params: list[str]) -> None:
         if self._timelapse.manual_mode:
-            for cmd, handler in self._TIMELAPSE_ASYNC_COMMANDS.items():
-                if cmd in message_params:
-                    await handler(self)
-                    break
-
-            for cmd, handler in self._TIMELAPSE_COMMANDS.items():
-                if cmd in message_params:
-                    handler(self)
-                    break
+            if "timelapse start" in message_params:
+                await self._timelapse_start()
+            elif "timelapse stop" in message_params:
+                self._timelapse.is_running = False
+            elif "timelapse pause" in message_params:
+                self._timelapse.paused = True
+            elif "timelapse resume" in message_params:
+                self._timelapse.paused = False
+            elif "timelapse create" in message_params:
+                self._timelapse.send_timelapse()
 
         if "timelapse photo_and_gcode" in message_params:
             self._timelapse.take_lapse_photo(manually=True, with_after_gcode=True)
@@ -246,26 +213,30 @@ class WebSocketHelper:
             self._timelapse.take_lapse_photo(manually=True)
 
         message = message_params[0]
+        command, _, payload = message.partition(" ")
 
-        for prefix, handler in self._TGNOTIFY_PREFIXES.items():
-            if message.startswith(prefix):
-                payload = message[len(prefix) :]
-                handler(self._notifier, payload)
-                return
-
-        for prefix, handler in self._TGNOTIFY_ASYNC_PREFIXES.items():
-            if message.startswith(prefix):
-                payload = message[len(prefix) :]
-                if prefix == "set_timelapse_params ":
-                    await handler(self._timelapse, payload)
-                else:
-                    await handler(self._notifier, payload)
-                return
-
-        for prefix, handler in self._TG_MEDIA_PREFIXES.items():
-            if message.startswith(prefix):
-                handler(self._notifier, message)
-                return
+        if command == "tgnotify":
+            self._notifier.send_notification(payload)
+        elif command == "tgnotify_photo":
+            self._notifier.send_notification_with_photo(payload)
+        elif command == "tgnotify_status":
+            self._notifier.tgnotify_status = payload
+        elif command == "tgalarm":
+            self._notifier.send_error(payload)
+        elif command == "tgalarm_photo":
+            self._notifier.send_error_with_photo(payload)
+        elif command == "set_timelapse_params":
+            await self._timelapse.parse_timelapse_params(payload)
+        elif command == "set_notify_params":
+            await self._notifier.parse_notification_params(payload)
+        elif command == "tgcustom_keyboard":
+            await self._notifier.send_custom_inline_keyboard(payload)
+        elif command == "tg_send_image":
+            self._notifier.send_image(message)
+        elif command == "tg_send_video":
+            self._notifier.send_video(message)
+        elif command == "tg_send_document":
+            self._notifier.send_document(message)
 
     def parse_sensors(self, message_parts_loc: dict[str, Any]) -> None:
         for key, value in message_parts_loc.items():
@@ -404,7 +375,7 @@ class WebSocketHelper:
     async def _handle_klippy_disconnected_state(self, klippy_state: str, state_message: str | None = None) -> None:
         await self._klippy.on_disconnected()
         self._schedule_reconnect(f"klippy state: {klippy_state}")
-        if state_message and self._klippy.state_message != state_message and klippy_state != "startup":
+        if state_message and self._klippy.state_message != state_message and klippy_state != KlippyState.STARTUP:
             self._klippy.state_message = state_message
             self._notifier.send_error(
                 f"Klippy changed state to {self._klippy.state}",
@@ -420,9 +391,9 @@ class WebSocketHelper:
     async def _handle_klippy_state_change(self, klippy_state: str, message_result: dict[str, Any]) -> None:
         self._klippy.state = klippy_state
 
-        if klippy_state == self._WS_KLIPPY_STATES["ready"]:
+        if klippy_state == KlippyState.READY:
             await self._handle_klippy_ready_state()
-        elif klippy_state in self._WS_KLIPPY_RECONNECT_STATES:
+        elif klippy_state in self._KLIPPY_RECONNECT_STATES:
             await self._handle_klippy_disconnected_state(klippy_state, message_result.get("state_message"))
         else:
             await self._handle_unknown_klippy_state(klippy_state)
@@ -472,8 +443,13 @@ class WebSocketHelper:
 
             message_params = json_message["params"]
 
-            if handler := self._NOTIFICATION_HANDLERS.get(message_method):
-                await handler(self, message_params)
+            if message_method == "notify_gcode_response":
+                await self.notify_gcode_response(message_params)
+            elif message_method == "notify_power_changed":
+                for device in message_params:
+                    await self.power_device_state(device)
+            elif message_method == "notify_status_update":
+                await self.notify_status_update(message_params)
 
     async def manage_printing(self, command: str) -> None:
         await self._send_jsonrpc(f"printer.print.{command}")
