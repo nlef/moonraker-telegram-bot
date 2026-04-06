@@ -1,7 +1,9 @@
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
+import orjson
 import pytest
+from websockets.protocol import State
 
 from klippy import Klippy
 from notifications import Notifier
@@ -37,7 +39,10 @@ def mock_klippy() -> MagicMock:
     klippy.get_status = AsyncMock()
     klippy.stop_all = MagicMock()
     klippy.on_disconnected = AsyncMock()
+    klippy.on_connected = AsyncMock()
     klippy.ensure_auth = AsyncMock()
+    klippy.state = ""
+    klippy.state_message = ""
     return klippy
 
 
@@ -434,3 +439,130 @@ class TestTimelapseCommands:
         await ws_helper.notify_gcode_response(["timelapse start"])
 
         ws_helper._timelapse_start.assert_called_once()
+
+
+def _ws_notification(method: str, params: list) -> bytes:
+    return orjson.dumps({"method": method, "params": params})
+
+
+def _ws_response(request_id: int, result: dict) -> bytes:
+    return orjson.dumps({"jsonrpc": "2.0", "id": request_id, "result": result})
+
+
+class TestWebsocketToMessage:
+    @pytest.mark.asyncio
+    async def test_notify_power_changed(self, ws_helper: WebSocketHelper) -> None:
+        devices = [{"device": "printer", "status": "on"}, {"device": "light", "status": "off"}]
+        msg = _ws_notification("notify_power_changed", devices)
+
+        await ws_helper.websocket_to_message(msg)
+
+        assert ws_helper._klippy.update_power_device.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_notify_gcode_response_tgnotify(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_gcode_response", ["tgnotify hello world"])
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._notifier.send_notification.assert_called_once_with("hello world")
+
+    @pytest.mark.asyncio
+    async def test_notify_gcode_response_set_timelapse_params(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_gcode_response", ["set_timelapse_params enabled=1 height=0.5"])
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._timelapse.parse_timelapse_params.assert_called_once_with("enabled=1 height=0.5")
+
+    @pytest.mark.asyncio
+    async def test_notify_gcode_response_set_notify_params(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._notifier.parse_notification_params = AsyncMock()
+        msg = _ws_notification("notify_gcode_response", ["set_notify_params percent=5"])
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._notifier.parse_notification_params.assert_called_once_with("percent=5")
+
+    @pytest.mark.asyncio
+    async def test_notify_status_update_printing(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_status_update", [{"print_stats": {"state": "printing", "filename": "test.gcode"}}])
+
+        await ws_helper.websocket_to_message(msg)
+
+        assert ws_helper._klippy.printing is True
+
+    @pytest.mark.asyncio
+    async def test_notify_status_update_error_stops_timelapse(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing = True
+        msg = _ws_notification("notify_status_update", [{"print_stats": {"state": "error"}}])
+
+        await ws_helper.websocket_to_message(msg)
+
+        assert ws_helper._klippy.printing is False
+        assert ws_helper._timelapse.is_running is False
+        ws_helper._notifier.send_error.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_status_update_sensors(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_status_update", [{"temperature_sensor chamber": {"temperature": 45.0}}])
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._klippy.update_sensor.assert_called_once_with("chamber", {"temperature": 45.0})
+
+    @pytest.mark.asyncio
+    async def test_notify_klippy_shutdown(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_klippy_shutdown", [])
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._klippy.stop_all.assert_called_once()
+        ws_helper._klippy.on_disconnected.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_klippy_ready_response(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._ws = MagicMock()
+        ws_helper._ws.state = State.OPEN
+        ws_helper._ws.send = AsyncMock()
+        ws_helper._pending_requests[1] = "printer.info"
+        msg = _ws_response(1, {"state": "ready"})
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._klippy.on_connected.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_klippy_error_response(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._pending_requests[1] = "printer.info"
+        msg = _ws_response(1, {"state": "error", "state_message": "MCU error"})
+
+        await ws_helper.websocket_to_message(msg)
+
+        ws_helper._klippy.on_disconnected.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_unknown_notification_ignored(self, ws_helper: WebSocketHelper) -> None:
+        msg = _ws_notification("notify_unknown_method", ["something"])
+
+        await ws_helper.websocket_to_message(msg)
+
+    @pytest.mark.asyncio
+    async def test_error_without_id(self, ws_helper: WebSocketHelper, caplog: pytest.LogCaptureFixture) -> None:
+        msg = orjson.dumps({"error": {"message": "something went wrong"}})
+
+        await ws_helper.websocket_to_message(msg)
+
+        assert "something went wrong" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_state_only_message_preserves_print_data(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing = True
+        ws_helper._klippy.filament_used = 123.4
+        ws_helper._klippy.printing_duration = 500.0
+        msg = _ws_notification("notify_status_update", [{"print_stats": {"state": "paused"}}])
+
+        await ws_helper.websocket_to_message(msg)
+
+        assert ws_helper._klippy.filament_used == 123.4
+        assert ws_helper._klippy.printing_duration == 500.0
