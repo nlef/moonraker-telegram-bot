@@ -85,20 +85,19 @@ class WebSocketHelper:
         "tg_send_document": lambda notifier, mess: notifier.send_document(mess),
     }
 
-    _SENSOR_TYPE_MAPPING: ClassVar[dict[str, str]] = {
-        "temperature_sensor ": "temperature_sensor",
-        "temperature_fan ": "fan",
-        "controller_fan ": "fan",
-        "fan_generic ": "fan",
-        "heater_generic ": "heater",
-        "heater_fan ": "fan",
-        "heater_bed ": "heater",
-        "extruder ": "heater",
-        "fan": "fan",
-        "heater_bed": "heater",
-        "heater_generic": "heater",
-        "extruder": "heater",
-    }
+    _SENSOR_STRIP_PREFIXES: ClassVar[tuple[str, ...]] = (
+        "temperature_sensor",
+        "temperature_fan",
+        "controller_fan",
+        "fan_generic",
+        "heater_generic",
+        "heater_fan",
+    )
+    _SENSOR_KEEP_PREFIXES: ClassVar[tuple[str, ...]] = (
+        "heater_bed",
+        "extruder",
+        "fan",
+    )
 
     _NOTIFICATION_HANDLERS: ClassVar[dict[str, Callable[..., Any]]] = {
         "notify_gcode_response": lambda self, params: self.notify_gcode_response(params),
@@ -270,25 +269,15 @@ class WebSocketHelper:
 
     def parse_sensors(self, message_parts_loc: dict[str, Any]) -> None:
         for key, value in message_parts_loc.items():
-            sensor_type = None
-            sensor_name = None
-
-            for prefix, sens_type in self._SENSOR_TYPE_MAPPING.items():
-                if key == prefix:
-                    sensor_type = sens_type
-                    sensor_name = key
+            for prefix in self._SENSOR_STRIP_PREFIXES:
+                if key.startswith(prefix):
+                    self._klippy.update_sensor(key[len(prefix) :].strip(), value)
                     break
-                if prefix.endswith(" ") and key.startswith(prefix):
-                    sensor_type = sens_type
-                    sensor_name = key[len(prefix) :]
-                    break
-                if not prefix.endswith(" ") and key.startswith(prefix) and key != prefix:
-                    sensor_type = sens_type
-                    sensor_name = key
-                    break
-
-            if sensor_type and sensor_name is not None:
-                self._klippy.update_sensor(sensor_name, value)
+            else:
+                for prefix in self._SENSOR_KEEP_PREFIXES:
+                    if key.startswith(prefix):
+                        self._klippy.update_sensor(key, value)
+                        break
 
     async def notify_status_update(self, message_params: list[dict[str, Any]]) -> None:
         await self._handle_status_update(message_params[0], schedule_notify=True)
