@@ -102,7 +102,7 @@ class WebSocketHelper:
 
     _PRINT_STATE_CONFIGS: ClassVar[dict[str, dict[str, Any]]] = {
         "printing": {"printing": True, "paused": False, "timelapse_running": True, "timelapse_paused": False, "remove_timer": False},
-        "paused": {"printing": True, "paused": True, "timelapse_running": False, "timelapse_paused": True, "remove_timer": False},
+        "paused": {"printing": True, "paused": True, "timelapse_paused": True, "remove_timer": False},
         "complete": {"printing": False, "paused": False, "timelapse_running": False, "send_finish": True, "send_timelapse": True},
         "error": {"printing": False, "paused": False, "timelapse_running": False, "send_error": True, "abort_state": PrintState.ERROR},
         "standby": {"printing": False, "paused": False, "timelapse_running": False, "notify_status": True},
@@ -213,12 +213,12 @@ class WebSocketHelper:
         self._timelapse.stop_all()
 
     async def _update_print_stats_from_message(self, print_stats: dict[str, Any]) -> None:
-        if filename := print_stats.get("filename"):
-            await self._klippy.set_printing_filename(filename)
-        if filament_used := print_stats.get("filament_used"):
-            self._klippy.filament_used = filament_used
-        if print_duration := print_stats.get("print_duration"):
-            self._klippy.printing_duration = print_duration
+        if "filename" in print_stats:
+            await self._klippy.set_printing_filename(print_stats["filename"])
+        if "filament_used" in print_stats:
+            self._klippy.filament_used = print_stats["filament_used"]
+        if "print_duration" in print_stats:
+            self._klippy.printing_duration = print_stats["print_duration"]
 
     def _update_display_status(self, status_data: dict[str, Any], schedule_notify: bool = False) -> None:
         if "message" in status_data:
@@ -348,8 +348,11 @@ class WebSocketHelper:
             await self._notifier.reset_notifications()
             self._notifier.add_notifier_timer()
 
+        # error/standby/cancelled stop timelapse unconditionally
+        if state in ("error", "standby", "cancelled"):
+            self._timelapse.is_running = False
+
         if not self._timelapse.manual_mode:
-            self._timelapse.is_running = config.get("timelapse_running", self._timelapse.is_running)
             self._timelapse.paused = config.get("timelapse_paused", self._timelapse.paused)
 
             if config.get("cleanup_timelapse"):
@@ -358,6 +361,7 @@ class WebSocketHelper:
                 self._timelapse.clean()
                 self._timelapse.is_running = True
             elif config.get("send_timelapse"):
+                self._timelapse.is_running = False
                 self._timelapse.send_timelapse()
 
         if config.get("send_finish"):
