@@ -543,7 +543,6 @@ class Timelapse:
 
     async def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
-        mass_parts.pop(0)
         response = ""
         for part in mass_parts:
             try:
