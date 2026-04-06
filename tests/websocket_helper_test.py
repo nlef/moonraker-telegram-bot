@@ -308,6 +308,7 @@ class TestParsePrintStats:
 
     @pytest.mark.asyncio
     async def test_paused_state(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing = True
         message_params = {"print_stats": {"state": "paused"}}
 
         await ws_helper.parse_print_stats(message_params)

@@ -100,15 +100,6 @@ class WebSocketHelper:
         "extruder": "heater",
     }
 
-    _PRINT_STATE_CONFIGS: ClassVar[dict[str, dict[str, Any]]] = {
-        "printing": {"printing": True, "paused": False, "timelapse_running": True, "timelapse_paused": False, "remove_timer": False},
-        "paused": {"printing": True, "paused": True, "timelapse_paused": True, "remove_timer": False},
-        "complete": {"printing": False, "paused": False, "timelapse_running": False, "send_finish": True, "send_timelapse": True},
-        "error": {"printing": False, "paused": False, "timelapse_running": False, "send_error": True, "abort_state": PrintState.ERROR},
-        "standby": {"printing": False, "paused": False, "timelapse_running": False, "notify_status": True},
-        "cancelled": {"printing": False, "paused": False, "timelapse_running": False, "cleanup_timelapse": True, "notify_msg": "Print cancelled", "abort_state": PrintState.CANCELLED},
-    }
-
     _NOTIFICATION_HANDLERS: ClassVar[dict[str, Callable[..., Any]]] = {
         "notify_gcode_response": lambda self, params: self.notify_gcode_response(params),
         "notify_power_changed": lambda self, params: [self.power_device_state(d) for d in params],
@@ -328,62 +319,60 @@ class WebSocketHelper:
 
         await self._update_print_stats_from_message(print_stats)
 
-        state = print_stats.get("state")
-        if not state:
+        if "state" not in print_stats:
             return
+        state = print_stats["state"]
 
-        config = self._PRINT_STATE_CONFIGS.get(state)
-        if config is None:
-            logger.error("Unknown state: %s", state)
-            return
-
-        is_new_print = not self._klippy.printing and config.get("printing", False)
-
-        self._klippy.printing = config.get("printing", False)
-        self._klippy.paused = config.get("paused", False)
-
-        if config.get("remove_timer", True):
+        if state == "printing":
+            self._klippy.paused = False
+            if not self._klippy.printing:
+                self._klippy.printing = True
+                await self._notifier.reset_notifications()
+                self._notifier.add_notifier_timer()
+                if not self._klippy.printing_filename:
+                    await self._klippy.get_status()
+                if not self._timelapse.manual_mode:
+                    self._timelapse.clean()
+                    self._timelapse.is_running = True
+                self._notifier.send_print_start_info()
+            if not self._timelapse.manual_mode:
+                self._timelapse.paused = False
+        elif state == "paused":
+            self._klippy.paused = True
+            if not self._timelapse.manual_mode:
+                self._timelapse.paused = True
+        elif state == "complete":
+            self._klippy.printing = False
             self._notifier.remove_notifier_timer()
-        elif is_new_print:
-            await self._notifier.reset_notifications()
-            self._notifier.add_notifier_timer()
-
-        # error/standby/cancelled stop timelapse unconditionally
-        if state in ("error", "standby", "cancelled"):
-            self._timelapse.is_running = False
-
-        if not self._timelapse.manual_mode:
-            self._timelapse.paused = config.get("timelapse_paused", self._timelapse.paused)
-
-            if config.get("cleanup_timelapse"):
-                self._timelapse.clean()
-            elif config.get("timelapse_running") and is_new_print:
-                self._timelapse.clean()
-                self._timelapse.is_running = True
-            elif config.get("send_timelapse"):
+            if not self._timelapse.manual_mode:
                 self._timelapse.is_running = False
                 self._timelapse.send_timelapse()
-
-        if config.get("send_finish"):
             self._notifier.send_print_finish()
-        elif config.get("send_error"):
+        elif state == "error":
+            self._notifier.update_status_on_abort(state=PrintState.ERROR)
+            self._klippy.printing = False
+            self._timelapse.is_running = False
+            self._notifier.remove_notifier_timer()
             self._notifier.send_error(
                 f"Printer state change error: {state}\n",
                 logs_upload=True,
                 preformat_text=print_stats.get("message"),
             )
-        elif config.get("notify_status"):
+        elif state == "standby":
+            self._klippy.printing = False
+            self._notifier.remove_notifier_timer()
+            self._timelapse.is_running = False
             self._notifier.send_printer_status_notification(f"Printer state change: {state} \n")
-        elif notify_msg := config.get("notify_msg"):
-            self._notifier.send_printer_status_notification(notify_msg)
-
-        if abort_state := config.get("abort_state"):
-            self._notifier.update_status_on_abort(state=abort_state)
-
-        if is_new_print:
-            if not self._klippy.printing_filename:
-                await self._klippy.get_status()
-            self._notifier.send_print_start_info()
+        elif state == "cancelled":
+            self._notifier.update_status_on_abort(state=PrintState.CANCELLED)
+            self._klippy.paused = False
+            self._klippy.printing = False
+            self._timelapse.is_running = False
+            self._notifier.remove_notifier_timer()
+            self._timelapse.clean()
+            self._notifier.send_printer_status_notification("Print cancelled")
+        elif state:
+            logger.error("Unknown state: %s", state)
 
     async def power_device_state(self, device: dict[str, Any]) -> None:
         device_name = device["device"]
