@@ -254,14 +254,15 @@ class WebSocketHelper:
         await self._handle_status_update(message_params[0], schedule_notify=True)
 
     async def status_response(self, status_resp: dict[str, Any]) -> None:
-        await self._handle_status_update(status_resp, schedule_notify=True)
+        await self._handle_status_update(status_resp)
 
     async def _handle_status_update(self, status_data: dict[str, Any], schedule_notify: bool = False) -> None:
         if "gcode_move" in status_data and "gcode_position" in status_data["gcode_move"]:
             position_z = status_data["gcode_move"]["gcode_position"][2]
             self._klippy.printing_height = position_z
-            self._notifier.schedule_notification(position_z=round(position_z, 2))
-            self._timelapse.take_lapse_photo(position_z)
+            if schedule_notify:
+                self._notifier.schedule_notification(position_z=round(position_z, 2))
+                self._timelapse.take_lapse_photo(position_z)
 
         if "print_stats" in status_data:
             await self.parse_print_stats(status_data)
