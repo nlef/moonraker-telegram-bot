@@ -28,23 +28,27 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-class PrintState(Enum):
+class PrintState(str, Enum):
     """Klipper print job states."""
 
+    # Klipper print_stats.state values
     STANDBY = "standby"
-    START = "start"
     PRINTING = "printing"
-    FINISH = "finish"
+    PAUSED = "paused"
+    COMPLETE = "complete"
     CANCELLED = "cancelled"
     ERROR = "error"
+    # Internal bot notification states
+    NOTIFY_START = "start"
+    NOTIFY_FINISH = "finish"
 
     @property
     def is_start(self) -> bool:
-        return self == PrintState.START
+        return self == PrintState.NOTIFY_START
 
     @property
     def is_finished(self) -> bool:
-        return self in (PrintState.FINISH, PrintState.CANCELLED, PrintState.ERROR)
+        return self in (PrintState.NOTIFY_FINISH, PrintState.CANCELLED, PrintState.ERROR)
 
 
 class PowerDevice:
@@ -508,9 +512,9 @@ class Klippy:
         return await self._populate_with_thumb(self._thumbnail_path, message)
 
     _STATE_TITLES: Final = {
-        PrintState.START: "Printer started printing",
+        PrintState.NOTIFY_START: "Printer started printing",
         PrintState.PRINTING: "Printing",
-        PrintState.FINISH: "Finished printing",
+        PrintState.NOTIFY_FINISH: "Finished printing",
         PrintState.CANCELLED: "Cancelled printing",
         PrintState.ERROR: "Printing was interrupted with an error",
     }
@@ -549,7 +553,7 @@ class Klippy:
             duration_prefix = "Printed for" if state.is_finished else "Printing for"
             result += f"{duration_prefix} {timedelta(seconds=round(self.printing_duration))}\n"
 
-        if state in (PrintState.START, PrintState.PRINTING):
+        if state in (PrintState.NOTIFY_START, PrintState.PRINTING):
             eta = self._get_eta()
             if "eta" in self._message_parts:
                 result += f"Estimated time left: {eta}\n"

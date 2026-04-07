@@ -426,7 +426,7 @@ class Notifier:
 
     # TODO: refactor with TelegramMessageRepr class
     async def _send_print_start_info(self) -> None:
-        message, bio = await self._klippy.get_file_info(state=PrintState.START)
+        message, bio = await self._klippy.get_file_info(state=PrintState.NOTIFY_START)
 
         if not self._group_only:
             status_message = await self._bot.send_photo(
@@ -434,7 +434,7 @@ class Notifier:
                 photo=bio,
                 caption=message,
                 parse_mode=ParseMode.HTML,
-                reply_markup=self.get_status_keyboard(state=PrintState.START),
+                reply_markup=self.get_status_keyboard(state=PrintState.NOTIFY_START),
                 disable_notification=self.silent_status,
             )
             self._status_message = status_message
@@ -447,7 +447,7 @@ class Notifier:
                 photo=bio,
                 caption=message,
                 parse_mode=ParseMode.HTML,
-                reply_markup=self.get_status_keyboard(state=PrintState.START),
+                reply_markup=self.get_status_keyboard(state=PrintState.NOTIFY_START),
                 disable_notification=self.silent_status,
             )
         bio.close()
@@ -467,7 +467,7 @@ class Notifier:
             )
 
     async def _send_print_finish(self) -> None:
-        self._schedule_notification(state=PrintState.FINISH)
+        self._schedule_notification(state=PrintState.NOTIFY_FINISH)
 
     def send_print_finish(self) -> None:
         if self._enabled:

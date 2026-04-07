@@ -116,7 +116,7 @@ def test_start_shows_only_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 15.3
     mock_klippy.file_object_height = 19.6
-    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_START)
     assert "print height: 19.6mm" in msg
     assert "15.3" not in msg
 
@@ -126,7 +126,7 @@ def test_finish_shows_only_object_height(mock_klippy: Klippy) -> None:
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_height = 2.0
     mock_klippy.file_object_height = 19.6
-    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_FINISH)
     assert "print height: 19.6mm" in msg
     assert "2.0" not in msg
 
@@ -155,7 +155,7 @@ def test_start_shows_only_total_filament(mock_klippy: Klippy) -> None:
     mock_klippy.filament_total = 5000.0
     mock_klippy.filament_used = 1200.0
     mock_klippy.filament_weight = 15.0
-    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_START)
     assert "Filament: 5.0m" in msg
     assert "1.2m" not in msg
     assert "weight: 15.0g" in msg
@@ -168,7 +168,7 @@ def test_finish_shows_only_used_filament(mock_klippy: Klippy) -> None:
     mock_klippy.filament_total = 5000.0
     mock_klippy.filament_used = 1200.0
     mock_klippy.filament_weight = 15.0
-    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_FINISH)
     assert "Filament used: 1.2m" in msg
     assert "5.0m" not in msg
     assert "/" not in msg.split("Filament")[1]
@@ -178,7 +178,7 @@ def test_finish_shows_printed_for(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "print_duration"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_duration = 1800.0
-    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_FINISH)
     assert "Printed for" in msg
     assert "Printing for" not in msg
 
@@ -188,7 +188,7 @@ def test_finish_hides_eta(mock_klippy: Klippy) -> None:
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.file_estimated_time = 3600.0
     mock_klippy.printing_duration = 1800.0
-    msg = mock_klippy._get_printing_file_info(state=PrintState.FINISH)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_FINISH)
     assert "Estimated time left" not in msg
     assert "Finish at" not in msg
 
@@ -197,7 +197,7 @@ def test_start_hides_duration(mock_klippy: Klippy) -> None:
     mock_klippy._message_parts = ["progress", "print_duration"]
     mock_klippy._printing_filename = "test.gcode"
     mock_klippy.printing_duration = 1800.0
-    msg = mock_klippy._get_printing_file_info(state=PrintState.START)
+    msg = mock_klippy._get_printing_file_info(state=PrintState.NOTIFY_START)
     assert "Printing for" not in msg
 
 
