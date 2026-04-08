@@ -176,12 +176,12 @@ class WebSocketHelper:
         if "print_duration" in print_stats:
             self._klippy.printing_duration = print_stats["print_duration"]
 
-    def _update_display_status(self, status_data: dict[str, Any], schedule_notify: bool = False) -> None:
+    def _update_display_status(self, status_data: dict[str, Any], *, is_initial_sync: bool) -> None:
         if "message" in status_data:
             self._notifier.m117_status = status_data["message"]
         if "progress" in status_data:
             self._klippy.printing_progress = status_data["progress"]
-            if schedule_notify:
+            if not is_initial_sync:
                 self._notifier.schedule_notification(progress=int(status_data["progress"] * 100))
 
     def _update_vsd_progress(self, vsd_data: dict[str, Any]) -> None:
@@ -251,31 +251,58 @@ class WebSocketHelper:
                         break
 
     async def notify_status_update(self, message_params: list[dict[str, Any]]) -> None:
-        await self._handle_status_update(message_params[0], schedule_notify=True)
+        await self._handle_status_update(message_params[0], is_initial_sync=False)
 
     async def status_response(self, status_resp: dict[str, Any]) -> None:
-        await self._handle_status_update(status_resp)
+        await self._handle_status_update(status_resp, is_initial_sync=True)
 
-    async def _handle_status_update(self, status_data: dict[str, Any], schedule_notify: bool = False) -> None:
+    async def _handle_status_update(self, status_data: dict[str, Any], *, is_initial_sync: bool) -> None:
         if "gcode_move" in status_data and "gcode_position" in status_data["gcode_move"]:
             position_z = status_data["gcode_move"]["gcode_position"][2]
             self._klippy.printing_height = position_z
-            if schedule_notify:
+            if not is_initial_sync:
                 self._notifier.schedule_notification(position_z=round(position_z, 2))
                 self._timelapse.take_lapse_photo(position_z)
 
         if "print_stats" in status_data:
-            await self.parse_print_stats(status_data)
+            await self.parse_print_stats(status_data, is_initial_sync=is_initial_sync)
 
         if "display_status" in status_data:
-            self._update_display_status(status_data["display_status"], schedule_notify=schedule_notify)
+            self._update_display_status(status_data["display_status"], is_initial_sync=is_initial_sync)
 
         if "virtual_sdcard" in status_data:
             self._update_vsd_progress(status_data["virtual_sdcard"])
 
         self.parse_sensors(status_data)
 
-    async def parse_print_stats(self, message_params_loc: dict[str, Any]) -> None:
+    async def _enter_active_print(self, *, is_initial_sync: bool) -> None:
+        """Transition from not-printing to an active print (printing or paused).
+
+        Called from parse_print_stats when we see PRINTING or PAUSED while klippy.printing is
+        still False — either a genuine print-start event or an initial status_response after a
+        reconnect into an already-running print. Only the core state updates run on the initial
+        sync; notifications, lapse-frame cleanup, and reset bookkeeping are skipped so we don't
+        replay the print-start message or wipe an in-progress lapse.
+        """
+        self._klippy.printing = True
+        if not is_initial_sync:
+            await self._notifier.reset_notifications()
+        self._notifier.add_notifier_timer()
+        if not self._klippy.printing_filename:
+            await self._klippy.get_status()
+        if not self._timelapse.manual_mode:
+            if not is_initial_sync:
+                self._timelapse.clean()
+            self._timelapse.is_running = True
+        if not is_initial_sync:
+            self._notifier.send_print_start_info()
+
+    async def parse_print_stats(self, message_params_loc: dict[str, Any], *, is_initial_sync: bool) -> None:
+        """Update internal state from a print_stats payload.
+
+        Core state updates always run. Side effects are skipped on the initial sync path so a
+        reconnect mid-print doesn't replay notifications or touch an in-progress lapse.
+        """
         print_stats = message_params_loc["print_stats"]
 
         await self._update_print_stats_from_message(print_stats)
@@ -287,19 +314,14 @@ class WebSocketHelper:
         if state == PrintState.PRINTING:
             self._klippy.paused = False
             if not self._klippy.printing:
-                self._klippy.printing = True
-                await self._notifier.reset_notifications()
-                self._notifier.add_notifier_timer()
-                if not self._klippy.printing_filename:
-                    await self._klippy.get_status()
-                if not self._timelapse.manual_mode:
-                    self._timelapse.clean()
-                    self._timelapse.is_running = True
-                self._notifier.send_print_start_info()
+                await self._enter_active_print(is_initial_sync=is_initial_sync)
             if not self._timelapse.manual_mode:
                 self._timelapse.paused = False
         elif state == PrintState.PAUSED:
             self._klippy.paused = True
+            if not self._klippy.printing:
+                # Reconnect into an already-paused print: klippy.on_connected() reset printing=False.
+                await self._enter_active_print(is_initial_sync=is_initial_sync)
             if not self._timelapse.manual_mode:
                 self._timelapse.paused = True
         elif state == PrintState.COMPLETE:
@@ -307,31 +329,37 @@ class WebSocketHelper:
             self._notifier.remove_notifier_timer()
             if not self._timelapse.manual_mode:
                 self._timelapse.is_running = False
-                self._timelapse.send_timelapse()
-            self._notifier.send_print_finish()
+                if not is_initial_sync:
+                    self._timelapse.send_timelapse()
+            if not is_initial_sync:
+                self._notifier.send_print_finish()
         elif state == PrintState.ERROR:
-            self._notifier.update_status_on_abort(state=PrintState.ERROR)
             self._klippy.printing = False
             self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
-            self._notifier.send_error(
-                f"Printer state change error: {state}\n",
-                logs_upload=True,
-                preformat_text=print_stats.get("message"),
-            )
+            if not is_initial_sync:
+                self._notifier.update_status_on_abort(state=PrintState.ERROR)
+                self._notifier.send_error(
+                    f"Printer state change error: {state}\n",
+                    logs_upload=True,
+                    preformat_text=print_stats.get("message"),
+                )
         elif state == PrintState.STANDBY:
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
             self._timelapse.is_running = False
-            self._notifier.send_printer_status_notification(f"Printer state change: {state} \n")
+            if not is_initial_sync:
+                # Initial sync into STANDBY is a no-op — the printer is idle, nothing to announce.
+                self._notifier.send_printer_status_notification(f"Printer state change: {state} \n")
         elif state == PrintState.CANCELLED:
-            self._notifier.update_status_on_abort(state=PrintState.CANCELLED)
             self._klippy.paused = False
             self._klippy.printing = False
             self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
-            self._timelapse.clean()
-            self._notifier.send_printer_status_notification("Print cancelled")
+            if not is_initial_sync:
+                self._notifier.update_status_on_abort(state=PrintState.CANCELLED)
+                self._timelapse.clean()
+                self._notifier.send_printer_status_notification("Print cancelled")
         elif state:
             logger.error("Unknown state: %s", state)
 

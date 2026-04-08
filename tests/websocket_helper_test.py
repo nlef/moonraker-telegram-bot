@@ -301,7 +301,7 @@ class TestParsePrintStats:
     async def test_printing_state(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {"state": "printing", "filename": "test.gcode"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         assert ws_helper._klippy.printing is True
         assert ws_helper._klippy.paused is False
@@ -311,7 +311,7 @@ class TestParsePrintStats:
         ws_helper._klippy.printing = True
         message_params = {"print_stats": {"state": "paused"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         assert ws_helper._klippy.paused is True
         assert ws_helper._klippy.printing is True
@@ -320,7 +320,7 @@ class TestParsePrintStats:
     async def test_complete_state(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {"state": "complete"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         ws_helper._notifier.send_print_finish.assert_called_once()
         ws_helper._notifier.remove_notifier_timer.assert_called_once()
@@ -329,7 +329,7 @@ class TestParsePrintStats:
     async def test_error_state(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {"state": "error"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         ws_helper._notifier.send_error.assert_called_once()
         ws_helper._notifier.update_status_on_abort.assert_called_once()
@@ -338,7 +338,7 @@ class TestParsePrintStats:
     async def test_standby_state(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {"state": "standby"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         ws_helper._notifier.send_printer_status_notification.assert_called_once()
 
@@ -346,7 +346,7 @@ class TestParsePrintStats:
     async def test_cancelled_state(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {"state": "cancelled"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         ws_helper._timelapse.clean.assert_called_once()
         ws_helper._notifier.send_printer_status_notification.assert_called_once()
@@ -356,7 +356,7 @@ class TestParsePrintStats:
     async def test_unknown_state_logs_error(self, ws_helper: WebSocketHelper, caplog: pytest.LogCaptureFixture) -> None:
         message_params = {"print_stats": {"state": "unknown_state"}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         assert "Unknown state: unknown_state" in caplog.text
 
@@ -364,9 +364,95 @@ class TestParsePrintStats:
     async def test_empty_state_returns_early(self, ws_helper: WebSocketHelper) -> None:
         message_params = {"print_stats": {}}
 
-        await ws_helper.parse_print_stats(message_params)
+        await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         assert ws_helper._klippy.printing is False
+
+
+class TestStatusResponse:
+    """Initial websocket status_response path — state is restored, notifications are suppressed."""
+
+    @pytest.mark.asyncio
+    async def test_standby_does_not_notify(self, ws_helper: WebSocketHelper) -> None:
+        await ws_helper.status_response({"print_stats": {"state": "standby"}})
+
+        ws_helper._notifier.send_printer_status_notification.assert_not_called()
+        assert ws_helper._klippy.printing is False
+        ws_helper._notifier.remove_notifier_timer.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_printing_restores_state_and_does_not_notify(self, ws_helper: WebSocketHelper) -> None:
+        await ws_helper.status_response({"print_stats": {"state": "printing", "filename": "test.gcode"}})
+
+        assert ws_helper._klippy.printing is True
+        assert ws_helper._klippy.paused is False
+        assert ws_helper._timelapse.is_running is True
+        ws_helper._notifier.add_notifier_timer.assert_called_once()
+        ws_helper._notifier.send_print_start_info.assert_not_called()
+        ws_helper._notifier.reset_notifications.assert_not_called()
+        ws_helper._timelapse.clean.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_printing_refreshes_filename_when_missing(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing_filename = ""
+
+        await ws_helper.status_response({"print_stats": {"state": "printing"}})
+
+        ws_helper._klippy.get_status.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_paused_restores_state_and_does_not_notify(self, ws_helper: WebSocketHelper) -> None:
+        # Reconnect baseline — klippy.on_connected() resets printing=False, paused=False.
+        # The initial status_response must restore the full active-print state, not just the paused flag.
+        await ws_helper.status_response({"print_stats": {"state": "paused"}})
+
+        assert ws_helper._klippy.printing is True
+        assert ws_helper._klippy.paused is True
+        assert ws_helper._timelapse.is_running is True
+        assert ws_helper._timelapse.paused is True
+        ws_helper._notifier.add_notifier_timer.assert_called_once()
+        ws_helper._notifier.send_printer_status_notification.assert_not_called()
+        ws_helper._notifier.send_print_start_info.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_paused_refreshes_filename_when_missing(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing_filename = ""
+
+        await ws_helper.status_response({"print_stats": {"state": "paused"}})
+
+        ws_helper._klippy.get_status.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_complete_does_not_notify_or_upload_timelapse(self, ws_helper: WebSocketHelper) -> None:
+        await ws_helper.status_response({"print_stats": {"state": "complete"}})
+
+        assert ws_helper._klippy.printing is False
+        assert ws_helper._timelapse.is_running is False
+        ws_helper._notifier.remove_notifier_timer.assert_called_once()
+        ws_helper._notifier.send_print_finish.assert_not_called()
+        ws_helper._timelapse.send_timelapse.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_error_does_not_notify(self, ws_helper: WebSocketHelper) -> None:
+        await ws_helper.status_response({"print_stats": {"state": "error"}})
+
+        assert ws_helper._klippy.printing is False
+        assert ws_helper._timelapse.is_running is False
+        ws_helper._notifier.remove_notifier_timer.assert_called_once()
+        ws_helper._notifier.send_error.assert_not_called()
+        ws_helper._notifier.update_status_on_abort.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cancelled_does_not_notify_or_clean_lapse_dir(self, ws_helper: WebSocketHelper) -> None:
+        await ws_helper.status_response({"print_stats": {"state": "cancelled"}})
+
+        assert ws_helper._klippy.printing is False
+        assert ws_helper._klippy.paused is False
+        assert ws_helper._timelapse.is_running is False
+        ws_helper._notifier.remove_notifier_timer.assert_called_once()
+        ws_helper._notifier.send_printer_status_notification.assert_not_called()
+        ws_helper._notifier.update_status_on_abort.assert_not_called()
+        ws_helper._timelapse.clean.assert_not_called()
 
 
 class TestNotifyStatusUpdate:
