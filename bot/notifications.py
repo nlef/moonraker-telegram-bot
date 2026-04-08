@@ -8,12 +8,12 @@ from datetime import datetime
 from io import BytesIO
 import logging
 import re
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Final
 
 import aiofiles
 import anyio
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, Message
-from telegram.constants import ChatAction, ParseMode
+from telegram.constants import ChatAction
 from telegram.error import BadRequest
 
 from klippy import Klippy, PrintState
@@ -28,6 +28,8 @@ if TYPE_CHECKING:
     from configuration import ConfigWrapper
 
 logger = logging.getLogger(__name__)
+
+_NOTIFIER_TIMER_ID: Final = "notifier_timer"
 
 
 class Notifier:
@@ -359,26 +361,25 @@ class Notifier:
 
     def add_notifier_timer(self) -> None:
         if self._interval > 0:
-            # TODO: maybe check if job exists?
             self._sched.add_job(
                 self._notify_by_time,
                 "interval",
                 seconds=self._interval,
-                id="notifier_timer",
+                id=_NOTIFIER_TIMER_ID,
                 replace_existing=True,
             )
 
     def remove_notifier_timer(self) -> None:
-        if self._sched.get_job("notifier_timer"):
-            self._sched.remove_job("notifier_timer")
+        if self._sched.get_job(_NOTIFIER_TIMER_ID):
+            self._sched.remove_job(_NOTIFIER_TIMER_ID)
 
     def _reschedule_notifier_timer(self) -> None:
-        if self._interval > 0 and self._sched.get_job("notifier_timer"):
+        if self._interval > 0 and self._sched.get_job(_NOTIFIER_TIMER_ID):
             self._sched.add_job(
                 self._notify_by_time,
                 "interval",
                 seconds=self._interval,
-                id="notifier_timer",
+                id=_NOTIFIER_TIMER_ID,
                 replace_existing=True,
             )
 
@@ -386,32 +387,23 @@ class Notifier:
         await self.reset_notifications()
         self.remove_notifier_timer()
 
-    # TODO: refactor with TelegramMessageRepr class
     async def _send_print_start_info(self) -> None:
         message, bio = await self._klippy.get_file_info(state=PrintState.NOTIFY_START)
 
+        tg_message = TelegramMessageRepr(
+            text=message,
+            silent=self.silent_status,
+            reply_markup=self.get_status_keyboard(state=PrintState.NOTIFY_START),
+        )
+
         if not self._group_only:
-            status_message = await self._bot.send_photo(
-                self._chat_id,
-                photo=bio,
-                caption=message,
-                parse_mode=ParseMode.HTML,
-                reply_markup=self.get_status_keyboard(state=PrintState.NOTIFY_START),
-                disable_notification=self.silent_status,
-            )
+            status_message = await tg_message.send(self._bot, self._chat_id, bio)
             self._status_message = status_message
 
         for group_, message_thread_id in self._notify_groups:
             bio.seek(0)
-            self._groups_status_messages[group_] = await self._bot.send_photo(
-                chat_id=group_,
-                message_thread_id=message_thread_id,
-                photo=bio,
-                caption=message,
-                parse_mode=ParseMode.HTML,
-                reply_markup=self.get_status_keyboard(state=PrintState.NOTIFY_START),
-                disable_notification=self.silent_status,
-            )
+            self._groups_status_messages[group_] = await tg_message.send(self._bot, group_, bio, message_thread_id)
+
         bio.close()
 
         if self._pin_status_single_message and self._status_message is not None:
