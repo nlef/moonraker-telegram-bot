@@ -8,7 +8,7 @@ from datetime import datetime
 from io import BytesIO
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import aiofiles
 import anyio
@@ -20,6 +20,8 @@ from klippy import Klippy, PrintState
 from telegram_helper import TelegramMessageRepr
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
 
     from camera import Camera
@@ -226,89 +228,49 @@ class Notifier:
             if state.is_finished:
                 await self.reset_notifications()
 
-    # manual notification methods
+    def _schedule_job(self, func: Callable[..., object], kwargs: dict[str, Any]) -> None:
+        self._sched.add_job(
+            func,
+            kwargs=kwargs,
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=6,
+            replace_existing=False,
+        )
+
+    def _schedule_one_shot(self, func: Callable[..., object], kwargs: dict[str, Any] | None = None) -> None:
+        self._sched.add_job(
+            func,
+            kwargs=kwargs or {},
+            misfire_grace_time=None,
+            coalesce=False,
+            max_instances=1,
+            replace_existing=True,
+        )
+
     def send_error(self, message: str, logs_upload: bool = False, preformat_text: str | None = None) -> None:
         if preformat_text:
             message += f"\n<pre>{preformat_text}</pre>"
         if logs_upload:
             message += "\nUpload logs to analyzer /logs_upload\nSend logs to chat /logs"
         tg_message = TelegramMessageRepr(text=message)
-        self._sched.add_job(
-            self._send_message,
-            kwargs={
-                "message": tg_message,
-                "manual": True,
-            },
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        self._schedule_job(self._send_message, {"message": tg_message, "manual": True})
 
     def send_error_with_photo(self, message: str) -> None:
         tg_message = TelegramMessageRepr(text=message)
-        self._sched.add_job(
-            self._notify,
-            kwargs={
-                "message": tg_message,
-                "manual": True,
-            },
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        self._schedule_job(self._notify, {"message": tg_message, "manual": True})
 
     def send_printer_status_notification(self, message: str) -> None:
-        tg_message = TelegramMessageRepr(
-            text=message,
-            silent=self._silent_status,
-        )
-        self._sched.add_job(
-            self._send_message,
-            kwargs={
-                "message": tg_message,
-                "manual": True,
-            },
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        tg_message = TelegramMessageRepr(text=message, silent=self._silent_status)
+        self._schedule_job(self._send_message, {"message": tg_message, "manual": True})
 
     def send_notification(self, message: str) -> None:
-        tg_message = TelegramMessageRepr(
-            text=message,
-            silent=self._silent_commands,
-        )
-        self._sched.add_job(
-            self._send_message,
-            kwargs={
-                "message": tg_message,
-                "manual": True,
-            },
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        tg_message = TelegramMessageRepr(text=message, silent=self._silent_commands)
+        self._schedule_job(self._send_message, {"message": tg_message, "manual": True})
 
     def send_notification_with_photo(self, message: str) -> None:
-        tg_message = TelegramMessageRepr(
-            text=message,
-            silent=self._silent_commands,
-        )
-        self._sched.add_job(
-            self._notify,
-            kwargs={
-                "message": tg_message,
-                "manual": True,
-            },
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        tg_message = TelegramMessageRepr(text=message, silent=self._silent_commands)
+        self._schedule_job(self._notify, {"message": tg_message, "manual": True})
 
     async def reset_notifications(self) -> None:
         self._last_percent = 0
@@ -458,40 +420,21 @@ class Notifier:
 
     def send_print_start_info(self) -> None:
         if self._enabled:
-            self._sched.add_job(
-                self._send_print_start_info,
-                misfire_grace_time=None,
-                coalesce=False,
-                max_instances=1,
-                replace_existing=True,
-            )
+            self._schedule_one_shot(self._send_print_start_info)
 
     async def _send_print_finish(self) -> None:
         self._schedule_notification(state=PrintState.NOTIFY_FINISH)
 
     def send_print_finish(self) -> None:
         if self._enabled:
-            self._sched.add_job(
-                self._send_print_finish,
-                misfire_grace_time=None,
-                coalesce=False,
-                max_instances=1,
-                replace_existing=True,
-            )
+            self._schedule_one_shot(self._send_print_finish)
 
     async def _update_status_on_abort(self, state: PrintState) -> None:
         self._schedule_notification(state=state)
 
     def update_status_on_abort(self, state: PrintState) -> None:
         if self._enabled:
-            self._sched.add_job(
-                self._update_status_on_abort,
-                kwargs={"state": state},
-                misfire_grace_time=None,
-                coalesce=False,
-                max_instances=1,
-                replace_existing=True,
-            )
+            self._schedule_one_shot(self._update_status_on_abort, {"state": state})
 
     def update_status(self) -> None:
         self._schedule_notification()
@@ -548,14 +491,7 @@ class Notifier:
             await self._bot.send_message(self._chat_id, text=f"Error sending image: {ex}", disable_notification=self._silent_commands)
 
     def send_image(self, ws_message: str) -> None:
-        self._sched.add_job(
-            self._send_image,
-            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        self._schedule_job(self._send_image, {"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)})
 
     async def _send_video(self, paths: list[str], message: str) -> None:
         try:
@@ -592,14 +528,7 @@ class Notifier:
             await self._bot.send_message(self._chat_id, text=f"Error sending video: {ex}", disable_notification=self._silent_commands)
 
     def send_video(self, ws_message: str) -> None:
-        self._sched.add_job(
-            self._send_video,
-            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        self._schedule_job(self._send_video, {"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)})
 
     async def _send_document(self, paths: list[str], message: str) -> None:
         try:
@@ -635,14 +564,7 @@ class Notifier:
             await self._bot.send_message(self._chat_id, text=f"Error sending document: {ex}", disable_notification=self._silent_commands)
 
     def send_document(self, ws_message: str) -> None:
-        self._sched.add_job(
-            self._send_document,
-            kwargs={"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)},
-            misfire_grace_time=None,
-            coalesce=False,
-            max_instances=6,
-            replace_existing=False,
-        )
+        self._schedule_job(self._send_document, {"paths": self._parse_path(ws_message), "message": self._parse_message(ws_message)})
 
     async def parse_notification_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
