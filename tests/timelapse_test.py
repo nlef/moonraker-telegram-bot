@@ -70,6 +70,35 @@ def test_cleanup_unfinished_lapses(tmp_path: Path) -> None:
     assert not any(tmp_path.iterdir())
 
 
+def test_detect_unfinished_lapses_in_nested_folder(tmp_path: Path) -> None:
+    lapse_name = "queued/parts/cube_2025-02-24_12-30"
+    lapse_path = tmp_path / lapse_name
+    lapse_path.mkdir(parents=True, exist_ok=True)
+    (lapse_path / "lapse.lock").touch()
+    tl = make_timelapse(tmp_path)
+    assert tl.detect_unfinished_lapses() == [lapse_name]
+
+
+def test_cleanup_unfinished_lapses_in_nested_folder(tmp_path: Path) -> None:
+    lapse_path = tmp_path / "queued" / "parts" / "cube_2025-02-24_12-30"
+    lapse_path.mkdir(parents=True, exist_ok=True)
+    (lapse_path / "lapse.lock").touch()
+    tl = make_timelapse(tmp_path)
+    tl.cleanup_unfinished_lapses()
+    assert not any(tmp_path.rglob("*.lock"))
+
+
+def test_stray_root_lock_is_ignored(tmp_path: Path) -> None:
+    (tmp_path / "lapse.lock").touch()
+    (tmp_path / "real_lapse").mkdir()
+    (tmp_path / "real_lapse" / "lapse.lock").touch()
+    tl = make_timelapse(tmp_path)
+    assert tl.detect_unfinished_lapses() == ["real_lapse"]
+    tl.cleanup_unfinished_lapses()
+    assert tmp_path.exists()
+    assert (tmp_path / "lapse.lock").exists()
+
+
 @pytest.mark.asyncio
 async def test_save_and_restore_state(tmp_path: Path) -> None:
     tl = make_timelapse(tmp_path)

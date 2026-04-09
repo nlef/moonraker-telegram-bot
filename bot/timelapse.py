@@ -10,6 +10,7 @@ import logging
 import math
 import os
 from pathlib import Path
+import shutil
 import time
 from typing import TYPE_CHECKING, Any, Final
 
@@ -485,17 +486,14 @@ class Timelapse:
         return video_bytes, res_thumb_bytes, width, height, str(video_filepath)
 
     def _cleanup_lapse(self, lapse_filename: str, *, force: bool = False) -> None:
-        lapse_dir = self._base_dir / lapse_filename
         if self._cleanup or force:
-            for filename in lapse_dir.iterdir():
-                filename.unlink()
-            lapse_dir.rmdir()
+            shutil.rmtree(self._base_dir / lapse_filename)
 
-    # TODO: check if lapse was in subfolder (alike gcode folders)
     # TODO: check for 64 symbols length in lapse names
     def detect_unfinished_lapses(self) -> list[str]:
         # TODO: detect unstarted timelapse builds? folder with pics and no mp4 files
-        return [el.parent.name for el in self._base_dir.rglob("*.lock")]
+        # Skip stray root-level lock files: their relative name is empty and cleanup would target base_dir.
+        return ["/".join(parts) for lock_file in self._base_dir.rglob("*.lock") if (parts := lock_file.relative_to(self._base_dir).parts[:-1])]
 
     def cleanup_unfinished_lapses(self) -> None:
         for lapse_name in self.detect_unfinished_lapses():
