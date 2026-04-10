@@ -511,12 +511,15 @@ class MjpegCamera(Camera):
         try:
             response = self._http.get(self._host_snapshot)
             os_nice(15)
-            if response.is_success and response.headers["Content-Type"] == "image/jpeg":
+            response.raise_for_status()
+            # Strip MIME parameters (e.g. '; charset=binary') before matching.
+            content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            if content_type in ("image/jpeg", "image/jpg"):
                 bio.write(response.content)
             else:
-                response.raise_for_status()
+                logger.warning("Unexpected Content-Type from streamer snapshot: %r", content_type)
         except HTTPError:
-            logger.exception("Streamer snapshot get failed\n%s")
+            logger.exception("Streamer snapshot get failed")
         os_nice(0)
         bio.seek(0)
         return bio
