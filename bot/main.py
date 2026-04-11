@@ -1246,7 +1246,7 @@ async def greeting_message(bot: telegram.Bot) -> None:
         else:
             mess += "Printer online on " + get_local_ip()
             if config_wrap.configuration_errors:
-                mess += await klippy.get_versions_info(bot_only=True) + config_wrap.configuration_errors
+                mess += "\n" + await klippy.get_versions_info(bot_only=True) + config_wrap.configuration_errors
 
         use_keyboard = config_wrap.telegram_ui.send_reply_keyboard
         await bot.send_message(
