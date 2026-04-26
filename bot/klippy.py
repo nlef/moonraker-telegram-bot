@@ -144,6 +144,7 @@ class Klippy:
         self.paused: bool = False
         self.state: str = ""
         self.state_message: str = ""
+        self.hostname: str = ""
 
         self.printing_duration: float = 0.0
         self.printing_progress: float = 0.0
@@ -391,6 +392,7 @@ class Klippy:
                 connected = response.is_success
 
                 if connected:
+                    self.hostname = orjson.loads(response.text)["result"].get("hostname", "")
                     return ""
                 # TODO: get reason from error handler
                 last_reason = f"{response.status_code}"
