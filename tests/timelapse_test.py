@@ -37,7 +37,6 @@ def make_timelapse(base_dir: Path, *, cleanup: bool = True) -> Timelapse:
     config.camera.fourcc = "h264"
 
     camera = MagicMock()
-    camera.enabled = True
 
     klippy = MagicMock()
     klippy.light_device = None
