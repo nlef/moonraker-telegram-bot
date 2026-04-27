@@ -88,13 +88,13 @@ def os_nice(value: int) -> None:
 def _encode_frames(
     frame_list: list[bytes],
     filepath: Path,
-    fourcc: str,
+    video_codec: str,
     duration: float,
     transform: Callable[[Any], NDArray[Any]],
 ) -> None:
     res_fps = len(frame_list) / duration
     logger.debug("res fps - %s", res_fps)
-    out = ffmpegcv.VideoWriter(filepath.as_posix(), codec=fourcc, fps=res_fps)
+    out = ffmpegcv.VideoWriter(filepath.as_posix(), codec=video_codec, fps=res_fps)
     for el in frame_list:
         frame = pickle.loads(el)
         out.write(transform(frame))
@@ -136,7 +136,7 @@ class Camera(abc.ABC):
         self._host: str = cam_config.host
         self._flip_vertically: bool = cam_config.flip_vertically
         self._flip_horizontally: bool = cam_config.flip_horizontally
-        self._fourcc: str = cam_config.fourcc
+        self._video_codec: str = cam_config.video_codec
         self._video_duration: int = cam_config.video_duration
         self._stream_fps: int = cam_config.stream_fps
         self._klippy: Klippy = klippy
@@ -175,6 +175,10 @@ class Camera(abc.ABC):
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
+
+    @property
+    def video_codec(self) -> str:
+        return self._video_codec
 
     @abc.abstractmethod
     def take_photo(self) -> BytesIO: ...
@@ -341,7 +345,7 @@ class NumpyCamera(Camera):
                 del frame_loc
 
             self._release_capture()
-            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._transform_frame)
+            _encode_frames(frame_list, filepath, self._video_codec, self._video_duration, self._transform_frame)
             os_nice(0)
 
         return _read_and_cleanup_video(filepath), thumb_bio, width, height
@@ -593,7 +597,7 @@ class MjpegCamera(Camera):
                         frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
-            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._image_to_frame)
+            _encode_frames(frame_list, filepath, self._video_codec, self._video_duration, self._image_to_frame)
             os_nice(0)
 
         return _read_and_cleanup_video(filepath), thumb_bio, width, height

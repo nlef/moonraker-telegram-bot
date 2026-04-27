@@ -110,6 +110,11 @@ def test_single_camera_section(config_helper: ConfigWrapper) -> None:
     assert config_helper.cameras["default"].host
     assert config_helper.default_camera is not None
     assert config_helper.default_camera.name == "default"
+    assert not hasattr(config_helper, "camera")
+
+
+def test_camera_fourcc_is_exposed_as_video_codec(config_helper: ConfigWrapper) -> None:
+    assert config_helper.cameras["default"].video_codec == "h264"
 
 
 def test_multi_camera_sections(tmp_path: Path) -> None:

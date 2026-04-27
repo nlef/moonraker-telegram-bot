@@ -290,7 +290,7 @@ class CameraConfig(ConfigHelper):
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
         self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
-        self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
+        self.video_codec: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
 
         # TODO: [fixme] fix default calcs! add check max value cpu count
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
@@ -516,8 +516,6 @@ class ConfigWrapper:
         self.secrets = SecretsConfig(config)
         self.bot_config = BotConfig(config)
         self.cameras: dict[str, CameraConfig] = self._parse_cameras(config)
-        # Compatibility for code paths that are still single-camera in this PR.
-        self.camera = self.default_camera or CameraConfig(config, name="default", section="camera")
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)

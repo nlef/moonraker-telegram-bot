@@ -64,7 +64,6 @@ class Timelapse:
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
         self._after_photo_gcode: str = config.timelapse.after_photo_gcode
-        self._fourcc: str = config.camera.fourcc
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
 
@@ -436,7 +435,7 @@ class Timelapse:
 
         out = ffmpegcv.VideoWriter(
             video_filepath.as_posix(),
-            codec=self._fourcc,
+            codec=self._camera.video_codec,
             fps=lapse_fps,
         )
 
