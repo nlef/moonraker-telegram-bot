@@ -1,5 +1,7 @@
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from notifications import Notifier
 
@@ -29,6 +31,20 @@ def make_notifier(height: float = 5.0, percent: int = 0) -> Notifier:
     klippy.printing_duration = 100.0
 
     return Notifier(config, MagicMock(), klippy, MagicMock(), MagicMock(), logging.NullHandler())
+
+
+@pytest.mark.asyncio
+async def test_notify_without_camera_sends_text_message() -> None:
+    notifier = make_notifier()
+    notifier._cam_wrap = None
+    notifier._send_message = AsyncMock()
+    notifier._send_photo = AsyncMock()
+    message = MagicMock()
+
+    await notifier._notify(message)
+
+    notifier._send_message.assert_awaited_once_with(message, group_only=False, manual=False)
+    notifier._send_photo.assert_not_awaited()
 
 
 def test_height_notification_triggers_at_threshold() -> None:

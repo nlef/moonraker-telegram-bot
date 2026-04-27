@@ -28,7 +28,7 @@ from PIL import Image
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from configuration import ConfigWrapper
+    from configuration import CameraConfig, ConfigWrapper
     from klippy import Klippy, PowerDevice
 
 try:
@@ -88,13 +88,13 @@ def os_nice(value: int) -> None:
 def _encode_frames(
     frame_list: list[bytes],
     filepath: Path,
-    fourcc: str,
+    video_codec: str,
     duration: float,
     transform: Callable[[Any], NDArray[Any]],
 ) -> None:
     res_fps = len(frame_list) / duration
     logger.debug("res fps - %s", res_fps)
-    out = ffmpegcv.VideoWriter(filepath.as_posix(), codec=fourcc, fps=res_fps)
+    out = ffmpegcv.VideoWriter(filepath.as_posix(), codec=video_codec, fps=res_fps)
     for el in frame_list:
         frame = pickle.loads(el)
         out.write(transform(frame))
@@ -131,42 +131,42 @@ def create_thumb(image: NDArray[Any]) -> tuple[BytesIO, int, int]:
 class Camera(abc.ABC):
     """Abstract base for all camera backends."""
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        self.enabled: bool = bool(config.camera.enabled and config.camera.host)
-        self._host: str = config.camera.host
-        self._flip_vertically: bool = config.camera.flip_vertically
-        self._flip_horizontally: bool = config.camera.flip_horizontally
-        self._fourcc: str = config.camera.fourcc
-        self._video_duration: int = config.camera.video_duration
-        self._stream_fps: int = config.camera.stream_fps
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        self.name: str = cam_config.name
+        self._host: str = cam_config.host
+        self._flip_vertically: bool = cam_config.flip_vertically
+        self._flip_horizontally: bool = cam_config.flip_horizontally
+        self._video_codec: str = cam_config.video_codec
+        self._video_duration: int = cam_config.video_duration
+        self._stream_fps: int = cam_config.stream_fps
         self._klippy: Klippy = klippy
 
         self._light_need_off: bool = False
         self._light_need_off_lock: threading.Lock = threading.Lock()
 
-        self.light_timeout: int = config.camera.light_timeout
+        self.light_timeout: int = cam_config.light_timeout
         self.light_device: PowerDevice | None = self._klippy.light_device
         self._camera_lock: threading.Lock = threading.Lock()
         self.light_lock = threading.Lock()
         self.light_timer_event: threading.Event = threading.Event()
         self.light_timer_event.set()
 
-        self._picture_quality = config.camera.picture_quality
+        self._picture_quality = cam_config.picture_quality
         self._img_extension: str
-        if config.camera.picture_quality in ["low", "high"]:
+        if cam_config.picture_quality in ["low", "high"]:
             self._img_extension = "jpeg"
         else:
-            self._img_extension = config.camera.picture_quality
+            self._img_extension = cam_config.picture_quality
 
         self._light_requests: int = 0
         self._light_request_lock: threading.Lock = threading.Lock()
 
         self._rotation_count: int | None
-        if config.camera.rotate == "90_cw":
+        if cam_config.rotate == "90_cw":
             self._rotation_count = 1
-        elif config.camera.rotate == "180":
+        elif cam_config.rotate == "180":
             self._rotation_count = 2
-        elif config.camera.rotate == "90_ccw":
+        elif cam_config.rotate == "90_ccw":
             self._rotation_count = 3
         else:
             self._rotation_count = None
@@ -175,6 +175,10 @@ class Camera(abc.ABC):
             logger.addHandler(logging_handler)
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
+
+    @property
+    def video_codec(self) -> str:
+        return self._video_codec
 
     @abc.abstractmethod
     def take_photo(self) -> BytesIO: ...
@@ -219,8 +223,8 @@ class Camera(abc.ABC):
 class NumpyCamera(Camera):
     """Camera backend using numpy arrays for frame processing. Base for OpenCV and FFmpeg cameras."""
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        super().__init__(config, klippy, logging_handler)
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(cam_config, config, klippy, logging_handler)
         self._save_lapse_photos_as_images: bool = config.timelapse.save_lapse_photos_as_images
 
     @property
@@ -341,7 +345,7 @@ class NumpyCamera(Camera):
                 del frame_loc
 
             self._release_capture()
-            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._transform_frame)
+            _encode_frames(frame_list, filepath, self._video_codec, self._video_duration, self._transform_frame)
             os_nice(0)
 
         return _read_and_cleanup_video(filepath), thumb_bio, width, height
@@ -378,15 +382,9 @@ class OpenCVCamera(NumpyCamera):
 
     # TODO: [fixme] deprecated! use T-API https://learnopencv.com/opencv-transparent-api/
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        super().__init__(config, klippy, logging_handler)
-
-        if not cv2:
-            logger.warning("OpenCV not available, camera disabled")
-            self.enabled = False
-            return
-
-        self._threads: int = config.camera.threads
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(cam_config, config, klippy, logging_handler)
+        self._threads: int = cam_config.threads
 
         if config.bot_config.debug:
             logger.debug(cv2.getBuildInformation())
@@ -453,8 +451,8 @@ class OpenCVCamera(NumpyCamera):
 class FFmpegCamera(NumpyCamera):
     """Camera backend using FFmpeg for RTSP/stream capture."""
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        super().__init__(config, klippy, logging_handler)
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(cam_config, config, klippy, logging_handler)
 
         self._cam_timeout: int = 5
         self._videoinfo = get_info(self._host, self._cam_timeout)
@@ -485,11 +483,11 @@ class MjpegCamera(Camera):
         3: Image.Transpose.ROTATE_90,
     }
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        super().__init__(config, klippy, logging_handler)
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(cam_config, config, klippy, logging_handler)
         self._img_extension = "jpeg"
-        self._host = config.camera.host
-        self._host_snapshot = config.camera.host_snapshot or self._host.replace("stream", "snapshot")
+        self._host = cam_config.host
+        self._host_snapshot = cam_config.host_snapshot or self._host.replace("stream", "snapshot")
         self._http = httpx.Client(timeout=5, verify=False)
 
     @property
@@ -599,7 +597,7 @@ class MjpegCamera(Camera):
                         frame_list.append(pickle.dumps(frame_loc))
                 del frame_loc
 
-            _encode_frames(frame_list, filepath, self._fourcc, self._video_duration, self._image_to_frame)
+            _encode_frames(frame_list, filepath, self._video_codec, self._video_duration, self._image_to_frame)
             os_nice(0)
 
         return _read_and_cleanup_video(filepath), thumb_bio, width, height
@@ -608,8 +606,8 @@ class MjpegCamera(Camera):
 class RawStreamCamera(MjpegCamera):
     """Camera backend for direct H.264/snapshot passthrough without re-encoding."""
 
-    def __init__(self, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
-        super().__init__(config, klippy, logging_handler)
+    def __init__(self, cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> None:
+        super().__init__(cam_config, config, klippy, logging_handler)
 
         if self._flip_vertically or self._flip_horizontally or self._rotation_count is not None:
             logger.warning("raw_stream camera: flip/rotate not supported for video (stream copy). Use type=ffmpeg if you need video transforms.")
@@ -645,3 +643,19 @@ class RawStreamCamera(MjpegCamera):
             os_nice(0)
 
         return _read_and_cleanup_video(filepath), thumb_bio, width, height
+
+
+def create_camera(cam_config: CameraConfig, config: ConfigWrapper, klippy: Klippy, logging_handler: logging.Handler) -> Camera | None:
+    if not cam_config.enabled or not cam_config.host:
+        return None
+    cam_type = cam_config.cam_type
+    if cam_type == "mjpeg":
+        return MjpegCamera(cam_config, config, klippy, logging_handler)
+    if cam_type == "ffmpeg":
+        return FFmpegCamera(cam_config, config, klippy, logging_handler)
+    if cam_type == "raw_stream":
+        return RawStreamCamera(cam_config, config, klippy, logging_handler)
+    if not cv2:
+        logger.warning("OpenCV not available, camera '%s' disabled", cam_config.name)
+        return None
+    return OpenCVCamera(cam_config, config, klippy, logging_handler)

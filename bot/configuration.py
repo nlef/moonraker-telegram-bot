@@ -258,9 +258,8 @@ class BotConfig(ConfigHelper):
 
 
 class CameraConfig(ConfigHelper):
-    """Config for the [camera] section."""
+    """Config for a [camera] or [camera <name>] section."""
 
-    _section = "camera"
     _KNOWN_ITEMS: ClassVar[list[str]] = [
         "host",
         "host_snapshot",
@@ -274,19 +273,24 @@ class CameraConfig(ConfigHelper):
         "light_control_timeout",
         "picture_quality",
         "type",
+        "enabled",
+        "use_for_status",
+        "use_for_timelapse",
     ]
 
-    def __init__(self, config: configparser.ConfigParser) -> None:
+    def __init__(self, config: configparser.ConfigParser, name: str, section: str) -> None:
         super().__init__(config)
-        self.enabled: bool = config.has_section(self._section)
+        self._section = section
+        self.name: str = name
         self.cam_type: str = self._get_str("type", default="mjpeg", allowed_values=["opencv", "ffmpeg", "mjpeg", "raw_stream"])
+        self.enabled: bool = self._get_boolean("enabled", default=True)
         self.host: str = self._get_str("host", default="")
         self.host_snapshot: str = self._get_str("host_snapshot", default="")
         self.stream_fps: int = self._get_int("fps", default=0, above=0)
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
         self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
-        self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
+        self.video_codec: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
 
         # TODO: [fixme] fix default calcs! add check max value cpu count
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2))
@@ -295,6 +299,8 @@ class CameraConfig(ConfigHelper):
         self.video_duration: int = self._get_int("video_duration", default=5, above=0)
         self.light_timeout: int = self._get_int("light_control_timeout", default=0, min_value=0)
         self.picture_quality: str = self._get_str("picture_quality", default="high", allowed_values=["low", "high"])
+        self.use_for_timelapse: bool = self._get_boolean("use_for_timelapse", default=(name == "default"))
+        self.use_for_status: bool = self._get_boolean("use_for_status", default=(name == "default"))
 
 
 class NotifierConfig(ConfigHelper):
@@ -506,30 +512,57 @@ class ConfigWrapper:
                 config.read(path.parent / addit_conf)
 
         self._config = config
+        self.parsing_errors: str = ""
         self.secrets = SecretsConfig(config)
         self.bot_config = BotConfig(config)
-        self.camera = CameraConfig(config)
+        self.cameras: dict[str, CameraConfig] = self._parse_cameras(config)
         self.notifications = NotifierConfig(config)
         self.timelapse = TimelapseConfig(config)
         self.telegram_ui = TelegramUIConfig(config)
         self.status_message_content = StatusMessageContentConfig(config)
         self.unknown_fields = (
             self.bot_config.unknown_fields
-            + self.camera.unknown_fields
+            + "".join(cam.unknown_fields for cam in self.cameras.values())
             + self.notifications.unknown_fields
             + self.timelapse.unknown_fields
             + self.telegram_ui.unknown_fields
             + self.status_message_content.unknown_fields
         )
-        self.parsing_errors = (
+        self.parsing_errors += (
             self.secrets.parsing_errors
             + self.bot_config.parsing_errors
-            + self.camera.parsing_errors
+            + "".join(cam.parsing_errors for cam in self.cameras.values())
             + self.notifications.parsing_errors
             + self.timelapse.parsing_errors
             + self.telegram_ui.parsing_errors
             + self.status_message_content.parsing_errors
         )
+
+    def _parse_cameras(self, config: configparser.ConfigParser) -> dict[str, CameraConfig]:
+        cameras: dict[str, CameraConfig] = {}
+        if config.has_section("camera"):
+            cameras["default"] = CameraConfig(config, name="default", section="camera")
+        for section in config.sections():
+            # Reject [camera default] entirely — the real default is [camera].
+            if section == "camera default":
+                self.parsing_errors += "Use [camera] instead of [camera default]\n"
+                continue
+            if section.startswith("camera "):
+                name = section.split(" ", 1)[1]
+                cameras[name] = CameraConfig(config, name=name, section=section)
+        return cameras
+
+    @property
+    def default_camera(self) -> CameraConfig | None:
+        return next(iter(self.cameras.values()), None)
+
+    @property
+    def timelapse_cameras(self) -> dict[str, CameraConfig]:
+        return {name: cam for name, cam in self.cameras.items() if cam.use_for_timelapse}
+
+    @property
+    def status_cameras(self) -> dict[str, CameraConfig]:
+        return {name: cam for name, cam in self.cameras.items() if cam.use_for_status}
 
     def dump_config_to_log(self) -> None:
         config_copy = copy.deepcopy(self._config)

@@ -34,10 +34,9 @@ def make_timelapse(base_dir: Path, *, cleanup: bool = True) -> Timelapse:
     config.bot_config.max_upload_file_size = 50
     config.secrets.chat_id = 123
     config.telegram_ui.silent_progress = False
-    config.camera.fourcc = "h264"
 
     camera = MagicMock()
-    camera.enabled = True
+    camera.video_codec = "h264"
 
     klippy = MagicMock()
     klippy.light_device = None

@@ -45,12 +45,12 @@ class Timelapse:
         self,
         config: ConfigWrapper,
         klippy: Klippy,
-        camera: Camera,
+        camera: Camera | None,
         scheduler: BaseScheduler,
         bot: Bot,
         logging_handler: logging.Handler,
     ) -> None:
-        self._enabled: bool = config.timelapse.enabled and camera.enabled
+        self._enabled: bool = config.timelapse.enabled and camera is not None
         self._mode_manual: bool = config.timelapse.mode_manual
         self._height: float = config.timelapse.height
         self._interval: int = config.timelapse.interval
@@ -64,12 +64,11 @@ class Timelapse:
         self._after_lapse_gcode: str = config.timelapse.after_lapse_gcode
         self._send_finished_lapse: bool = config.timelapse.send_finished_lapse
         self._after_photo_gcode: str = config.timelapse.after_photo_gcode
-        self._fourcc: str = config.camera.fourcc
 
         self._silent_progress: bool = config.telegram_ui.silent_progress
 
         self._klippy: Klippy = klippy
-        self._camera: Camera = camera
+        self._camera: Camera | None = camera
 
         self._base_dir: Path = config.timelapse.base_dir
         self._ready_dir: Path | None = config.timelapse.ready_dir
@@ -214,6 +213,8 @@ class Timelapse:
             self._lapse_missed_frames += 1
 
     def _take_lapse_and_gcode(self, lapse_dir: Path, after_gcode: str | None) -> bool:
+        if self._camera is None:
+            return False
         result = self._camera.take_lapse_photo(lapse_dir)
         if after_gcode:
             try:
@@ -393,6 +394,8 @@ class Timelapse:
         if not printing_filename:
             msg = "Gcode file name is empty"
             raise ValueError(msg)
+        if self._camera is None:
+            raise RuntimeError("Camera is not configured")
 
         while self._camera.light_need_off:
             time.sleep(1)
@@ -432,7 +435,7 @@ class Timelapse:
 
         out = ffmpegcv.VideoWriter(
             video_filepath.as_posix(),
-            codec=self._fourcc,
+            codec=self._camera.video_codec,
             fps=lapse_fps,
         )
 

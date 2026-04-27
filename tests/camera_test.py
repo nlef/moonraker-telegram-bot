@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
 import httpx
 
-from camera import MjpegCamera
+import camera
+from camera import MjpegCamera, create_camera
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def _make_camera(transport: httpx.MockTransport) -> MjpegCamera:
@@ -50,3 +57,20 @@ def test_fetch_raw_snapshot_rejects_jpeg2000_substring_match() -> None:
 
     bio = _make_camera(httpx.MockTransport(handler))._fetch_raw_snapshot()
     assert bio.getvalue() == b""
+
+
+def test_create_camera_skips_config_without_host() -> None:
+    cam_config = MagicMock()
+    cam_config.host = ""
+
+    assert create_camera(cam_config, MagicMock(), MagicMock(), MagicMock()) is None
+
+
+def test_create_camera_skips_opencv_when_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    cam_config = MagicMock()
+    cam_config.host = "/dev/video0"
+    cam_config.cam_type = "opencv"
+    cam_config.name = "usb"
+    monkeypatch.setattr(camera, "cv2", None)
+
+    assert create_camera(cam_config, MagicMock(), MagicMock(), MagicMock()) is None
