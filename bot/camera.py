@@ -402,13 +402,13 @@ class Camera:
 
             logger.debug("res fps - %s", res_fps)
 
-            writer_kwargs = {"pix_fmt": self._pix_fmt} if self._pix_fmt else {}
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
                 fps=res_fps,
-                **writer_kwargs,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             for el in frame_list:
                 loc_loc = pickle.loads(el)
@@ -534,13 +534,13 @@ class Camera:
             lapse_fps = self._target_fps
 
         with self._camera_lock:
-            writer_kwargs = {"pix_fmt": self._pix_fmt} if self._pix_fmt else {}
             out = ffmpegcv.VideoWriter(
                 video_filepath,
                 codec=self._fourcc,
                 fps=lapse_fps,
-                **writer_kwargs,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Images recoding"), loop).result()
             last_update_time = time.time()
@@ -771,13 +771,13 @@ class MjpegCamera(Camera):
 
             logger.debug("res fps - %s", res_fps)
 
-            writer_kwargs = {"pix_fmt": self._pix_fmt} if self._pix_fmt else {}
             out = ffmpegcv.VideoWriter(
                 filepath,
                 codec=self._fourcc,
                 fps=res_fps,
-                **writer_kwargs,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             for el in frame_list:
                 loc_loc = pickle.loads(el)

@@ -60,3 +60,13 @@ def test_camera_pix_fmt_accepts_value(tmp_path):
     wrapper = ConfigWrapper(cfg.as_posix())
     assert wrapper.configuration_errors == ""
     assert wrapper.camera.pix_fmt == "nv12"
+
+
+def test_camera_fourcc_accepts_rkmpp(tmp_path):
+    cfg = tmp_path / "telegram.conf"
+    cfg.write_text(
+        "[bot]\nbot_token: x\nchat_id: 1\n[camera]\nhost: http://localhost:8080/?action=stream\ntype: mjpeg\nfourcc: h264_rkmpp\n"
+    )
+    wrapper = ConfigWrapper(cfg.as_posix())
+    assert wrapper.configuration_errors == ""
+    assert wrapper.camera.fourcc == "h264_rkmpp"
