@@ -46,3 +46,27 @@ def test_config_has_no_errors(config_helper):
 
 def test_config_bot_is_valid(config_helper):
     assert config_helper.secrets.chat_id == 16612341234 and config_helper.secrets.token == "23423423334:sdfgsdfg-dfgdfgsdfg"
+
+
+def test_camera_pix_fmt_defaults_to_empty(config_helper):
+    assert config_helper.camera.pix_fmt == ""
+
+
+def test_camera_pix_fmt_accepts_value(tmp_path):
+    cfg = tmp_path / "telegram.conf"
+    cfg.write_text(
+        "[bot]\nbot_token: x\nchat_id: 1\n[camera]\nhost: http://localhost:8080/?action=stream\ntype: mjpeg\npix_fmt: nv12\n"
+    )
+    wrapper = ConfigWrapper(cfg.as_posix())
+    assert wrapper.configuration_errors == ""
+    assert wrapper.camera.pix_fmt == "nv12"
+
+
+def test_camera_fourcc_accepts_rkmpp(tmp_path):
+    cfg = tmp_path / "telegram.conf"
+    cfg.write_text(
+        "[bot]\nbot_token: x\nchat_id: 1\n[camera]\nhost: http://localhost:8080/?action=stream\ntype: mjpeg\nfourcc: h264_rkmpp\n"
+    )
+    wrapper = ConfigWrapper(cfg.as_posix())
+    assert wrapper.configuration_errors == ""
+    assert wrapper.camera.fourcc == "h264_rkmpp"

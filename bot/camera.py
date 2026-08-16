@@ -89,6 +89,7 @@ class Camera:
         self._flip_vertically: bool = config.camera.flip_vertically
         self._flip_horizontally: bool = config.camera.flip_horizontally
         self._fourcc: str = config.camera.fourcc
+        self._pix_fmt: str = config.camera.pix_fmt
         self._video_duration: int = config.camera.video_duration
         self._video_buffer_size: int = config.camera.video_buffer_size
         self._stream_fps: int = config.camera.stream_fps
@@ -406,6 +407,8 @@ class Camera:
                 codec=self._fourcc,
                 fps=res_fps,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             for el in frame_list:
                 loc_loc = pickle.loads(el)
@@ -536,6 +539,8 @@ class Camera:
                 codec=self._fourcc,
                 fps=lapse_fps,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             asyncio.run_coroutine_threadsafe(info_mess.edit_text(text="Images recoding"), loop).result()
             last_update_time = time.time()
@@ -771,6 +776,8 @@ class MjpegCamera(Camera):
                 codec=self._fourcc,
                 fps=res_fps,
             )
+            if self._pix_fmt:
+                out.target_pix_fmt = self._pix_fmt
 
             for el in frame_list:
                 loc_loc = pickle.loads(el)

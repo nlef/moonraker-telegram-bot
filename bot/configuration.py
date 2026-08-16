@@ -255,6 +255,7 @@ class CameraConfig(ConfigHelper):
         "flip_horizontally",
         "rotate",
         "fourcc",
+        "pix_fmt",
         "video_duration",
         "video_buffer_size",
         "fps",
@@ -273,7 +274,8 @@ class CameraConfig(ConfigHelper):
         self.flip_vertically: bool = self._get_boolean("flip_vertically", default=False)
         self.flip_horizontally: bool = self._get_boolean("flip_horizontally", default=False)
         self.rotate: str = self._get_str("rotate", default="", allowed_values=["", "90_cw", "90_ccw", "180"])
-        self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4"])
+        self.fourcc: str = self._get_str("fourcc", default="h264", allowed_values=["h264", "mpeg4", "h264_rkmpp"])
+        self.pix_fmt: str = self._get_str("pix_fmt", default="")
 
         # self.threads: int = self._getint( "threads", fallback=int(len(os.sched_getaffinity(0)) / 2)) #Fixme:
         self.threads: int = self._get_int("threads", default=2, min_value=0)  # Fixme: fix default calcs! add check max value cpu count
