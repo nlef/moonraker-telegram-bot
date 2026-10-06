@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
+import orjson
 import pytest
 
 from klippy import Klippy, PowerDevice, PrintState
@@ -275,3 +276,34 @@ def test_device_message_no_lock_when_not_locked() -> None:
     value = {"status": "on", "locked_while_printing": False}
     msg = Klippy._device_message("psu", value)
     assert "🔒" not in msg
+
+
+@pytest.mark.asyncio
+async def test_unchanged_filename_does_not_reset_file_info(mock_klippy: Klippy) -> None:
+    metadata = {
+        "result": {
+            "filename": "bridge_PLA_25m54s.gcode",
+            "estimated_time": 1554,
+            "print_start_time": 1791110254.60128,
+            "filament_total": 3926.14,
+            "filament_weight_total": 11.8,
+        }
+    }
+    mock_klippy.make_request = AsyncMock(
+        return_value=httpx.Response(
+            status_code=200,
+            text=orjson.dumps(metadata).decode(),
+            request=httpx.Request("GET", "http://localhost:7125/server/files/metadata"),
+        )
+    )
+    await mock_klippy.set_printing_filename("bridge_PLA_25m54s.gcode")
+    timelapse_name = mock_klippy.printing_filename_with_time
+    assert timelapse_name.startswith("bridge_PLA_25m54s.gcode_")
+    assert mock_klippy.file_print_start_time == 1791110254.60128
+
+    await mock_klippy.set_printing_filename("bridge_PLA_25m54s.gcode")
+
+    assert mock_klippy.printing_filename == "bridge_PLA_25m54s.gcode"
+    assert mock_klippy.file_print_start_time == 1791110254.60128
+    assert mock_klippy.printing_filename_with_time == timelapse_name
+    assert mock_klippy.filament_total == 3926.14

@@ -1,4 +1,5 @@
 import logging
+import re
 from unittest.mock import AsyncMock, MagicMock
 
 import orjson
@@ -72,6 +73,7 @@ def mock_timelapse() -> MagicMock:
     timelapse.paused = False
     timelapse.clean = MagicMock()
     timelapse.send_timelapse = MagicMock()
+    timelapse.newest_timelapse_name = MagicMock(return_value="")
     timelapse.take_lapse_photo = MagicMock()
     timelapse.parse_timelapse_params = AsyncMock()
     timelapse.restore_state = AsyncMock()
@@ -343,12 +345,20 @@ class TestParsePrintStats:
         ws_helper._notifier.send_printer_status_notification.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_cancelled_state(self, ws_helper: WebSocketHelper) -> None:
+    async def test_cancelled_print_renders_timelapse_when_cancelled(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.is_running = True
+        ws_helper._timelapse_name = "bridge_PLA_25m54s.gcode_2026-10-04_10-37"
+        ws_helper._timelapse_gcode = "bridge_PLA_25m54s.gcode"
         message_params = {"print_stats": {"state": "cancelled"}}
 
         await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
-        ws_helper._timelapse.clean.assert_called_once()
+        ws_helper._timelapse.send_timelapse.assert_called_once_with(
+            "bridge_PLA_25m54s.gcode_2026-10-04_10-37",
+            "bridge_PLA_25m54s.gcode",
+            "cancelled",
+        )
+        ws_helper._timelapse.clean.assert_not_called()
         ws_helper._notifier.send_printer_status_notification.assert_called_once()
         ws_helper._notifier.update_status_on_abort.assert_called_once()
 
@@ -367,6 +377,142 @@ class TestParsePrintStats:
         await ws_helper.parse_print_stats(message_params, is_initial_sync=False)
 
         assert ws_helper._klippy.printing is False
+
+
+class TestFinishTimelapse:
+
+    @staticmethod
+    def arm(ws_helper: WebSocketHelper, *, running: bool = True, name: str = "bridge_PLA_25m54s.gcode_2026-10-04_10-37") -> None:
+        ws_helper._timelapse.is_running = running
+        ws_helper._timelapse_name = name
+        ws_helper._timelapse_gcode = "bridge_PLA_25m54s.gcode"
+
+    @pytest.mark.asyncio
+    async def test_paused_print_cancelled_via_telegram_renders_timelapse_when_standby(self, ws_helper: WebSocketHelper) -> None:
+        self.arm(ws_helper)
+        ws_helper._klippy.paused = True
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_called_once_with(
+            "bridge_PLA_25m54s.gcode_2026-10-04_10-37",
+            "bridge_PLA_25m54s.gcode",
+            "standby",
+        )
+
+    @pytest.mark.asyncio
+    async def test_printer_error_renders_timelapse_when_error(self, ws_helper: WebSocketHelper) -> None:
+        self.arm(ws_helper)
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "error"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_complete_state_still_renders(self, ws_helper: WebSocketHelper) -> None:
+        self.arm(ws_helper)
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "complete"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_called_once()
+        ws_helper._notifier.send_print_finish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_standby_after_complete_does_not_render_twice(self, ws_helper: WebSocketHelper) -> None:
+        self.arm(ws_helper)
+        await ws_helper.parse_print_stats({"print_stats": {"state": "complete"}}, is_initial_sync=False)
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        assert ws_helper._timelapse.send_timelapse.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_bot_restart_mid_print_recovers_timelapse_from_disk(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.is_running = True
+        ws_helper._timelapse_name = ""
+        ws_helper._timelapse_gcode = ""
+        ws_helper._timelapse.newest_timelapse_name.return_value = "Cube_PETG_9m13s.gcode_2026-10-04_13-44"
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_called_once_with(
+            "Cube_PETG_9m13s.gcode_2026-10-04_13-44",
+            "Cube_PETG_9m13s.gcode",
+            "standby",
+        )
+
+    @pytest.mark.asyncio
+    async def test_unparsable_directory_name_generates_fallback_when_unparsable(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.is_running = True
+        ws_helper._timelapse_name = ""
+        ws_helper._timelapse.newest_timelapse_name.return_value = "handful_of_frames"
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        lapse_name, gcode_name, state = ws_helper._timelapse.send_timelapse.call_args.args
+        assert lapse_name == "handful_of_frames"
+        assert re.fullmatch(r"timelapse_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}", gcode_name)
+        assert state == "standby"
+
+    @pytest.mark.asyncio
+    async def test_notifies_when_there_is_nothing_to_render(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.is_running = True
+        ws_helper._timelapse_name = ""
+        ws_helper._timelapse.newest_timelapse_name.return_value = ""
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_not_called()
+        ws_helper._notifier.send_notification.assert_called_once()
+        assert "no timelapse frames were found" in ws_helper._notifier.send_notification.call_args.args[0]
+
+    @pytest.mark.asyncio
+    async def test_manual_mode_never_renders_or_notifies(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.manual_mode = True
+        self.arm(ws_helper)
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        ws_helper._timelapse.send_timelapse.assert_not_called()
+        ws_helper._notifier.send_notification.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_idle_printer_does_not_notify(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.is_running = False
+        ws_helper._timelapse_name = ""
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=False)
+
+        ws_helper._notifier.send_notification.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_initial_sync_neither_renders_nor_notifies(self, ws_helper: WebSocketHelper) -> None:
+        self.arm(ws_helper)
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "standby"}}, is_initial_sync=True)
+
+        ws_helper._timelapse.send_timelapse.assert_not_called()
+        ws_helper._notifier.send_notification.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_print_start_records_timelapse_job_for_later_render(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._klippy.printing_filename = "bridge_PLA_25m54s.gcode"
+        ws_helper._klippy.printing_filename_with_time = "bridge_PLA_25m54s.gcode_2026-10-04_10-37"
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "printing"}}, is_initial_sync=False)
+
+        assert ws_helper._timelapse_name == "bridge_PLA_25m54s.gcode_2026-10-04_10-37"
+        assert ws_helper._timelapse_gcode == "bridge_PLA_25m54s.gcode"
+
+    @pytest.mark.asyncio
+    async def test_manual_mode_skips_timelapse_job_record(self, ws_helper: WebSocketHelper) -> None:
+        ws_helper._timelapse.manual_mode = True
+        ws_helper._klippy.printing_filename = "bridge_PLA_25m54s.gcode"
+        ws_helper._klippy.printing_filename_with_time = "bridge_PLA_25m54s.gcode_2026-10-04_10-37"
+
+        await ws_helper.parse_print_stats({"print_stats": {"state": "printing"}}, is_initial_sync=False)
+
+        assert ws_helper._timelapse_name == ""
 
 
 class TestStatusResponse:

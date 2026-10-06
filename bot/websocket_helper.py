@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from enum import Enum
 from http import HTTPStatus
 import logging
 import os
+import re
 import ssl
 import traceback
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -35,6 +37,8 @@ if TYPE_CHECKING:
     from timelapse import Timelapse
 
 JSONRPC_METHOD_NOT_FOUND = -32601
+
+_KLIPPY_TIMELAPSE_DIRECTORY_NAME_RE = re.compile(r"(?P<gcode>.+)_(?P<stamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2})$")
 
 # Methods that may not be available depending on Moonraker configuration
 _OPTIONAL_METHODS = frozenset({"machine.device_power.devices"})
@@ -109,6 +113,8 @@ class WebSocketHelper:
         self._ws: ClientConnection
         self._pending_requests: dict[int, str] = {}
         self._request_id_counter: int = 0
+        self._timelapse_name: str = ""
+        self._timelapse_gcode: str = ""
 
         if config.bot_config.debug:
             logger.setLevel(logging.DEBUG)
@@ -275,6 +281,50 @@ class WebSocketHelper:
 
         self.parse_sensors(status_data)
 
+    def record_timelapse_job_at_print_start(self) -> None:
+        """Set which timelapse directory this print is filling.
+
+        Needed for capturing print name here, while the job is live, so when it's cancelled or errored print still render with name.
+        """
+        if self._timelapse.manual_mode or not self._klippy.printing_filename:
+            return
+        self._timelapse_name = self._klippy.printing_filename_with_time
+        self._timelapse_gcode = self._klippy.printing_filename
+        logger.info("Recorded timelapse job %s", self._timelapse_name)
+
+    def resolve_timelapse_for_render(self) -> tuple[str, str]:
+        """Get timelapse directory and gcode name for rendering."""
+        if self._timelapse_name:
+            return self._timelapse_name, self._timelapse_gcode
+
+        discovered = self._timelapse.newest_timelapse_name()
+        if not discovered:
+            return "", ""
+
+        match = _KLIPPY_TIMELAPSE_DIRECTORY_NAME_RE.match(discovered)
+        if match:
+            return discovered, match.group("gcode")
+        return discovered, f"timelapse_{datetime.now():%Y-%m-%d_%H-%M}"
+
+    def render_timelapse_on_print_end(self, state: str, *, is_initial_sync: bool) -> None:
+        """Render timelapse when a print ends."""
+        was_running = self._timelapse.is_running
+        lapse_name, gcode_name = self.resolve_timelapse_for_render()
+        self._timelapse_name = ""
+        self._timelapse_gcode = ""
+        self._timelapse.is_running = False
+        self._timelapse.paused = False
+
+        if self._timelapse.manual_mode or not was_running or is_initial_sync:
+            return
+
+        if not lapse_name:
+            self._notifier.send_notification(f"Print ended ({state}) but no timelapse frames were found, so no video was sent.")
+            return
+
+        logger.info("Rendering timelapse %s after job end (%s)", lapse_name, state)
+        self._timelapse.send_timelapse(lapse_name, gcode_name, state)
+
     async def _enter_active_print(self, *, is_initial_sync: bool) -> None:
         """Transition from not-printing to an active print (printing or paused).
 
@@ -294,6 +344,7 @@ class WebSocketHelper:
             if not is_initial_sync:
                 self._timelapse.clean()
             self._timelapse.is_running = True
+        self.record_timelapse_job_at_print_start()
         if not is_initial_sync:
             self._notifier.send_print_start_info()
 
@@ -327,16 +378,13 @@ class WebSocketHelper:
         elif state == PrintState.COMPLETE:
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
-            if not self._timelapse.manual_mode:
-                self._timelapse.is_running = False
-                if not is_initial_sync:
-                    self._timelapse.send_timelapse()
+            self.render_timelapse_on_print_end(state, is_initial_sync=is_initial_sync)
             if not is_initial_sync:
                 self._notifier.send_print_finish()
         elif state == PrintState.ERROR:
             self._klippy.printing = False
-            self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
+            self.render_timelapse_on_print_end(state, is_initial_sync=is_initial_sync)
             if not is_initial_sync:
                 self._notifier.update_status_on_abort(state=PrintState.ERROR)
                 self._notifier.send_error(
@@ -347,18 +395,18 @@ class WebSocketHelper:
         elif state == PrintState.STANDBY:
             self._klippy.printing = False
             self._notifier.remove_notifier_timer()
-            self._timelapse.is_running = False
+            # A job cancelled but reports STANDBY, not CANCELLED.
+            self.render_timelapse_on_print_end(state, is_initial_sync=is_initial_sync)
             if not is_initial_sync:
                 # Initial sync into STANDBY is a no-op — the printer is idle, nothing to announce.
                 self._notifier.send_printer_status_notification(f"Printer state change: {state} \n")
         elif state == PrintState.CANCELLED:
             self._klippy.paused = False
             self._klippy.printing = False
-            self._timelapse.is_running = False
             self._notifier.remove_notifier_timer()
+            self.render_timelapse_on_print_end(state, is_initial_sync=is_initial_sync)
             if not is_initial_sync:
                 self._notifier.update_status_on_abort(state=PrintState.CANCELLED)
-                self._timelapse.clean()
                 self._notifier.send_printer_status_notification("Print cancelled")
         elif state:
             logger.error("Unknown state: %s", state)

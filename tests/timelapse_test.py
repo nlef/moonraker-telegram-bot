@@ -163,3 +163,51 @@ async def test_save_clears_on_not_running(tmp_path: Path) -> None:
 
     delete_mock.assert_called_once_with("timelapse_state")
     save_mock.assert_not_called()
+
+
+def test_newest_timelapse_returns_empty_when_no_frames_exist(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+    tl._camera.raw_frame_extension = "jpeg"
+
+    assert tl.find_latest_timelapse_directory_with_frames() == ""
+
+
+def test_newest_timelapse_skips_directories_without_captured_frames(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+    tl._camera.raw_frame_extension = "jpeg"
+    (tmp_path / "abandoned_2026-10-04_10-37").mkdir()
+    (tmp_path / "abandoned_2026-10-04_10-37" / "lapse.lock").touch()
+
+    assert tl.find_latest_timelapse_directory_with_frames() == ""
+
+
+def test_newest_timelapse_returns_latest_directory_containing_frames(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+    tl._camera.raw_frame_extension = "jpeg"
+    for name in ("old_2026-10-02_18-13", "newer_2026-10-03_07-10"):
+        path = tmp_path / name
+        path.mkdir()
+        (path / "1791110266.9208941.jpeg").touch()
+    empty = tmp_path / "empty_2026-10-04_10-37"
+    empty.mkdir()
+    (empty / "lapse.lock").touch()
+
+    assert tl.find_latest_timelapse_directory_with_frames() == "newer_2026-10-03_07-10"
+
+
+def test_send_timelapse_schedules_job_with_provided_names(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+
+    tl.send_timelapse("bridge_PLA_25m54s.gcode_2026-10-04_10-37", "bridge_PLA_25m54s.gcode")
+
+    _, kwargs = tl._sched.add_job.call_args
+    assert kwargs["args"] == ("bridge_PLA_25m54s.gcode_2026-10-04_10-37", "bridge_PLA_25m54s.gcode", "")
+
+
+def test_send_timelapse_uses_klippy_current_print_when_names_omitted(tmp_path: Path) -> None:
+    tl = make_timelapse(tmp_path)
+
+    tl.send_timelapse()
+
+    _, kwargs = tl._sched.add_job.call_args
+    assert kwargs["args"] == ("", "", "")

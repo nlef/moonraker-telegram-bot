@@ -292,9 +292,12 @@ class Klippy:
         return self._printing_filename
 
     async def set_printing_filename(self, new_value: str) -> None:
-        if new_value == self._printing_filename:
-            logger.info("'filename' has the same value as the current: %s", new_value)
+        if not new_value:
+            logger.info("'filename' has been reset: %s", new_value)
             self._reset_file_info()
+            return
+
+        if new_value == self._printing_filename:
             return
 
         self._printing_filename = new_value

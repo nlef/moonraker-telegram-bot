@@ -20,6 +20,7 @@ from telegram.constants import ChatAction
 from telegram.error import BadRequest
 
 from camera import create_thumb, os_nice
+from klippy import PrintState
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.base import BaseScheduler  # type: ignore[import-untyped]
@@ -74,7 +75,7 @@ class Timelapse:
         self._base_dir: Path = config.timelapse.base_dir
         self._ready_dir: Path | None = config.timelapse.ready_dir
         self._cleanup: bool = config.timelapse.cleanup
-        self._lapse_missed_frames: int = 0
+        self._timelapse_missed_frames: int = 0
 
         self._sched: BaseScheduler = scheduler
         self._chat_id: int = config.secrets.chat_id
@@ -92,7 +93,7 @@ class Timelapse:
             logger.setLevel(logging.DEBUG)
 
     @property
-    def _lapse_dir(self) -> Path:
+    def current_timelapse_directory(self) -> Path:
         return self._base_dir / self._klippy.printing_filename_with_time
 
     # timelapse lifecycle
@@ -121,10 +122,10 @@ class Timelapse:
     def interval(self, new_value: int) -> None:
         if new_value == 0:
             self._interval = new_value
-            self._remove_timelapse_timer()
+            self._remove_timelapse_capture_timer()
         elif new_value > 0:
             self._interval = new_value
-            self._reschedule_timelapse_timer()
+            self._reschedule_timelapse_capture_timer()
 
     @property
     def height(self) -> float:
@@ -186,10 +187,10 @@ class Timelapse:
         self._running = new_val
         self._paused = False
         if new_val:
-            self._add_timelapse_timer()
-            self._lapse_missed_frames = 0
+            self._add_timelapse_capture_timer()
+            self._timelapse_missed_frames = 0
         else:
-            self._remove_timelapse_timer()
+            self._remove_timelapse_capture_timer()
         self._schedule_save()
 
     @property
@@ -200,18 +201,18 @@ class Timelapse:
     def paused(self, new_val: bool) -> None:
         self._paused = new_val
         if new_val:
-            self._remove_timelapse_timer()
+            self._remove_timelapse_capture_timer()
         elif self._running:
-            self._add_timelapse_timer()
+            self._add_timelapse_capture_timer()
         self._schedule_save()
 
-    def _lapse_photo_callback(self, future: Future[bool]) -> None:
+    def _on_timelapse_photo_captured(self, future: Future[bool]) -> None:
         exc = future.exception()
         if exc is not None:
             logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
             return
         if not future.result():
-            self._lapse_missed_frames += 1
+            self._timelapse_missed_frames += 1
 
     def _take_lapse_and_gcode(self, lapse_dir: Path, after_gcode: str | None) -> bool:
         result = self._camera.take_lapse_photo(lapse_dir)
@@ -243,21 +244,35 @@ class Timelapse:
 
         if position_z is None:
             logger.debug("Taking lapse photo (no position)")
-            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, after_gcode).add_done_callback(self._lapse_photo_callback)
+            self._executors_pool.submit(self._take_lapse_and_gcode, self.current_timelapse_directory, after_gcode).add_done_callback(self._on_timelapse_photo_captured)
         elif self._height > 0.0 and (position_z >= self._last_height + self._height or 0.0 < position_z < self._last_height - self._height):
             logger.debug("Taking lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
-            self._executors_pool.submit(self._take_lapse_and_gcode, self._lapse_dir, after_gcode).add_done_callback(self._lapse_photo_callback)
+            self._executors_pool.submit(self._take_lapse_and_gcode, self.current_timelapse_directory, after_gcode).add_done_callback(self._on_timelapse_photo_captured)
             self._last_height = position_z
             self._schedule_save()
         else:
             logger.debug("Skipping lapse photo at Z=%.2f (last=%.2f, threshold=%.2f)", position_z, self._last_height, self._height)
 
     def clean(self) -> None:
-        if self._cleanup and self._klippy.printing_filename and self._lapse_dir.is_dir():
-            for filename in self._lapse_dir.iterdir():
+        if self._cleanup and self._klippy.printing_filename and self.current_timelapse_directory.is_dir():
+            for filename in self.current_timelapse_directory.iterdir():
                 filename.unlink()
 
-    def _add_timelapse_timer(self) -> None:
+    def find_latest_timelapse_directory_with_frames(self) -> str:
+        """Name of the most recently written timelapse directory that still holds frames.
+
+        Bot restart mid-print loses the state record, but the frames on disk are still the ones worth rendering.
+        Returns "" when nothing is pending.
+        """
+        if not self._base_dir.is_dir():
+            return ""
+        frame_glob = f"*.{self._camera.raw_frame_extension}"
+        pending = [path for path in self._base_dir.iterdir() if path.is_dir() and any(path.glob(frame_glob))]
+        if not pending:
+            return ""
+        return max(pending, key=lambda path: path.stat().st_mtime).name
+
+    def _add_timelapse_capture_timer(self) -> None:
         if self._interval > 0 and not self._sched.get_job("timelapse_timer"):
             self._sched.add_job(
                 self.take_lapse_photo,
@@ -266,11 +281,11 @@ class Timelapse:
                 id="timelapse_timer",
             )
 
-    def _remove_timelapse_timer(self) -> None:
+    def _remove_timelapse_capture_timer(self) -> None:
         if self._sched.get_job("timelapse_timer"):
             self._sched.remove_job("timelapse_timer")
 
-    def _reschedule_timelapse_timer(self) -> None:
+    def _reschedule_timelapse_capture_timer(self) -> None:
         if self._interval > 0 and self._sched.get_job("timelapse_timer"):
             self._sched.add_job(
                 self.take_lapse_photo,
@@ -280,7 +295,7 @@ class Timelapse:
                 replace_existing=True,
             )
 
-    async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: str | None = None) -> None:
+    async def upload_timelapse(self, lapse_filename: str, info_mess: Message, gcode_name_out: str | None = None, state: str = "") -> None:
         try:
             gcode_name = lapse_filename if gcode_name_out is None else gcode_name_out
             (
@@ -297,16 +312,19 @@ class Timelapse:
                 if len(video_bytes) > self._max_upload_file_size * 1024 * 1024:
                     await info_mess.edit_text(text=f"Telegram bots have a {self._max_upload_file_size}mb filesize restriction, please retrieve the timelapse from the configured folder\n{video_path}")
                 else:
-                    lapse_caption = f"time-lapse of {gcode_name}"
-                    if self._lapse_missed_frames > 0:
-                        lapse_caption += f"\n{self._lapse_missed_frames} frames missed"
+                    if state == PrintState.CANCELLED:
+                        timelapse_caption = f"Print cancelled\n{gcode_name}"
+                    else:
+                        timelapse_caption = f"Print finished\ntime-lapse of {gcode_name}"
+                    if self._timelapse_missed_frames > 0:
+                        timelapse_caption += f"\n{self._timelapse_missed_frames} frames missed"
                     await self._bot.send_video(
                         self._chat_id,
                         video=InputFile(video_bytes, filename=f"{gcode_name}.mp4"),
                         thumbnail=thumb_bytes,
                         width=width,
                         height=height,
-                        caption=lapse_caption,
+                        caption=timelapse_caption,
                         write_timeout=600,
                         disable_notification=self._silent_progress,
                     )
@@ -331,13 +349,21 @@ class Timelapse:
             logger.warning("Failed to send time-lapse to telegram bot: %s", ex)
             await info_mess.edit_text(text=f"Failed to send time-lapse to telegram bot: {ex!s}")
 
-    async def _send_lapse(self) -> None:
-        if not self._enabled or not self._klippy.printing_filename:
-            logger.debug("lapse is inactive for enabled %s or file undefined", self.enabled)
+    async def _send_lapse(self, lapse_filename: str = "", gcode_name: str = "", state: str = "") -> None:
+        if not self._enabled:
+            logger.debug("lapse is inactive for enabled %s", self.enabled)
             return
 
-        lapse_filename = self._klippy.printing_filename_with_time
-        gcode_name = self._klippy.printing_filename
+        if not lapse_filename:
+            if not self._klippy.printing_filename:
+                logger.debug("lapse is inactive for file undefined")
+                return
+            lapse_filename = self._klippy.printing_filename_with_time
+            gcode_name = gcode_name or self._klippy.printing_filename
+
+        if not gcode_name:
+            gcode_name = lapse_filename
+
         logger.info("Starting timelapse assembly for %s", gcode_name)
 
         info_mess: Message = await self._bot.send_message(
@@ -356,11 +382,16 @@ class Timelapse:
 
         await self._bot.send_chat_action(chat_id=self._chat_id, action=ChatAction.RECORD_VIDEO)
 
-        await self.upload_timelapse(lapse_filename, info_mess, gcode_name)
+        await self.upload_timelapse(lapse_filename, info_mess, gcode_name, state)
 
-    def send_timelapse(self) -> None:
+    def send_timelapse(self, lapse_filename: str = "", gcode_name: str = "", state: str = "") -> None:
+        """Queue assembly of a timelapse.
+
+        Pass lapse_filename/gcode_name to render a specific directory - required when the job has already ended and klippy no longer reports its name. 
+        With no arguments the current klippy print is used.
+        """
         self._sched.add_job(
-            self._send_lapse,
+            args=(lapse_filename, gcode_name, state),
             misfire_grace_time=None,
             coalesce=False,
             max_instances=1,
@@ -500,11 +531,11 @@ class Timelapse:
             self._cleanup_lapse(lapse_name, force=True)
 
     def stop_all(self) -> None:
-        self._remove_timelapse_timer()
+        self._remove_timelapse_capture_timer()
         self._running = False
         self._paused = False
         self._last_height = 0.0
-        self._lapse_missed_frames = 0
+        self._timelapse_missed_frames = 0
         self._schedule_save()
 
     def _schedule_save(self) -> None:
@@ -537,7 +568,7 @@ class Timelapse:
         if self._running:
             logger.info("Restored timelapse state: running=%s, paused=%s, last_height=%.2f", self._running, self._paused, self._last_height)
             if not self._paused:
-                self._add_timelapse_timer()
+                self._add_timelapse_capture_timer()
 
     async def parse_timelapse_params(self, message: str) -> None:
         mass_parts = message.split(sep=" ")
