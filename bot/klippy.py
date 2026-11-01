@@ -107,7 +107,7 @@ class PowerDevice:
 class Klippy:
     """HTTP client for the Moonraker API."""
 
-    _DATA_MACRO: Final = "bot_data"
+    _DATA_MACRO: Final = "BOT_DATA"
 
     _SENSOR_PARAMS: Final = ["temperature", "humidity", "target", "power", "speed", "rpm"]
 
