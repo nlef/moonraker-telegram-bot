@@ -265,6 +265,27 @@ async def test_turn_on_sync_reports_error(mock_klippy: Klippy) -> None:
     assert device.device_error == "device busy"
 
 
+@pytest.mark.parametrize("macro_object", ["gcode_macro bot_data", "gcode_macro BOT_DATA"])
+def test_data_macro_is_hidden(mock_klippy: Klippy, macro_object: str) -> None:
+    mock_klippy._objects_list = [macro_object, "gcode_macro PRINT_START"]
+    assert mock_klippy.macros == ["PRINT_START"]
+
+
+@pytest.mark.asyncio
+async def test_save_data_to_macro_sets_variables(mock_klippy: Klippy) -> None:
+    mock_klippy._objects_list = ["gcode_macro bot_data", "gcode_macro PRINT_START"]
+    mock_klippy.execute_gcode_script = AsyncMock()
+
+    await mock_klippy.save_data_to_macro(1024, "cube.mp4", "/home/pi/timelapse")
+
+    scripts = [call.args[0] for call in mock_klippy.execute_gcode_script.call_args_list]
+    assert scripts == [
+        "SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_video_size VALUE=1024",
+        "SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_filename VALUE='\"cube.mp4\"'",
+        "SET_GCODE_VARIABLE MACRO=bot_data VARIABLE=lapse_path VALUE='\"/home/pi/timelapse\"'",
+    ]
+
+
 def test_device_message_shows_lock_when_locked_while_printing() -> None:
     value = {"status": "on", "locked_while_printing": True}
     msg = Klippy._device_message("psu", value)
