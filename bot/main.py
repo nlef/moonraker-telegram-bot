@@ -436,7 +436,6 @@ def prepare_log_files() -> tuple[List[str], bool, Optional[str]]:
 
     return ["telegram.log", "crowsnest.log", "moonraker.log", "klippy.log", "KlipperScreen.log", "dmesg.txt", "debug.txt"], dmesg_success, dmesg_error
 
-
 async def send_logs_no_confirm(effective_message: Message) -> None:
     if effective_message is None or effective_message.get_bot() is None:
         logger.warning("Undefined effective message or bot")
@@ -453,7 +452,12 @@ async def send_logs_no_confirm(effective_message: Message) -> None:
         try:
             if Path(f"{configWrap.bot_config.log_path}/{log_file}").exists():
                 with open(f"{configWrap.bot_config.log_path}/{log_file}", "rb") as fh:
-                    logs_list.append(InputMediaDocument(fh.read(), filename=log_file))
+                    content = fh.read()
+                    if len(content) > 0:
+                        logger.debug("adding log file: " + log_file)
+                        logs_list.append(InputMediaDocument(content, filename=log_file))
+                    else:
+                        logger.debug("skipping empty log file: " + log_file)
         except FileNotFoundError as err:
             logger.warning(err)
 
